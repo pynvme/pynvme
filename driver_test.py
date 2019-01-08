@@ -40,8 +40,8 @@ import pytest
 import logging
 import warnings
 
-import driver as d
-import driver  # test double import
+import nvme as d
+import nvme  # test double import
 
 
 def test_create_device(nvme0, nvme0n1):
