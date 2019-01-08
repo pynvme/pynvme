@@ -51,7 +51,7 @@ clean: cython_clean
 cython_clean:
 	@sudo rm -rf *.so build *.o cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report
 
-all: cython_lib doc tags setup
+all: cython_lib tags
 .PHONY: all
 
 doc:
