@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: ssdmeter callback functions
+# key: smcbfun
+# --
+def $1_cb(cdw0, status):
+ $0

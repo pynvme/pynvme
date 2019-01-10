@@ -36,6 +36,29 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
 
+import setuptools
+
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
+setuptools.setup(
+    name="pynvme",
+    version="0.0.1",
+    author="Crane Chu",
+    author_email="cranechu@gmail.com",
+    description="a driver for NVMe SSD testing in Python3 scripts",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/cranechu/pynvme",
+    packages=setuptools.find_packages(),
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Programming Language :: C",
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: BSD License",
+        "Operating System :: POSIX :: Linux",
+    ],
+)
 
 setup(
     ext_modules=cythonize(
@@ -45,7 +68,7 @@ setup(
 
             # spdk static libraries
             extra_objects=[
-                './spdk/build/lib/libspdk_ssdmeter_driver.a',
+                './spdk/build/lib/libspdk_pynvme.a',
                 './spdk/build/lib/libspdk_nvme.a',
                 './spdk/build/lib/libspdk_env_dpdk.a',
                 './spdk/build/lib/libspdk_util.a',

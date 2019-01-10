@@ -717,7 +717,7 @@ int driver_init(void)
   sprintf(buf, "0x%x", 1<<(getpid()%get_nprocs()));
   opts.core_mask = buf;
   opts.shm_id = 0;
-  opts.name = "ssdmeter_driver";
+  opts.name = "pynvme_driver";
   opts.mem_size = 5892;
   if (spdk_env_init(&opts) < 0)
   {
@@ -736,7 +736,7 @@ int driver_fini(void)
 {
   //delete cmd log of admin queue
   cmd_log_table_delete(0);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "ssdmeter driver unloaded.\n");
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
 	return 0;
 }
 
@@ -772,19 +772,33 @@ struct spdk_nvme_ctrlr* nvme_probe(char * traddr)
   struct cb_ctx cb_ctx;
 	int rc;
 
-  trid.trtype = SPDK_NVME_TRANSPORT_PCIE;
-  strncpy(trid.traddr, traddr, 15);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "looking for NVMe @%s\n", traddr);
+
+  // device address
+  if (strchr(traddr, ':') != NULL)
+  {
+    // pcie address: contains ':' characters
+    trid.trtype = SPDK_NVME_TRANSPORT_PCIE;
+    strncpy(trid.traddr, traddr, strlen(traddr)+1);
+  }
+  else
+  {
+    // tcp/ip address: fixed port to 4420
+    trid.trtype = SPDK_NVME_TRANSPORT_TCP;
+    trid.adrfam = SPDK_NVMF_ADRFAM_IPV4;
+    strncpy(trid.traddr, traddr, strlen(traddr)+1);
+    strncpy(trid.trsvcid, "4420", 4+1);
+  }
+
   cb_ctx.trid = &trid;
   cb_ctx.ctrlr = NULL;
-
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "looking for NVMe @%s\n", trid.traddr);
-	rc = spdk_nvme_probe(&trid, &cb_ctx, probe_cb, attach_cb, NULL);
-	if (rc != 0 || cb_ctx.ctrlr == NULL)
+  rc = spdk_nvme_probe(&trid, &cb_ctx, probe_cb, attach_cb, NULL);
+  if (rc != 0 || cb_ctx.ctrlr == NULL)
   {
     SPDK_ERRLOG("not found device: %s, rc %d, cb_ctx.ctrlr %p\n",
                 trid.traddr, rc, cb_ctx.ctrlr);
     return NULL;
-	}
+  }
 
   return cb_ctx.ctrlr;
 }

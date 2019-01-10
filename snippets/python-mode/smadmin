@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: ssdmeter admin command
+# key: smadmin
+# --
+nvme0.$1($2).waitdone()
+ $0

@@ -1,7 +1,7 @@
 # nvme
 pynvme, a driver for NVMe SSD testing in Python3 scripts
 
-Pynvme Driver is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. pycharm and pytest, Pynvme is a convinent and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilage to run SSDMeter.
+Pynvme Driver is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. pycharm and pytest, Pynvme is a convinent and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilage to use pynvme.
 
 Pynvme provides several classes to access and test NVMe devices:
 1. Subsystem: controls the power and reset of NVMe subsystem

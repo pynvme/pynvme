@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: ssdmeter python debug
+# key: smpdb
+# --
+import pdb; pdb.set_trace()
+$0

@@ -42,7 +42,7 @@
 
 """pynvme, a driver for NVMe SSD testing in Python3 scripts
 
-Pynvme Driver is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. pycharm and pytest, Pynvme is a convinent and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilage to run SSDMeter.
+Pynvme Driver is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. pycharm and pytest, Pynvme is a convinent and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilage to use pynvme.
 
 Pynvme provides several classes to access and test NVMe devices:
 1. Subsystem: controls the power and reset of NVMe subsystem
@@ -186,7 +186,7 @@ import multiprocessing
 
 # c library
 import cython
-from libc.string cimport strncpy, memset
+from libc.string cimport strncpy, memset, strlen
 from libc.stdio cimport printf
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from cpython.exc cimport PyErr_CheckSignals
@@ -593,11 +593,11 @@ cdef class Controller(object):
     """
 
     cdef d.ctrlr * _ctrlr
-    cdef char _bdf[8]
+    cdef char _bdf[20]
     cdef Buffer hmb_buf
     
     def __cinit__(self, bdf):
-        strncpy(self._bdf, bdf, 8)
+        strncpy(self._bdf, bdf, strlen(bdf)+1)
         self._create()
 
     def __dealloc__(self):
@@ -609,7 +609,7 @@ cdef class Controller(object):
         self._create()
 
     def _create(self):
-        self._ctrlr = d.nvme_init(b"0000:"+self._bdf)
+        self._ctrlr = d.nvme_init(self._bdf)
         if self._ctrlr is NULL:
             raise NvmeEnumerateError(f"fail to create the controller")
         d.nvme_register_timeout_cb(self._ctrlr, timeout_driver_cb, _cTIMEOUT)

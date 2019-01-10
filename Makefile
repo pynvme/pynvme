@@ -49,7 +49,7 @@ memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%4)*3/4}')
 #cython part
 clean: cython_clean
 cython_clean:
-	@sudo rm -rf *.so build *.o cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report
+	@sudo rm -rf build *.o cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* test.log
 
 all: cython_lib tags
 .PHONY: all
@@ -67,15 +67,6 @@ tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=dpdk --exclude=ioat --exclude=bdev --exclude=webpages
 
 test: setup
-	sudo python3 -m pytest driver --pciaddr=${pciaddr} -v -x --cov driver --cov-report term --cov-config .coveragerc -r Efsx |& tee -a test.log
+	sudo python3 -m pytest driver_test.py --pciaddr=${pciaddr} -v -x -r Efsx |& tee -a test.log
 	cat test.log | grep "180 passed, 7 skipped, 1 xfailed, 1 warnings" || exit -1
 
-clean:
-	cd driver && make clean
-	rm -f .coverage.* test.log
-	find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs sudo rm -rf
-	sudo ./spdk/scripts/setup.sh cleanup
-	sudo ./spdk/scripts/setup.sh reset
-	sudo modprobe nvme
-	cd ..
-	sudo rm -rf .pytest_cache

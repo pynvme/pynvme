@@ -400,7 +400,8 @@ def test_format_basic(nvme0, nvme0n1, lbaf):
     q = d.Qpair(nvme0, 8)
 
     logging.info("format all namespace")
-    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
+    with pytest.warns(UserWarning, match="driver timeout: 5 sec"):
+        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     nvme0n1.read(q, buf, 0, 1).waitdone()
 
     logging.info("crypto secure erase one namespace")
@@ -1132,7 +1133,7 @@ def test_ioworker_iops_confliction(nvme0n1):
     assert report.error == 0
     assert report['mseconds'] > 9999
     assert time.time()-start_time > 9
-    assert time.time()-start_time < 15
+    assert time.time()-start_time < 20
 
     
 def test_ioworker_activate_crc32(nvme0n1, nvme0):
@@ -1203,7 +1204,7 @@ def test_ioworker_time(nvme0n1):
     w.start()
     w.close()
     assert time.time()-start_time > 9
-    assert time.time()-start_time < 15
+    assert time.time()-start_time < 20
 
 
 def test_ioworker_io_count(nvme0n1):
@@ -1218,7 +1219,7 @@ def test_ioworker_io_count(nvme0n1):
     w.start()
     w.close()
     assert time.time()-start_time > 9
-    assert time.time()-start_time < 15
+    assert time.time()-start_time < 20
 
 
 def test_ioworker_io_random(nvme0n1):
@@ -1233,7 +1234,7 @@ def test_ioworker_io_random(nvme0n1):
     w.start()
     w.close()
     assert time.time()-start_time > 9
-    assert time.time()-start_time < 15
+    assert time.time()-start_time < 20
 
 
 def test_ioworker_io_region(nvme0n1):
@@ -1248,7 +1249,7 @@ def test_ioworker_io_region(nvme0n1):
     w.start()
     w.close()
     assert time.time()-start_time > 9
-    assert time.time()-start_time < 15
+    assert time.time()-start_time < 20
 
 
 def test_ioworker_io_region_2(nvme0n1):
@@ -1263,7 +1264,7 @@ def test_ioworker_io_region_2(nvme0n1):
     w.start()
     w.close()
     assert time.time()-start_time > 9
-    assert time.time()-start_time < 15
+    assert time.time()-start_time < 20
 
 
 def test_ioworker_write_read_verify(nvme0n1):

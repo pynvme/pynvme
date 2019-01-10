@@ -1,0 +1,16 @@
+numpy
+libpci
+cython
+pyyaml
+pytest
+seaborn
+pelican==3.7.1
+pytest-cov
+markdown
+typogrify
+matplotlib
+pytemperature
+pydoc-markdown
+python-slugify
+beautifulsoup4
+markdown-generator
