@@ -42,6 +42,8 @@
 
 """pynvme, a driver for NVMe SSD testing in Python3 scripts
 
+https://github.com/cranechu/pynvme
+
 Pynvme Driver is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. pycharm and pytest, Pynvme is a convinent and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilage to use pynvme.
 
 Pynvme provides several classes to access and test NVMe devices:
@@ -55,6 +57,10 @@ Pynvme provides several classes to access and test NVMe devices:
 Please use "help" to find more details of these classes.
 
 Pynvme works on Linux, and uses SPDK as the NVMe driver. DPDK and SPDK are statically linked in the module's .so object file, so users do not need to setup SPDK develop environment. The host Linux OS image is installed in a SATA drive, because the kernel's NVMe drive will be unloaded by Pynvme during the test. Pynvme does write data to your NVMe devices, so it could corrupt your data in the device. Users have to provide correct BDF (Bus:Device.Function) address to initialize the controller of the DUT device.
+
+
+Tutorial
+========
 
 Pynvme is easy to use, from simple operations to deliberated designed test scripts. User can leverage well developed tools and knowledges in Python community. Here are some Pynvme script examples.
 
@@ -122,29 +128,65 @@ Performance test, while monitoring the device temperature. Example:
     >>>     time.sleep(5)
 ```
 
-System Requirement:
+
+Install
+=======
+
+Pynvme is installed by compiling source code. 
+
+System Requirement
+------------------
+
 1. Intel CPU with SSE4.2 instruction set
+2. Linux, e.g. Fedora latest
 2. 8GB DRAM recommended, or more if the DUT capacity is larger
 3. deep mode is supported in /sys/power/mem_sleep
-3. Tested with Fedora 28 and Python 3.6
+3. Tested with Fedora 29 and Python 3.7
 4. pytest is used as the test framework
 5. security functions (e.g. TCG, pyrite) are not enabled
 
-Pynvme v0.1.x is focused on mainstream client NVMe SSD, following NVMe spec v1.3c. Some features are NOT supported for now. We will continue to develop the features listed below to support more tests and devices in future. New requests and contributions are warmly welcomed.
-1. Weighted Round Robin arbitration
-2. SGL
-3. multiple namespace management
-4. Directive operations
-5. sudden power cycle: shutdown while writing data
-6. metadata and protect information
-7. virtualization management
-8. security send/receive and RPMB
-9. boot partition
-10. Management Interface
-11. NVMe over fabrics
-12. Open-channel SSD
-13. Vendor Specific commands
-14. platform compatibility
+Source Code
+-----------
+```shell
+git clone https://github.com/cranechu/pynvme
+git submodule update --init --recursive
+```
+
+Prerequisites
+-------------
+```shell
+./spdk/scripts/pkgdep.sh
+sudo python3 -m pip install -r requirements.txt
+```
+
+Build
+-----
+```shell
+cd spdk; ./configure --enable-debug; make; cd ..
+make
+```
+Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so 
+
+Test
+----
+Start python3 with root privilege.
+```shell
+sudo python3
+```
+
+And import pynvme module in python3.
+```python
+import nvme
+```
+
+You can also try tests by pytest.
+```shell
+make test
+```
+
+
+Features
+========
 
 Pynvme writes and reads data in buffer to NVMe device LBA space. In order to verify the data integrity, it injects LBA address and version information into the write data buffer, and check with them after read completion. Furthermore, Pynvme computes and verifies CRC32 of each LBA on the fly. Both data buffer and LBA CRC32 are stored in host memory, so ECC memory are recommended if you are considering serious tests.
 
@@ -169,6 +211,26 @@ Example:
 The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. For test scripts, one mitigation solution is separating read and write operations to differnt IOWorkers and different LBA regions, so it can be avoid to read and write same LBA at simultanously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other.
 
 Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explict code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller.
+
+
+Restrictions
+------------
+
+Pynvme is focused on mainstream client NVMe SSD, following NVMe spec v1.3c. Some features are NOT supported for now. We will continue to develop the features listed below to support more tests and devices in future. New requests and contributions are warmly welcomed.
+1. Weighted Round Robin arbitration
+2. SGL
+3. multiple namespace management
+4. Directive operations
+5. sudden power cycle: shutdown while writing data
+6. metadata and protect information
+7. virtualization management
+8. security send/receive and RPMB
+9. boot partition
+10. Management Interface
+12. Open-channel SSD
+13. Vendor Specific commands
+14. platform compatibility
+11. NVMe over Fabrics
 """
 
 # python package
