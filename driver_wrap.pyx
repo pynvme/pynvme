@@ -163,7 +163,7 @@ Build
 -----
 ```shell
 cd spdk; ./configure --enable-debug; make; cd ..
-make
+make clean; make
 ```
 Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so 
 

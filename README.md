@@ -100,7 +100,7 @@ System Requirement
 2. Linux, e.g. Fedora latest
 2. 8GB DRAM recommended, or more if the DUT capacity is larger
 3. deep mode is supported in /sys/power/mem_sleep
-3. Tested with Fedora 28 and Python 3.6
+3. Tested with Fedora 29 and Python 3.7
 4. pytest is used as the test framework
 5. security functions (e.g. TCG, pyrite) are not enabled
 
@@ -122,11 +122,27 @@ Build
 -----
 ```shell
 cd spdk; ./configure --enable-debug; make; cd ..
-make
+make clean; make
 ```
-Now, you can find the
+Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so
+
 Test
 ----
+Start python3 with root privilege.
+```shell
+sudo python3
+```
+
+And import pynvme module in python3.
+```python
+import nvme
+```
+
+You can also try tests by pytest.
+```shell
+make test
+```
+
 
 Features
 ========
