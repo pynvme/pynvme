@@ -40,7 +40,7 @@
 ##//distutils: define_macros=CYTHON_TRACE=1
 
 
-"""pynvme, a driver for NVMe SSD testing in Python3 scripts
+"""pynvme, testing NVMe targets in Python
 
 https://github.com/cranechu/pynvme
 
@@ -169,17 +169,16 @@ Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-
 
 Test
 ----
-Start python3 with root privilege.
+- Setup SPDK runtime environment and start python3 with root privilege.
 ```shell
+make setup
 sudo python3
 ```
-
-And import pynvme module in python3.
+- import pynvme module in python3.
 ```python
 import nvme
 ```
-
-You can also try tests by pytest.
+- You can also try tests in pytest.
 ```shell
 make test
 ```
