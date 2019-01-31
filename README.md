@@ -26,11 +26,11 @@ Pynvme is easy to use, from simple operations to deliberated designed test scrip
 Fetch the controller's identify data. Example:
 ```python
     >>> import nvme as d
-    >>> nvme0 = d.Controller(b"01:00.0")  `initialize` NVMe controller with its PCIe BDF address
-    >>> id_buf = d.Buffer(4096)  `allocate` the buffer
-    >>> nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  `read` namespace identify data into buffer
-    >>> nvme0.waitdone()  `nvme` commands are executed asynchorously, so we have to
-    >>> id_buf.dump()  `print` the whole buffer
+    >>> nvme0 = d.Controller(b"01:00.0")  # initialize NVMe controller with its PCIe BDF address
+    >>> id_buf = d.Buffer(4096)  # allocate the buffer
+    >>> nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  # read namespace identify data into buffer
+    >>> nvme0.waitdone()  # nvme commands are executed asynchorously, so we have to
+    >>> id_buf.dump()   # print the whole buffer
 ```
 
 Yet another hello world example of SPDK nvme driver. Example:
