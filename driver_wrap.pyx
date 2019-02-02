@@ -171,7 +171,7 @@ Test
 ----
 - Setup SPDK runtime environment and start python3 with root privilege.
 ```shell
-make setup
+make setup  # setup SPDK runtime environment
 sudo python3
 ```
 - import pynvme module in python3.
@@ -183,6 +183,13 @@ import nvme
 make test
 ```
 
+Documents
+---------
+- Please refer to this README.md for examples and manuals. 
+- help in Python:
+```python
+import nvme; help(nvme)
+```
 
 Features
 ========
@@ -209,13 +216,13 @@ Example:
 
 The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. For test scripts, one mitigation solution is separating read and write operations to differnt IOWorkers and different LBA regions, so it can be avoid to read and write same LBA at simultanously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other.
 
-Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explict code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller.
+Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explict code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair. 
 
 
 Restrictions
 ------------
 
-Pynvme is focused on mainstream client NVMe SSD, following NVMe spec v1.3c. Some features are NOT supported for now. We will continue to develop the features listed below to support more tests and devices in future. New requests and contributions are warmly welcomed.
+Pynvme is focused on mainstream client NVMe SSD, following NVMe spec v1.3c. Some features are NOT supported for now. We will continue to develop the features listed below to support more tests and devices in future. 
 1. Weighted Round Robin arbitration
 2. SGL
 3. multiple namespace management
@@ -230,6 +237,8 @@ Pynvme is focused on mainstream client NVMe SSD, following NVMe spec v1.3c. Some
 13. Vendor Specific commands
 14. platform compatibility
 11. NVMe over Fabrics
+
+If you have any questions or suggestions, please report them in [Issues](https://github.com/cranechu/pynvme/issues). Issues and pull requests are warmly welcome. 
 """
 
 # python package
