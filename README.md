@@ -108,20 +108,25 @@ Source Code
 -----------
 ```shell
 git clone https://github.com/cranechu/pynvme
-git submodule update --init --recursive
 ```
 
 Prerequisites
 -------------
 ```shell
+git submodule update --init --recursive
 ./spdk/scripts/pkgdep.sh
 sudo python3 -m pip install -r requirements.txt
 ```
+The preerquisites can be changed from release to release.
 
 Build
 -----
 ```shell
-cd spdk; ./configure --enable-debug; make; cd ..
+cd spdk
+make clean
+./configure --enable-debug --without-isal
+make
+cd ..
 make clean; make
 ```
 Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so
