@@ -42,12 +42,16 @@ setup(
             "nvme",
             ["driver_wrap.pyx"],
 
+            # dpdk prebuilt static libraries
+            libraries=['uuid', 'numa'],
+
             # spdk static libraries
             extra_objects=[
                 './spdk/build/lib/libspdk_pynvme.a',
                 './spdk/build/lib/libspdk_nvme.a',
                 './spdk/build/lib/libspdk_env_dpdk.a',
                 './spdk/build/lib/libspdk_util.a',
+                './spdk/build/lib/libspdk_sock_posix.a',
                 './spdk/build/lib/libspdk_sock.a',
                 './spdk/build/lib/libspdk_log.a',
                 './spdk/dpdk/build/lib/librte_eal.a',
@@ -58,9 +62,6 @@ setup(
                 './spdk/dpdk/build/lib/librte_pci.a',
                 './spdk/dpdk/build/lib/librte_kvargs.a',
             ],
-
-            # dpdk prebuilt static libraries
-            libraries=['uuid', 'numa']
         )]
     )
 )

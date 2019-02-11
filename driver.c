@@ -537,31 +537,38 @@ struct spdk_nvme_ctrlr* nvme_probe(char * traddr)
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "looking for NVMe @%s\n", traddr);
 
   // device address
-  if (strchr(traddr, ':') != NULL)
-  {
-    // pcie address: contains ':' characters
-    trid.trtype = SPDK_NVME_TRANSPORT_PCIE;
-    strncpy(trid.traddr, traddr, strlen(traddr)+1);
-  }
-  else
+  if (strchr(traddr, ':') == NULL)
   {
     // tcp/ip address: fixed port to 4420
     trid.trtype = SPDK_NVME_TRANSPORT_TCP;
     trid.adrfam = SPDK_NVMF_ADRFAM_IPV4;
     strncpy(trid.traddr, traddr, strlen(traddr)+1);
     strncpy(trid.trsvcid, "4420", 4+1);
+    snprintf(trid.subnqn, sizeof(trid.subnqn), "%s", SPDK_NVMF_DISCOVERY_NQN);
+		cb_ctx.ctrlr = spdk_nvme_connect(&trid, NULL, 0);
+		if (!cb_ctx.ctrlr)
+    {
+      fprintf(stderr, "spdk_nvme_connect() failed\n");
+      return NULL;
+    }
   }
-
-  cb_ctx.trid = &trid;
-  cb_ctx.ctrlr = NULL;
-  rc = spdk_nvme_probe(&trid, &cb_ctx, probe_cb, attach_cb, NULL);
-  if (rc != 0 || cb_ctx.ctrlr == NULL)
+  else
   {
-    SPDK_ERRLOG("not found device: %s, rc %d, cb_ctx.ctrlr %p\n",
-                trid.traddr, rc, cb_ctx.ctrlr);
-    return NULL;
-  }
+    // pcie address: contains ':' characters
+    trid.trtype = SPDK_NVME_TRANSPORT_PCIE;
+    strncpy(trid.traddr, traddr, strlen(traddr)+1);
 
+    cb_ctx.trid = &trid;
+    cb_ctx.ctrlr = NULL;
+    rc = spdk_nvme_probe(&trid, &cb_ctx, probe_cb, attach_cb, NULL);
+    if (rc != 0 || cb_ctx.ctrlr == NULL)
+    {
+      SPDK_ERRLOG("not found device: %s, rc %d, cb_ctx.ctrlr %p\n",
+                  trid.traddr, rc, cb_ctx.ctrlr);
+      return NULL;
+    }
+  }
+  
   return cb_ctx.ctrlr;
 }
 
