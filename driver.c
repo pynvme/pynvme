@@ -44,6 +44,7 @@
 #include "spdk/nvme.h"
 #include "spdk/env.h"
 #include "spdk/crc32.h"
+#include "spdk/rpc.h"
 #include "spdk_internal/log.h"
 #include "spdk/lib/nvme/nvme_internal.h"
 #include "driver.h"
@@ -452,6 +453,75 @@ static void attach_cb(void *cb_ctx,
 }
 
 
+////rpc
+///////////////////////////////
+
+static void rpc_timer_handler (int signum)
+{
+  spdk_rpc_accept();
+}
+
+
+static int rpc_init(void)
+{
+  int rc;
+
+	SPDK_INFOLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
+  
+  // start the rpc
+  rc = spdk_rpc_listen("/var/tmp/spdk.sock");
+  assert(rc == 0);
+
+  spdk_rpc_set_state(SPDK_RPC_STARTUP);
+
+  // handle rpc requests in timer handler
+  struct sigaction sa;
+  struct itimerval timer;
+
+  /* Install timer_handler as the signal handler for SIGVTALRM. */
+  memset (&sa, 0, sizeof (sa));
+  sa.sa_handler = &rpc_timer_handler;
+  sigaction (SIGVTALRM, &sa, NULL);
+
+  /* Configure the timer to expire after 1 s... */
+  timer.it_value.tv_sec = 1;
+  timer.it_value.tv_usec = 0;
+  /* ... and every 1 msec after that. */
+  timer.it_interval.tv_sec = 0;
+  timer.it_interval.tv_usec = 1000;
+  /* Start a virtual timer. It counts down whenever this process is
+     executing. */
+  setitimer (ITIMER_VIRTUAL, &timer, NULL);
+
+  return rc;
+}
+
+
+static void rpc_finish(void)
+{
+  spdk_rpc_close();
+}
+
+
+static void
+rpc_get_nvme_controllers(struct spdk_jsonrpc_request *request,
+			 const struct spdk_json_val *params)
+{
+	struct spdk_json_write_ctx *w;
+
+	w = spdk_jsonrpc_begin_result(request);
+	if (w == NULL) {
+		return;
+	}
+
+	spdk_json_write_array_begin(w);
+  spdk_json_write_uint32(w, 0x5a5aa5a5);
+	spdk_json_write_array_end(w);
+	spdk_jsonrpc_end_result(request, w);
+}
+SPDK_RPC_REGISTER("get_nvme_controllers", rpc_get_nvme_controllers, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
+
+
 ////driver system
 ///////////////////////////////
 
@@ -491,12 +561,14 @@ int driver_init(void)
   spdk_log_set_flag("nvme");
   spdk_log_set_print_level(SPDK_LOG_INFO);
 
-  return 0;
+  return rpc_init();
 }
+
 
 int driver_fini(void)
 {
   //delete cmd log of admin queue
+  rpc_finish();
   cmd_log_table_delete(0);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
 	return 0;

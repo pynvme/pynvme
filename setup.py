@@ -46,6 +46,7 @@ setup(
             libraries=['uuid', 'numa'],
 
             # spdk static libraries
+            # NOTE: need to link again in makefile to force link sock_posix in. 
             extra_objects=[
                 './spdk/build/lib/libspdk_pynvme.a',
                 './spdk/build/lib/libspdk_nvme.a',
@@ -53,6 +54,9 @@ setup(
                 './spdk/build/lib/libspdk_util.a',
                 './spdk/build/lib/libspdk_sock_posix.a',
                 './spdk/build/lib/libspdk_sock.a',
+                './spdk/build/lib/libspdk_json.a',
+                './spdk/build/lib/libspdk_jsonrpc.a',
+                './spdk/build/lib/libspdk_rpc.a',
                 './spdk/build/lib/libspdk_log.a',
                 './spdk/dpdk/build/lib/librte_eal.a',
                 './spdk/dpdk/build/lib/librte_mbuf.a',
