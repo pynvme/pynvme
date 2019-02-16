@@ -400,8 +400,7 @@ def test_format_basic(nvme0, nvme0n1, lbaf):
     q = d.Qpair(nvme0, 8)
 
     logging.info("format all namespace")
-    with pytest.warns(UserWarning, match="driver timeout: 5 sec"):
-        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
+    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     nvme0n1.read(q, buf, 0, 1).waitdone()
 
     logging.info("crypto secure erase one namespace")

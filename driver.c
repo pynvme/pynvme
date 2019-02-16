@@ -465,6 +465,8 @@ static void rpc_timer_handler (int signum)
 static int rpc_init(void)
 {
   int rc;
+  struct sigaction sa;
+  struct itimerval timer;
 
 	SPDK_INFOLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
   
@@ -475,22 +477,15 @@ static int rpc_init(void)
   spdk_rpc_set_state(SPDK_RPC_STARTUP);
 
   // handle rpc requests in timer handler
-  struct sigaction sa;
-  struct itimerval timer;
-
-  /* Install timer_handler as the signal handler for SIGVTALRM. */
   memset (&sa, 0, sizeof (sa));
   sa.sa_handler = &rpc_timer_handler;
   sigaction (SIGVTALRM, &sa, NULL);
 
-  /* Configure the timer to expire after 1 s... */
+  /* every 100 msec */
   timer.it_value.tv_sec = 1;
   timer.it_value.tv_usec = 0;
-  /* ... and every 1 msec after that. */
   timer.it_interval.tv_sec = 0;
-  timer.it_interval.tv_usec = 1000;
-  /* Start a virtual timer. It counts down whenever this process is
-     executing. */
+  timer.it_interval.tv_usec = 100000;
   setitimer (ITIMER_VIRTUAL, &timer, NULL);
 
   return rc;

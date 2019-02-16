@@ -225,7 +225,7 @@ Qpair instance is created based on Controller instance. So, user creates qpair a
 
 In the progress of test, we can use rpc to monitor DUT's registers, qpair, buffer and etc. 
 ```shell
-watch -n 1 sudo ./spdk/scripts/rpc.py  get_nvme_controllers  # we use exised get_nvme_controllers rpc method the get all DUT information
+watch -n 1 sudo ./spdk/scripts/rpc.py get_nvme_controllers  # we use exised get_nvme_controllers rpc method to get all DUT information
 ```
 
 
