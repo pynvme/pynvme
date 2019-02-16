@@ -182,6 +182,11 @@ The controller is not responsible for checking the LBA of a Read or Write comman
 
 Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explict code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair.
 
+In the progress of test, we can use rpc to monitor DUT's registers, qpair, buffer and etc.
+```shell
+watch -n 1 sudo ./spdk/scripts/rpc.py  get_nvme_controllers  # we use exised get_nvme_controllers rpc method the get all DUT information
+```
+
 
 Restrictions
 ------------

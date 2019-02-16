@@ -505,19 +505,28 @@ static void rpc_finish(void)
 
 static void
 rpc_get_nvme_controllers(struct spdk_jsonrpc_request *request,
-			 const struct spdk_json_val *params)
+                         const struct spdk_json_val *params)
 {
-	struct spdk_json_write_ctx *w;
+  struct spdk_json_write_ctx *w;
 
-	w = spdk_jsonrpc_begin_result(request);
-	if (w == NULL) {
-		return;
-	}
+  w = spdk_jsonrpc_begin_result(request);
+  if (w == NULL) {
+    return;
+  }
 
-	spdk_json_write_array_begin(w);
-  spdk_json_write_uint32(w, 0x5a5aa5a5);
-	spdk_json_write_array_end(w);
-	spdk_jsonrpc_end_result(request, w);
+  spdk_json_write_array_begin(w);
+
+  for (int i=0; i<CMD_LOG_MAX_Q; i++)
+  {
+    if (cmd_log_queue_table[i] != NULL)
+    {
+      spdk_json_write_uint32(w, cmd_log_queue_table[i]->tail_index);
+    }
+  }
+
+  spdk_json_write_array_end(w);
+  
+  spdk_jsonrpc_end_result(request, w);
 }
 SPDK_RPC_REGISTER("get_nvme_controllers", rpc_get_nvme_controllers, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
 
