@@ -340,7 +340,6 @@ cmd_log_add_cmd(uint16_t qid,
                 const struct spdk_nvme_cmd* cmd,
                 spdk_nvme_cmd_cb cb_fn,
                 void *cb_arg)
-
 {
   struct cmd_log_table_t* log_table = cmd_log_queue_table[qid];
   uint32_t tail_index = cmd_log_queue_table[qid]->tail_index;
@@ -464,29 +463,33 @@ static void rpc_timer_handler (int signum)
 
 static int rpc_init(void)
 {
-  int rc;
+  int rc = 0;
   struct sigaction sa;
   struct itimerval timer;
 
-	SPDK_INFOLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
+  SPDK_INFOLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
   
   // start the rpc
   rc = spdk_rpc_listen("/var/tmp/spdk.sock");
-  assert(rc == 0);
+  if (rc != 0)
+  {
+    SPDK_ERRLOG("rpc fail to get the sock \n");
+    return rc;
+  }
 
   spdk_rpc_set_state(SPDK_RPC_STARTUP);
 
   // handle rpc requests in timer handler
   memset (&sa, 0, sizeof (sa));
   sa.sa_handler = &rpc_timer_handler;
-  sigaction (SIGVTALRM, &sa, NULL);
+  sigaction (SIGALRM, &sa, NULL);
 
   /* every 100 msec */
   timer.it_value.tv_sec = 1;
   timer.it_value.tv_usec = 0;
   timer.it_interval.tv_sec = 0;
   timer.it_interval.tv_usec = 100000;
-  setitimer (ITIMER_VIRTUAL, &timer, NULL);
+  setitimer (ITIMER_REAL, &timer, NULL);
 
   return rc;
 }
@@ -513,6 +516,7 @@ rpc_get_nvme_controllers(struct spdk_jsonrpc_request *request,
 
   for (int i=0; i<CMD_LOG_MAX_Q; i++)
   {
+    // FIXME: get cmd log from other processes
     if (cmd_log_queue_table[i] != NULL)
     {
       spdk_json_write_uint32(w, cmd_log_queue_table[i]->tail_index);
@@ -565,14 +569,24 @@ int driver_init(void)
   spdk_log_set_flag("nvme");
   spdk_log_set_print_level(SPDK_LOG_INFO);
 
-  return rpc_init();
+  // start rpc server in primary process only
+  if (spdk_process_is_primary())
+  {
+    ret = rpc_init();
+  }
+  
+  return ret;
 }
 
 
 int driver_fini(void)
 {
+  if (spdk_process_is_primary())
+  {
+    rpc_finish();
+  }
+
   //delete cmd log of admin queue
-  rpc_finish();
   cmd_log_table_delete(0);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
 	return 0;
