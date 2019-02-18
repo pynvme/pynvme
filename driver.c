@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
 #include <sys/time.h>
 #include <sys/sysinfo.h>
 
@@ -455,17 +456,9 @@ static void attach_cb(void *cb_ctx,
 ////rpc
 ///////////////////////////////
 
-static void rpc_timer_handler (int signum)
-{
-  spdk_rpc_accept();
-}
-
-
-static int rpc_init(void)
+static void* rpc_server(void* args)
 {
   int rc = 0;
-  struct sigaction sa;
-  struct itimerval timer;
 
   SPDK_INFOLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
   
@@ -474,29 +467,17 @@ static int rpc_init(void)
   if (rc != 0)
   {
     SPDK_ERRLOG("rpc fail to get the sock \n");
-    return rc;
+    return NULL;
   }
 
   spdk_rpc_set_state(SPDK_RPC_STARTUP);
 
-  // handle rpc requests in timer handler
-  memset (&sa, 0, sizeof (sa));
-  sa.sa_handler = &rpc_timer_handler;
-  sigaction (SIGALRM, &sa, NULL);
+  while(1)
+  {
+    spdk_rpc_accept();
+    usleep(100000);
+  }
 
-  /* every 100 msec */
-  timer.it_value.tv_sec = 1;
-  timer.it_value.tv_usec = 0;
-  timer.it_interval.tv_sec = 0;
-  timer.it_interval.tv_usec = 100000;
-  setitimer (ITIMER_REAL, &timer, NULL);
-
-  return rc;
-}
-
-
-static void rpc_finish(void)
-{
   spdk_rpc_close();
 }
 
@@ -572,7 +553,8 @@ int driver_init(void)
   // start rpc server in primary process only
   if (spdk_process_is_primary())
   {
-    ret = rpc_init();
+    pthread_t rpc_t;
+    pthread_create(&rpc_t, NULL, rpc_server, NULL);
   }
   
   return ret;
@@ -581,11 +563,6 @@ int driver_init(void)
 
 int driver_fini(void)
 {
-  if (spdk_process_is_primary())
-  {
-    rpc_finish();
-  }
-
   //delete cmd log of admin queue
   cmd_log_table_delete(0);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");

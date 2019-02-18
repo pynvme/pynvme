@@ -43,7 +43,7 @@ setup(
             ["driver_wrap.pyx"],
 
             # dpdk prebuilt static libraries
-            libraries=['uuid', 'numa'],
+            libraries=['uuid', 'numa', 'pthread'],
 
             # spdk static libraries
             # NOTE: need to link again in makefile to force link sock_posix in. 

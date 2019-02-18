@@ -124,7 +124,7 @@ Build
 ```shell
 cd spdk
 make clean
-./configure --enable-debug --without-isal
+./configure --enable-debug  # --without-isal when required
 make
 cd ..
 make clean; make
