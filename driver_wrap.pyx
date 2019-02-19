@@ -205,6 +205,8 @@ Buffer should be allocated for data commands, and held till that command is comp
 
 NVMe commands are all asychronous. Test scripts can sync thourgh waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in Python scripts, the callback funciton is called when that command is completed. Callback functions are eventually called by waitdone(), and so do not call waitdone in callback function to avoid re-entry of waitdone functions, which requires a lock inside.
 
+If DUT cannot complete the command in 5 seconds, that command would be timeout. 
+
 Pynvme traces recent thousands of commands in the cmdlog, as well as the completion entries. User can list cmdlog to find the commands issued in different command queues, and their timestamps.
 
 The cost is high and unconvinent to send each read and write command in Python scripts. Pynvme provides the low-cost IOWorker to send IOs in different processores. IOWorker takes full use of multi-core to not only send read/write IO in high speed, but also verify the correctness of data on the fly. User can get IOWorker's test statistics through its close() method. Here is an example of reading 4K data randomly with the IOWorker.
@@ -277,7 +279,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "0.1.10"
+__version__ = "0.2.0"
 
 
 # nvme command timeout, it's a warning
@@ -285,16 +287,16 @@ __version__ = "0.1.10"
 _cTIMEOUT = 5
 cdef void timeout_driver_cb(void* cb_arg, d.ctrlr* ctrlr,
                             d.qpair * qpair, unsigned short cid):
-    error_string = "driver timeout: %d sec, qpair: %d, cid: %d" % \
+    error_string = "drive timeout: %d sec, qpair: %d, cid: %d" % \
         (_cTIMEOUT, d.qpair_get_id(qpair), cid)
     warnings.warn(error_string)
 
 
 # timeout signal in wrap layer, it's an assert fail
 # driver wrap needs longer timeout, some commands need more time, like format
-_cTIMEOUT_wrap = 60
+_cTIMEOUT_wrap = 30
 def _timeout_signal_handler(signum, frame):
-    error_string = "script timeout: %d sec" % _cTIMEOUT_wrap
+    error_string = "pynvme timeout: %d sec" % _cTIMEOUT_wrap
     _reentry_flag_init()
     raise TimeoutError(error_string)
 

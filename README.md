@@ -164,6 +164,8 @@ Buffer should be allocated for data commands, and held till that command is comp
 
 NVMe commands are all asychronous. Test scripts can sync thourgh waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in Python scripts, the callback funciton is called when that command is completed. Callback functions are eventually called by waitdone(), and so do not call waitdone in callback function to avoid re-entry of waitdone functions, which requires a lock inside.
 
+If DUT cannot complete the command in 5 seconds, that command would be timeout.
+
 Pynvme traces recent thousands of commands in the cmdlog, as well as the completion entries. User can list cmdlog to find the commands issued in different command queues, and their timestamps.
 
 The cost is high and unconvinent to send each read and write command in Python scripts. Pynvme provides the low-cost IOWorker to send IOs in different processores. IOWorker takes full use of multi-core to not only send read/write IO in high speed, but also verify the correctness of data on the fly. User can get IOWorker's test statistics through its close() method. Here is an example of reading 4K data randomly with the IOWorker.

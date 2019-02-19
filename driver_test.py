@@ -400,7 +400,8 @@ def test_format_basic(nvme0, nvme0n1, lbaf):
     q = d.Qpair(nvme0, 8)
 
     logging.info("format all namespace")
-    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
+    with pytest.warns(UserWarning, match="drive timeout:"):
+        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     nvme0n1.read(q, buf, 0, 1).waitdone()
 
     logging.info("crypto secure erase one namespace")
@@ -1016,7 +1017,7 @@ def test_ioworker_huge_qdepth(nvme0, nvme0n1, depth):
                      read_percentage=100, time=5).start().close()
 
     
-def test_iometer_fill_driver(nvme0, nvme0n1):
+def test_ioworker_fill_driver(nvme0, nvme0n1):
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
     nvme0n1.ioworker(io_size=256, lba_align=256,            # 128K
                      region_start=0, region_end=256*1024*8, # 1GB space
@@ -1024,7 +1025,7 @@ def test_iometer_fill_driver(nvme0, nvme0n1):
                      read_percentage=0, io_count=1024*8).start().close()
 
     
-def test_iometer_deepest_qdepth(nvme0n1):
+def test_ioworker_deepest_qdepth(nvme0n1):
     nvme0n1.ioworker(io_size=8, lba_align=64,
                      lba_random=False, qdepth=1023,
                      read_percentage=100, time=2).start().close()
