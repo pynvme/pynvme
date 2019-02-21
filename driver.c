@@ -51,13 +51,17 @@
 #include "driver.h"
 
 
-//// lba token
+#define US_PER_S   (1000ULL*1000ULL)
+#define MIN(X,Y)   ((X) < (Y) ? (X) : (Y))
+
+
+//// shared data
 ///////////////////////////////
 
-#define DRIVER_IO_TOKEN_NAME    "driver_io_token"
-#define DRIVER_CRC32_TABLE_NAME "driver_crc32_table"
-#define IOWORKER_STATUS_TABLE   "ioworker_status_table"
-#define IOWORKER_STATUS_SLOTS   (64)
+#define DRIVER_IO_TOKEN_NAME      "driver_io_token"
+#define DRIVER_CRC32_TABLE_NAME   "driver_crc32_table"
+#define IOWORKER_STATUS_TABLE     "ioworker_status_table"
+#define IOWORKER_STATUS_SLOTS     (64)
 
 // TODO: support multiple namespace
 static uint64_t g_driver_table_size = 0;
@@ -247,7 +251,7 @@ void buffer_fini(void* buf)
 // log_table contains latest cmd and cpl and their timestamps
 // queue_table traces cmd log tables by queue pairs
 // CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
-#define CMD_LOG_DEPTH (2048)
+#define CMD_LOG_DEPTH (2048-1)  // reserved one slot space for tail value
 #define CMD_LOG_MAX_Q (32)
 
 struct cmd_log_entry_t {
@@ -269,18 +273,17 @@ struct cmd_log_entry_t {
 
   uint64_t dummy[5];
 };
-static_assert(sizeof(struct cmd_log_entry_t)%64 == 0, "cacheline aligned");
+static_assert(sizeof(struct cmd_log_entry_t) == 192, "cacheline aligned");
 
 struct cmd_log_table_t {
   struct cmd_log_entry_t table[CMD_LOG_DEPTH];
   uint32_t tail_index;
+  uint32_t dummy[47];
 };
+static_assert(sizeof(struct cmd_log_table_t) == sizeof(struct cmd_log_entry_t)*(CMD_LOG_DEPTH+1), "cacheline aligned");
 
-static struct cmd_log_table_t* cmd_log_queue_table[CMD_LOG_MAX_Q];
-
-
-#define US_PER_S   (1000ULL*1000ULL)
-#define MIN(X,Y)   ((X) < (Y) ? (X) : (Y))
+#define DRIVER_CMDLOG_TABLE_NAME  "driver_cmdlog_table"
+static struct cmd_log_table_t* cmd_log_queue_table;
 
 
 static unsigned int timeval_to_us(struct timeval* t)
@@ -288,49 +291,59 @@ static unsigned int timeval_to_us(struct timeval* t)
   return t->tv_sec*US_PER_S + t->tv_usec;
 }
 
-static void cmd_log_init(void)
+
+static void cmd_log_qpair_init(uint16_t qid)
 {
-  for (int i=0; i<CMD_LOG_MAX_Q; i++)
-  {
-    cmd_log_queue_table[i] = NULL;
-  }
+  assert(qid < CMD_LOG_MAX_Q);
+
+  // set tail to invalid value, means the qpair is empty
+  cmd_log_queue_table[qid].tail_index = 0;
 }
 
-static int cmd_log_table_create(uint16_t qid)
+
+static void cmd_log_qpair_clear(uint16_t qid)
 {
-  struct cmd_log_table_t* log_table;
+  assert(qid < CMD_LOG_MAX_Q);
 
-  if (qid >= CMD_LOG_MAX_Q)
+  // set tail to invalid value, means the qpair is empty
+  cmd_log_queue_table[qid].tail_index = CMD_LOG_DEPTH;
+}
+
+
+static int cmd_log_init(void)
+{
+  if (spdk_process_is_primary())
   {
-    SPDK_ERRLOG("not support so many queue pairs\n");
+    cmd_log_queue_table = spdk_memzone_reserve(DRIVER_CMDLOG_TABLE_NAME,
+                                               sizeof(struct cmd_log_table_t)*CMD_LOG_MAX_Q, 
+                                               0, SPDK_MEMZONE_NO_IOVA_CONTIG);
+
+    // clear all qpair's cmd log
+    for (int i=0; i<CMD_LOG_MAX_Q; i++)
+    {
+      cmd_log_qpair_clear(i);
+    }    
+  }
+  else
+  {
+    cmd_log_queue_table = spdk_memzone_lookup(DRIVER_CMDLOG_TABLE_NAME);
+  }
+
+  if (cmd_log_queue_table == NULL)
+  {
+    fprintf(stderr, "Cannot allocate or find the cmdlog memory!\n");
     return -1;
   }
 
-  // get 64B aligned memory
-  log_table = aligned_alloc(64, sizeof(struct cmd_log_table_t));
-  if (log_table == NULL)
-  {
-    SPDK_ERRLOG("memory allocate for cmd log fail\n");
-    return -1;
-  }
-
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "address log table %p\n", log_table);
-  memset(log_table, 0, sizeof(struct cmd_log_table_t));
-  cmd_log_queue_table[qid] = log_table;
   return 0;
 }
 
-static void cmd_log_table_delete(uint16_t qid)
+
+static void cmd_log_finish(void)
 {
-  struct cmd_log_table_t* log_table = cmd_log_queue_table[qid];
-
-  assert(qid < CMD_LOG_MAX_Q);
-
-  if (log_table != NULL)
-  {
-    free(log_table);
-  }
+  spdk_memzone_free(DRIVER_CMDLOG_TABLE_NAME);
 }
+
 
 static struct cmd_log_entry_t*
 cmd_log_add_cmd(uint16_t qid,
@@ -342,8 +355,8 @@ cmd_log_add_cmd(uint16_t qid,
                 spdk_nvme_cmd_cb cb_fn,
                 void *cb_arg)
 {
-  struct cmd_log_table_t* log_table = cmd_log_queue_table[qid];
-  uint32_t tail_index = cmd_log_queue_table[qid]->tail_index;
+  struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];
+  uint32_t tail_index = log_table->tail_index;
   struct cmd_log_entry_t* log_entry = &log_table->table[tail_index];
 
   assert(qid < CMD_LOG_MAX_Q);
@@ -363,7 +376,7 @@ cmd_log_add_cmd(uint16_t qid,
   {
     tail_index = 0;
   }
-  cmd_log_queue_table[qid]->tail_index = tail_index;
+  log_table->tail_index = tail_index;
 
   return log_entry;
 }
@@ -497,10 +510,9 @@ rpc_get_nvme_controllers(struct spdk_jsonrpc_request *request,
 
   for (int i=0; i<CMD_LOG_MAX_Q; i++)
   {
-    // FIXME: get cmd log from other processes
-    if (cmd_log_queue_table[i] != NULL)
+    if (cmd_log_queue_table[i].tail_index < CMD_LOG_DEPTH)
     {
-      spdk_json_write_uint32(w, cmd_log_queue_table[i]->tail_index);
+      spdk_json_write_uint32(w, cmd_log_queue_table[i].tail_index);
     }
   }
 
@@ -525,20 +537,12 @@ int driver_init(void)
   //init random sequence reproducible
   srandom(1);
   
-  // init cmd log and create one for admin queue
-  cmd_log_init();
-  ret = cmd_log_table_create(0);
-  if (ret != 0)
-  {
-    return ret;
-  }
-
   // distribute multiprocessing to different cores
   spdk_env_opts_init(&opts);
   sprintf(buf, "0x%x", 1<<(getpid()%get_nprocs()));
   opts.core_mask = buf;
   opts.shm_id = 0;
-  opts.name = "pynvme_driver";
+  opts.name = "pynvme";
   opts.mem_size = 5892;
   if (spdk_env_init(&opts) < 0)
   {
@@ -546,6 +550,7 @@ int driver_init(void)
     return -1;
   }
 
+  // distribute multiprocessing to different cores  
   // log level setup
   spdk_log_set_flag("nvme");
   spdk_log_set_print_level(SPDK_LOG_INFO);
@@ -556,7 +561,16 @@ int driver_init(void)
     pthread_t rpc_t;
     pthread_create(&rpc_t, NULL, rpc_server, NULL);
   }
-  
+
+  // init cmd log
+  ret = cmd_log_init();
+  if (ret != 0)
+  {
+    return ret;
+  }
+
+  cmd_log_qpair_init(0);
+
   return ret;
 }
 
@@ -564,8 +578,13 @@ int driver_init(void)
 int driver_fini(void)
 {
   //delete cmd log of admin queue
-  cmd_log_table_delete(0);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
+  if (spdk_process_is_primary())
+  {
+    cmd_log_qpair_clear(0);
+    cmd_log_finish();
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
+  }
+  
 	return 0;
 }
 
@@ -786,7 +805,7 @@ int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl)
 ////module: qpair
 ///////////////////////////////
 
-struct spdk_nvme_qpair * qpair_create(struct spdk_nvme_ctrlr* ctrlr,
+struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
                                       int prio, int depth)
 {
   struct spdk_nvme_qpair* qpair;
@@ -804,11 +823,15 @@ struct spdk_nvme_qpair * qpair_create(struct spdk_nvme_ctrlr* ctrlr,
     return NULL;
   }
 
-  if (0 != cmd_log_table_create(qpair->id))
+  // limited qpair count
+  if (qpair->id >= CMD_LOG_MAX_Q)
   {
+    SPDK_ERRLOG("not support so many queue pairs\n");
+    spdk_nvme_ctrlr_free_io_qpair(qpair);
     return NULL;
   }
 
+  cmd_log_qpair_init(qpair->id);
   return qpair;
 }
 
@@ -825,11 +848,13 @@ int qpair_get_id(struct spdk_nvme_qpair* q)
 
 int qpair_free(struct spdk_nvme_qpair* q)
 {
-  if (q != NULL)
+  if (q == NULL)
   {
-    SPDK_DEBUGLOG(SPDK_LOG_NVME, "free qpair: %d\n", q->id);
-    cmd_log_table_delete(q->id);
+    return 0;
   }
+  
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "free qpair: %d\n", q->id);
+  cmd_log_qpair_clear(q->id);
 
   return spdk_nvme_ctrlr_free_io_qpair(q);
 }
@@ -848,7 +873,7 @@ struct spdk_nvme_ns* ns_init(struct spdk_nvme_ctrlr* ctrlr, uint32_t nsid)
   {
     return NULL;
   }
-  
+
   return ns;
 }
 
@@ -1403,7 +1428,7 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
 {
   int dump_count = count;
   uint16_t qid = qpair->id;
-  struct cmd_log_table_t* log_table = cmd_log_queue_table[qid];
+  struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];
 
   assert(qid < CMD_LOG_MAX_Q);
   assert(log_table != NULL);
@@ -1415,7 +1440,7 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
 
   // cmdlog is NOT SQ/CQ. cmdlog keeps CMD/CPL for script test debug purpose
   SPDK_NOTICELOG("dump qpair %d, latest tail in cmdlog: %d\n",
-                 qid, cmd_log_queue_table[qid]->tail_index);
+                 qid, log_table->tail_index);
   for (int i=0; i<dump_count; i++)
   {
     char tmbuf[64];

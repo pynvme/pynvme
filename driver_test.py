@@ -1008,7 +1008,7 @@ def test_ioworker_output_io_per_second_consistency(nvme0n1, nvme0):
         w.iops_consistency()
 
 
-@pytest.mark.parametrize('depth', [256, 512, 1023])
+@pytest.mark.parametrize('depth', [256, 512, 1022])
 def test_ioworker_huge_qdepth(nvme0, nvme0n1, depth):
     """test huge queue in ioworker"""
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
@@ -1027,7 +1027,7 @@ def test_ioworker_fill_driver(nvme0, nvme0n1):
     
 def test_ioworker_deepest_qdepth(nvme0n1):
     nvme0n1.ioworker(io_size=8, lba_align=64,
-                     lba_random=False, qdepth=1023,
+                     lba_random=False, qdepth=1022,
                      read_percentage=100, time=2).start().close()
 
     

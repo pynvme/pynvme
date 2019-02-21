@@ -2007,6 +2007,7 @@ if os.geteuid() == 0:
 
     # init driver
     if d.driver_init() != 0:
+        logging.error("driver initialization fail")
         raise SystemExit("driver initialization fail")
 
     # module fini
