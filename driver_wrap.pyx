@@ -1777,26 +1777,16 @@ class DotDict(dict):
 class _IOWorker(object):
     """A process-worker executing user functions. Use its wrapper function Namespace.ioworker() in scripts. """
 
-    # TODO: max ioworkers = ctrlr->opts.num_io_queues
-    _MAX_IOWORKERS = 64
-    _id_table = [False] * _MAX_IOWORKERS
-
     def __init__(self, pciaddr, nsid, lba_start, lba_size, lba_align,
                  lba_random, region_start, region_end,
                  read_percentage, iops, io_count, time, qdepth, qprio,
                  output_io_per_second, output_percentile_latency):
-        # find the new worker id
-        self.wid = next((i for i, x in enumerate(_IOWorker._id_table) if x==False), None)
-        assert self.wid!=None and self.wid<_IOWorker._MAX_IOWORKERS, "cannot get valid worker id"
-        logging.debug("created worker id %d" % self.wid)
-        _IOWorker._id_table[self.wid] = True
-
         # queue for returning result
         self.q = _mp.Queue()
 
         # create the child process
         self.p = _mp.Process(target = self._ioworker,
-                             args = (self.q, self.wid, pciaddr, nsid,
+                             args = (self.q, pciaddr, nsid,
                                      lba_start, lba_size, lba_align, lba_random,
                                      region_start, region_end, read_percentage,
                                      iops, io_count, time, qdepth, qprio,
@@ -1819,17 +1809,6 @@ class _IOWorker(object):
             if total >= target:
                 return l
         assert False, "should find the latency in the loop"
-
-    @property
-    def progress(self):
-        """get the ioworker progress
-
-        Rets:
-            (io_count_sent, io_count_cplt)
-        """
-
-        status = d.ioworker_get_status(self.wid)
-        return self.wid, status.io_count_sent, status.io_count_cplt
 
     def close(self):
         """Wait the worker's process finish
@@ -1878,11 +1857,6 @@ class _IOWorker(object):
                 assert k>0 and k<100, "percentile should be in (0, 100)"
                 self.output_percentile_latency[k] = self.find_percentile_latency(k, output_io_per_latency)
 
-        # release the worker id
-        if self.wid != None:
-            assert self.wid < _IOWorker._MAX_IOWORKERS, "worker id is invalid"
-            _IOWorker._id_table[self.wid] = False
-        
         logging.debug(f"ioworker result: {rets}")
         return rets
 
@@ -1904,7 +1878,7 @@ class _IOWorker(object):
         self.close()
         return True
 
-    def _ioworker(self, rqueue, wid, pciaddr, nsid, lba_start, lba_size,
+    def _ioworker(self, rqueue, pciaddr, nsid, lba_start, lba_size,
                   lba_align, lba_random, region_start, region_end,
                   read_percentage, iops, io_count, time, qdepth, qprio,
                   output_io_per_second, output_percentile_latency):
@@ -1949,7 +1923,6 @@ class _IOWorker(object):
             args.io_count = io_count
             args.seconds = time
             args.qdepth = qdepth
-            args.wid = wid
 
             # runtime in subprocess
             nvme0 = Controller(pciaddr)

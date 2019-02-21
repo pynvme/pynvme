@@ -54,7 +54,6 @@ typedef struct ioworker_args
   unsigned int qdepth;
   unsigned int* io_counter_per_second;
   unsigned int* io_counter_per_latency;
-  unsigned int wid;
 } ioworker_args;
 
 typedef struct ioworker_rets
@@ -65,12 +64,6 @@ typedef struct ioworker_rets
   unsigned int latency_max_us;  
   unsigned short error;
 } ioworker_rets;
-  
-typedef struct ioworker_status
-{
-  unsigned long io_count_sent;
-  unsigned long io_count_cplt;
-} ioworker_status;
   
 extern int driver_init(void);
 extern int driver_probe(void);
@@ -154,7 +147,6 @@ extern int ns_fini(struct spdk_nvme_ns* ns);
 
 extern void crc32_clear(uint64_t lba, uint64_t lba_count, int sanitize, int uncorr);
 
-extern struct ioworker_status ioworker_get_status(unsigned int wid);
 extern int ioworker_entry(struct spdk_nvme_ns* ns,
                           struct spdk_nvme_qpair *qpair,
                           ioworker_args* args,

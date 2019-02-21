@@ -865,28 +865,33 @@ def test_abort_aer_commands(nvme0, aer):
 
 def test_ioworker_more_than_expected(nvme0n1):
     wl = []
-    for i in range(64):
+    start_time = time.time()
+    
+    for i in range(15):
+        logging.info("start ioworker %d" % i)
         a = nvme0n1.ioworker(io_size=8, lba_align=16,
                              lba_random=False, qdepth=16,
-                             read_percentage=100, time=1)
+                             read_percentage=100, time=10)
         wl.append(a)
-    assert len(wl) == 64
-
-    with pytest.raises(AssertionError):
-        a = nvme0n1.ioworker(io_size=8, lba_align=16,
-                             lba_random=False, qdepth=16,
-                             read_percentage=100, time=1)
-        wl.append(a)
-    assert len(wl) == 64
+    assert len(wl) == 15
 
     for w in wl:
         w.start()
-        logging.info(w.progress)
+
+    logging.info("start one more ioworker")
+    a = nvme0n1.ioworker(io_size=8, lba_align=16,
+                         lba_random=False, qdepth=16,
+                         read_percentage=100, time=100).start()
 
     for w in wl:
         w.close()
 
-        
+    # the last one should be failed to create
+    with pytest.warns(UserWarning, match="ioworker host ERROR"):    
+        a.close()
+    assert time.time() - start_time < 50
+    
+    
 def test_ioworker_progress(nvme0, nvme0n1):
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
     
@@ -895,37 +900,8 @@ def test_ioworker_progress(nvme0, nvme0n1):
                           read_percentage=100, time=5) as w:
         for i in range(5):
             time.sleep(1)
-            logging.info(w.progress)
+            # logging.info(w.progress)  #obsoleted
 
-    with nvme0n1.ioworker(io_size=8, lba_align=16,
-                          lba_random=False, qdepth=16,
-                          read_percentage=100, io_count=1000000) as w:
-        for i in range(5):
-            time.sleep(1)
-            logging.info(w.progress)
-
-            
-    a = nvme0n1.ioworker(io_size=8, lba_align=16,
-                         lba_random=False, qdepth=16,
-                         region_start=0, region_end=100000,
-                         read_percentage=100, time=3)
-    q = d.Qpair(nvme0, 100)
-    b = nvme0n1.ioworker(io_size=8, lba_align=16,
-                         lba_random=False, qdepth=16,
-                         region_start=100000, region_end=200000,
-                         read_percentage=0, io_count=400000)
-    a.start()
-    b.start()
-    for i in range(10):
-        time.sleep(1)
-        logging.info(a.progress)
-        logging.info(b.progress)
-        assert a.progress != b.progress
-    assert b.progress == (1, 400000, 400000)
-    
-    a.close()
-    b.close()
-           
     
 def test_ioworker_simplified(nvme0n1):
     nvme0n1.ioworker(io_size=8, lba_align=16,

@@ -57,16 +57,12 @@ cdef extern from "driver.h":
         unsigned int qdepth
         unsigned int* io_counter_per_second
         unsigned int* io_counter_per_latency
-        unsigned int wid
     ctypedef struct ioworker_rets:
         unsigned long io_count_read
         unsigned long io_count_write
         unsigned int mseconds
         unsigned int latency_max_us
         unsigned short error
-    ctypedef struct ioworker_status:
-        unsigned long io_count_sent
-        unsigned long io_count_cplt
 
     ctypedef void(*cmd_cb_func)(void * cmd_cb_arg, const cpl * cpl)
     ctypedef void(*aer_cb_func)(void * are_cb_arg, const cpl * cpl)
@@ -142,7 +138,6 @@ cdef extern from "driver.h":
     int ns_fini(namespace * ns)
     
     void crc32_clear(unsigned long lba, unsigned long lba_count, bint sanitize, bint uncorr)
-    ioworker_status ioworker_get_status(unsigned int wid)
     int ioworker_entry(namespace* ns,
                        qpair* qpair,
                        ioworker_args* args,

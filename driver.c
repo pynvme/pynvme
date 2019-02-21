@@ -60,14 +60,11 @@
 
 #define DRIVER_IO_TOKEN_NAME      "driver_io_token"
 #define DRIVER_CRC32_TABLE_NAME   "driver_crc32_table"
-#define IOWORKER_STATUS_TABLE     "ioworker_status_table"
-#define IOWORKER_STATUS_SLOTS     (64)
 
 // TODO: support multiple namespace
 static uint64_t g_driver_table_size = 0;
 static uint64_t* g_driver_io_token_ptr = NULL;
 static uint32_t* g_driver_csum_table_ptr = NULL;
-static struct ioworker_status* g_ioworker_status_table = NULL;
 
 static int memzone_reserve_shared_memory(uint64_t table_size)
 {
@@ -76,7 +73,6 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
     // TODO: for now, only support single namespace test
     assert(g_driver_io_token_ptr == NULL);
     assert(g_driver_csum_table_ptr == NULL);
-    assert(g_ioworker_status_table == NULL);
 
     // get the shared memory for token
     SPDK_INFOLOG(SPDK_LOG_NVME, "create token table, size: %ld\n", table_size);
@@ -87,9 +83,6 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
     g_driver_io_token_ptr = spdk_memzone_reserve(DRIVER_IO_TOKEN_NAME,
                                                  sizeof(uint64_t),
                                                  0, 0);
-    g_ioworker_status_table = spdk_memzone_reserve(IOWORKER_STATUS_TABLE,
-                                                   sizeof(struct ioworker_status)*IOWORKER_STATUS_SLOTS,
-                                                   0, 0);
   }
   else
   {
@@ -97,18 +90,14 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
     g_driver_table_size = table_size;
     g_driver_io_token_ptr = spdk_memzone_lookup(DRIVER_IO_TOKEN_NAME);
     g_driver_csum_table_ptr = spdk_memzone_lookup(DRIVER_CRC32_TABLE_NAME);
-    g_ioworker_status_table = spdk_memzone_lookup(IOWORKER_STATUS_TABLE);
   }
   
-  if (g_driver_io_token_ptr == NULL ||
-      g_driver_csum_table_ptr == NULL||
-      g_ioworker_status_table == NULL)
+  if (g_driver_io_token_ptr == NULL || g_driver_csum_table_ptr == NULL)
   {
     SPDK_ERRLOG("fail to find memzone space\n");
     return -1;
   }
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "ioworker status %p\n", g_ioworker_status_table);
   return 0;
 }
 
@@ -252,7 +241,7 @@ void buffer_fini(void* buf)
 // queue_table traces cmd log tables by queue pairs
 // CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
 #define CMD_LOG_DEPTH (2048-1)  // reserved one slot space for tail value
-#define CMD_LOG_MAX_Q (32)
+#define CMD_LOG_MAX_Q (16)
 
 struct cmd_log_entry_t {
   // cmd and cpl
@@ -962,7 +951,6 @@ struct ioworker_io_ctx {
 struct ioworker_global_ctx {
   struct ioworker_args* args;
   struct ioworker_rets* rets;
-  struct ioworker_status* sts;
   struct spdk_nvme_ns* ns;
   struct spdk_nvme_qpair *qpair;
   struct timeval due_time;
@@ -1102,7 +1090,6 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
                ctx, gctx->io_delay_time.tv_usec);
 
   gctx->io_count_cplt ++;
-  gctx->sts->io_count_cplt = gctx->io_count_cplt;
 
   // update statistics in ret structure
   gettimeofday(&now, NULL);
@@ -1237,16 +1224,11 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
 
   //sent one io cmd successfully
   gctx->io_count_sent ++;
-  gctx->sts->io_count_sent = gctx->io_count_sent;
   ctx->is_read = is_read;
   gettimeofday(&ctx->time_sent, NULL);
   return 0;
 }
 
-struct ioworker_status ioworker_get_status(unsigned int wid)
-{
-  return g_ioworker_status_table[wid];
-}
 
 int ioworker_entry(struct spdk_nvme_ns* ns,
                    struct spdk_nvme_qpair *qpair,
@@ -1278,7 +1260,6 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.io_count = %ld\n", args->io_count);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.seconds = %d\n", args->seconds);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.qdepth = %d\n", args->qdepth);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.wid = %d\n", args->wid);
 
   //check args
   assert(ns != NULL);
@@ -1347,12 +1328,6 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   gctx.io_count_till_last_sec = 0;
   gctx.last_sec = 0;
 
-  //find the status address
-  assert(g_ioworker_status_table != NULL);
-  gctx.sts = &g_ioworker_status_table[args->wid];
-  SPDK_INFOLOG(SPDK_LOG_NVME, "ioworker id %d, status table: %p\n",
-               args->wid, gctx.sts);
-  
   // sending the first batch of IOs, all remaining IOs are sending
   // in callbacks till end
   for (unsigned int i=0; i<args->qdepth; i++)
