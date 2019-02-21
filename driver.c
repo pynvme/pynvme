@@ -501,7 +501,19 @@ rpc_get_nvme_controllers(struct spdk_jsonrpc_request *request,
   {
     if (cmd_log_queue_table[i].tail_index < CMD_LOG_DEPTH)
     {
-      spdk_json_write_uint32(w, cmd_log_queue_table[i].tail_index);
+      uint32_t tail = cmd_log_queue_table[i].tail_index;
+      struct cmd_log_entry_t* table = cmd_log_queue_table[i].table;
+
+      spdk_json_write_uint32(w, tail);
+
+      // send commands details
+      spdk_json_write_array_begin(w);
+      for (int j=0; j<4; j++)
+      {
+        uint32_t index = (tail+CMD_LOG_DEPTH-1-j)%CMD_LOG_DEPTH;
+        spdk_json_write_uint32(w, table[index].cmd.opc);
+      }
+      spdk_json_write_array_end(w);
     }
   }
 

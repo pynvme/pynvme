@@ -1007,7 +1007,7 @@ def test_ioworker_deepest_qdepth(nvme0n1):
                      read_percentage=100, time=2).start().close()
 
     
-@pytest.mark.parametrize("qcount", [1, 2, 4, 8, 16])
+@pytest.mark.parametrize("qcount", [1, 2, 4, 8, 15])
 def test_ioworker_iops_multiple_queue(nvme0n1, qcount):
     l = []
     io_total = 0
@@ -1025,7 +1025,7 @@ def test_ioworker_iops_multiple_queue(nvme0n1, qcount):
     logging.info("Q %d IOPS: %dK" % (qcount, io_total/10000))
 
 
-@pytest.mark.parametrize("qcount", [1, 2, 4, 8, 16])
+@pytest.mark.parametrize("qcount", [1, 2, 4, 8, 15])
 def test_ioworker_bandwidth_multiple_queue(nvme0n1, qcount):
     l = []
     io_total = 0
