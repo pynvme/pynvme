@@ -254,6 +254,43 @@ Examples:
     00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
 ```
 
+### data
+```python
+Buffer.data(self, byte_end, byte_begin, type)
+```
+get field in the buffer. Little endian for integers.
+
+Args:
+    byte_end (int): the end byte number of this field, which is specified in NVMe spec. Included.
+    byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included.
+                      default: None, means only get 1 byte defined in byte_end
+    type (type): the type of the field. It should be int or str.
+                 default: int, convert to integer python object
+
+Rets:
+    (int or str): the data in the specified field
+
+### dump
+```python
+Buffer.dump(self, size)
+```
+print the buffer content
+
+Args:
+    size: the size of the buffer to print,
+          default: None, means to print the whole buffer
+
+### set_dsm_range
+```python
+Buffer.set_dsm_range(self, index, lba, lba_count)
+```
+set dsm ranges in the buffer, for dsm/deallocation (a.ka trim) commands
+
+Args:
+    index (int): the index of the dsm range to set
+    lba (int): the start lba of the range
+    lba_count (int): the lba count of the range
+
 ## config
 ```python
 config(verify, fua_read=False, fua_write=False)
@@ -312,6 +349,299 @@ Example:
     nvme_qpair.c: 306:nvme_qpair_print_completion: *NOTICE*: SUCCESS (00/00) sqid:0 cid:0 cdw0:0 sqhd:0000 p:0 m:0 dnr:0
 ```
 
+### abort
+```python
+Controller.abort(self, cid, sqid, cb)
+```
+abort admin commands
+
+Args:
+    cid (int): command id of the command to be aborted
+    sqid (int): sq id of the command to be aborted
+                default: 0, to abort the admin command
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### aer
+```python
+Controller.aer(self, cb)
+```
+asynchorous event request admin command.
+
+Not suggested to use this command in scripts because driver manages to send and monitor aer commands. Scripts should register an aer callback function if it wants to handle aer.
+
+Args:
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### cmdlog
+```python
+Controller.cmdlog(self, count)
+```
+print recent commands and their completions.
+
+Args:
+    count (int): the number of commands to print
+                 default: 0, to print the whole cmdlog
+
+### cmdname
+```python
+Controller.cmdname(self, opcode)
+```
+get the name of the admin command
+
+Args:
+    opcode (int): the opcode of the admin command
+
+Rets:
+    (str): the command name
+
+### downfw
+```python
+Controller.downfw(self, filename, slot, action)
+```
+firmware download utility: by 4K, and activate in next reset
+
+Args:
+    filename (str): the pathname of the firmware binary file to download
+    slot (int): firmware slot field in the command
+                default: 0, decided by device
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+
+### dst
+```python
+Controller.dst(self, stc, nsid, cb)
+```
+device self test (DST) admin command
+
+Args:
+    stc (int): selftest code (stc) field in the command
+    nsid (int): nsid field in the command
+                default: 0xffffffff
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### format
+```python
+Controller.format(self, lbaf, ses, nsid, cb)
+```
+format admin command
+
+Args:
+    lbaf (int): lbaf (lba format) field in the command
+                default: None, to find the 512B LBA format
+    ses (int): ses field in the command
+    nsid (int): nsid field in the command
+                default: 1
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### fw_commit
+```python
+Controller.fw_commit(self, slot, action, cb)
+```
+firmware commit admin command
+
+Args:
+    slot (int): firmware slot field in the command
+    action (int): action field in the command
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### fw_download
+```python
+Controller.fw_download(self, buf, offset, size, cb)
+```
+firmware download admin command
+
+Args:
+    buf (Buffer): the buffer to hold the firmware data
+    offset (int): offset field in the command
+    size (int): size field in the command
+                default: None, means the size of the buffer
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### getfeatures
+```python
+Controller.getfeatures(self, fid, cdw11, cdw12, cdw13, cdw14, cdw15, sel, buf, cb)
+```
+getfeatures admin command
+
+Args:
+    fid (int): feature id
+    cdw11 (int): cdw11 in the command
+                 default: 0
+    sel (int): sel field in the command
+               default: 0
+    buf (Buffer): the buffer to hold the feature data
+                  default: None
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### getlogpage
+```python
+Controller.getlogpage(self, lid, buf, size, offset, nsid, cb)
+```
+getlogpage admin command
+
+Args:
+    lid (int): Log Page Identifier
+    buf (Buffer): buffer to hold the log page
+    size (int): size (in byte) of data to get from the log page,
+                default: None, means the size is the same of the buffer
+    offset (int): the location within a log page
+    nsid (int): nsid field in the command
+                default: 0xffffffff
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### id_data
+```python
+Controller.id_data(self, byte_end, byte_begin, type, nsid, cns)
+```
+get field in controller identify data
+
+Args:
+    byte_end (int): the end byte number of this field, which is specified in NVMe spec. Included.
+    byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included.
+                      default: None, means only get 1 byte defined in byte_end
+    type (type): the type of the field. It should be int or str.
+                 default: int, convert to integer python object
+
+Rets:
+    (int or str): the data in the specified field
+
+### identify
+```python
+Controller.identify(self, buf, nsid, cns, cb)
+```
+identify admin command
+
+Args:
+    buf (Buffer): the buffer to hold the identify data
+    nsid (int): nsid field in the command
+                default: 1
+    cns (int): cns field in the command
+               default: 1
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### mdts
+max data transfer size
+### register_aer_cb
+```python
+Controller.register_aer_cb(self, func)
+```
+register aer callback to driver.
+
+It is recommended to use fixture aer(func) in pytest scripts.
+When aer is triggered, the python callback function will
+be called. It is unregistered by aer fixture when test finish.
+
+Args:
+    func (function): callback function called at aer completion
+
+### reset
+```python
+Controller.reset(self)
+```
+controller reset: cc.en 1 => 0 => 1
+
+Notices:
+    Test scripts should delete all io qpairs before reset!
+
+### sanitize
+```python
+Controller.sanitize(self, option, pattern, cb)
+```
+sanitize admin command
+
+Args:
+    option (int): sanitize option field in the command
+    pattern (int): pattern field in the command for overwrite method
+                   default: 0x5aa5a55a
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### setfeatures
+```python
+Controller.setfeatures(self, fid, cdw11, cdw12, cdw13, cdw14, cdw15, sv, buf, cb)
+```
+setfeatures admin command
+
+Args:
+    fid (int): feature id
+    cdw11 (int): cdw11 in the command
+                 default: 0
+    sv (int): sv field in the command
+              default: 0
+    buf (Buffer): the buffer to hold the feature data
+                  default: None
+    cb (function): callback function called at completion
+                   default: None
+
+Rets:
+    self (Controller)
+
+### supports
+```python
+Controller.supports(self, opcode)
+```
+check if the admin command is supported
+
+Args:
+    opcode (int): the opcode of the admin command
+
+Rets:
+    (bool): if the command is supported
+
+### waitdone
+```python
+Controller.waitdone(self, expected)
+```
+sync until expected commands completion
+
+Args:
+    expected (int): expected commands to complete
+                    default: 1
+
+Notices:
+    Do not call this function in commands callback functions.
+
 ## DotDict
 ```python
 DotDict(self, *args, **kwargs)
@@ -327,6 +657,279 @@ Args:
     nvme (Controller): controller where to create the queue
     nsid (int): nsid of the namespace
 
+### capacity
+bytes of namespace capacity
+### close
+```python
+Namespace.close(self)
+```
+close namespace to release it resources in host memory.
+
+Notice:
+    Release resources explictly, del is not garentee to call __dealloc__.
+    Fixture nvme0n1 uses this function, and prefer to use fixture in scripts, instead of calling this function directly.
+
+### cmdname
+```python
+Namespace.cmdname(self, opcode)
+```
+get the name of the IO command
+
+Args:
+    opcode (int): the opcode of the IO command
+
+Rets:
+    (str): the command name
+
+### compare
+```python
+Namespace.compare(self, qpair, buf, lba, lba_count, io_flags, cb)
+```
+compare IO command
+
+Args:
+    qpair (Qpair): use the qpair to send this command
+    buf (Buffer): the data buffer of the command, meta data is not supported.
+    lba (int): the starting lba address, 64 bits
+    lba_count (int): the lba count of this command, 16 bits
+    io_flags (int): io flags defined in NVMe specification, 16 bits
+                    default: 0
+    cb (function): callback function called at completion
+                   default: None
+
+Returns:
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
+
+Raises:
+    SystemError: the command fails
+
+Notices:
+    buf cannot be released before the command completes.
+
+### dsm
+```python
+Namespace.dsm(self, qpair, buf, range_count, attribute, cb)
+```
+data-set management IO command
+
+Args:
+    qpair (Qpair): use the qpair to send this command
+    buf (Buffer): the buffer of the lba ranges. Use buffer.set_dsm_range to prepare the buffer.
+    range_count (int): the count of lba ranges in the buffer
+    attribute (int): attribute field of the command
+                     default: 0x4, as deallocation
+    cb (function): callback function called at completion
+                   default: None
+
+Returns:
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
+
+Raises:
+    SystemError: the command fails
+
+Notices:
+    buf cannot be released before the command completes.
+
+### flush
+```python
+Namespace.flush(self, qpair, cb)
+```
+flush IO command
+
+Args:
+    qpair (Qpair): use the qpair to send this command
+    cb (function): callback function called at completion
+                   default: None
+
+Returns:
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
+
+Raises:
+    SystemError: the command fails
+
+### get_lba_format
+```python
+Namespace.get_lba_format(self, data_size, meta_size)
+```
+find the lba format by its data size and meta data size
+
+Args:
+    data_size (int): data size
+                     default: 512
+    meta_size (int): meta data size
+                     default: 0
+
+Rets:
+    (int or None): the lba format has the specified data size and meta data size
+
+### id_data
+```python
+Namespace.id_data(self, byte_end, byte_begin, type)
+```
+get field in namespace identify data
+
+Args:
+    byte_end (int): the end byte number of this field, which is specified in NVMe spec. Included.
+    byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included.
+                      default: None, means only get 1 byte defined in byte_end
+    type (type): the type of the field. It should be int or str.
+                 default: int, convert to integer python object
+
+Rets:
+    (int or str): the data in the specified field
+
+### ioworker
+```python
+Namespace.ioworker(self, io_size, lba_align, lba_random, read_percentage, time, qdepth, region_start, region_end, iops, io_count, lba_start, qprio, output_io_per_second, output_percentile_latency)
+```
+workers sending different read/write IO on different CPU cores.
+
+User defines IO characteristics in parameters, and then the ioworker
+executes without user intervesion, until the test is completed. IOWorker
+returns some statistic data at last.
+
+User can start multiple IOWorkers, and they will be binded to different
+CPU cores. Each IOWorker creates its own Qpair, so active IOWorker counts
+is limited by maximum IO queues that DUT can provide.
+
+Each ioworker can run upto 24 hours.
+
+Args:
+    io_size (short): IO size, unit is LBA
+    lba_align (short): IO alignment, unit is LBA
+    lba_random (bool): True if sending IO with random starting LBA
+    read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only
+    time (int): specified maximum seconds of the IOWorker
+                default:0, no limit (upto 24hr)
+    qdepth (int): queue depth of the Qpair created by the IOWorker
+                  default: 64
+    region_start (long): sending IO in the specified LBA region, start
+                         default: 0
+    region_end (long): sending IO in the specified LBA region, end but not include
+                       default: 0xffff_ffff_ffff_ffff
+    iops (int): specified maximum IOPS. IOWorker throttles the sending IO speed.
+                default: 0, no limit
+    io_count (long): specified maximum IO counts to send.
+                     default: 0, no limit
+    lba_start (long): the LBA address of the first command.
+                      default: 0, means start from region_start
+    qprio (int): SQ priority.
+                 default: 0, for default Round Robin arbitration
+    output_io_per_second (list): list to hold the output data of io_per_second.
+                                 default: None, not to collect the data
+    output_percentile_latency (dict): dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in ms.
+                                      default: None, not to collect the data
+
+Rets:
+    ioworker instance
+
+Notice:
+    use ioworker.progress to get the realtime io counters
+
+### nsid
+id of the namespace
+### read
+```python
+Namespace.read(self, qpair, buf, lba, lba_count, io_flags, cb)
+```
+read IO command
+
+Args:
+    qpair (Qpair): use the qpair to send this command
+    buf (Buffer): the data buffer of the command, meta data is not supported.
+    lba (int): the starting lba address, 64 bits
+    lba_count (int): the lba count of this command, 16 bits
+    io_flags (int): io flags defined in NVMe specification, 16 bits
+                    default: 0
+    cb (function): callback function called at completion
+                   default: None
+
+Returns:
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
+
+Raises:
+    SystemError: the read command fails
+
+Notices:
+    buf cannot be released before the command completes.
+
+### supports
+```python
+Namespace.supports(self, opcode)
+```
+check if the IO command is supported
+
+Args:
+    opcode (int): the opcode of the IO command
+
+Rets:
+    (bool): if the command is supported
+
+### write
+```python
+Namespace.write(self, qpair, buf, lba, lba_count, io_flags, cb)
+```
+write IO command
+
+Args:
+    qpair (Qpair): use the qpair to send this command
+    buf (Buffer): the data buffer of the write command, meta data is not supported.
+    lba (int): the starting lba address, 64 bits
+    lba_count (int): the lba count of this command, 16 bits
+    io_flags (int): io flags defined in NVMe specification, 16 bits
+                    default: 0
+    cb (function): callback function called at completion
+                   default: None
+
+Returns:
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
+
+Raises:
+    SystemError: the write command fails
+
+Notices:
+    buf cannot be released before the command completes.
+
+### write_uncorrectable
+```python
+Namespace.write_uncorrectable(self, qpair, lba, lba_count, cb)
+```
+write uncorrectable IO command
+
+Args:
+    qpair (Qpair): use the qpair to send this command
+    lba (int): the starting lba address, 64 bits
+    lba_count (int): the lba count of this command, 16 bits
+    cb (function): callback function called at completion
+                   default: None
+
+Returns:
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
+
+Raises:
+    SystemError: the command fails
+
+### write_zeroes
+```python
+Namespace.write_zeroes(self, qpair, lba, lba_count, io_flags, cb)
+```
+write zeroes IO command
+
+Args:
+    qpair (Qpair): use the qpair to send this command
+    lba (int): the starting lba address, 64 bits
+    lba_count (int): the lba count of this command, 16 bits
+    io_flags (int): io flags defined in NVMe specification, 16 bits
+                    default: 0
+    cb (function): callback function called at completion
+                   default: None
+
+Returns:
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
+
+Raises:
+    SystemError: the command fails
+
 ## Pcie
 ```python
 Pcie(self, /, *args, **kwargs)
@@ -336,6 +939,24 @@ Pcie class. Prefer to use fixture "pcie" in test scripts
 Args:
     nvme (Controller): the nvme controller object of that subsystem
 
+### register
+```python
+Pcie.register(self, offset, byte_count)
+```
+access registers in pcie config space, and get its integer value.
+
+Args:
+    offset (int): the offset (in bytes) of the register in the config space
+    byte_count (int): the size (in bytes) of the register
+
+Rets:
+    (int): the value of the register
+
+### reset
+```python
+Pcie.reset(self)
+```
+reset this pcie device
 ## Qpair
 ```python
 Qpair(self, /, *args, **kwargs)
@@ -347,6 +968,29 @@ Args:
     depth (int): SQ/CQ queue depth
     prio (int): when Weighted Round Robin is enabled, specify SQ priority here
 
+### cmdlog
+```python
+Qpair.cmdlog(self, count)
+```
+print recent IO commands and their completions in this qpair.
+
+Args:
+    count (int): the number of commands to print
+                 default: 0, to print the whole cmdlog
+
+### waitdone
+```python
+Qpair.waitdone(self, expected)
+```
+sync until expected commands completion
+
+Args:
+    expected (int): expected commands to complete
+                    default: 1
+
+Notices:
+    Do not call this function in commands callback functions.
+
 ## Subsystem
 ```python
 Subsystem(self, /, *args, **kwargs)
@@ -355,4 +999,27 @@ Subsystem class. Prefer to use fixture "subsystem" in test scripts.
 
 Args:
     nvme (Controller): the nvme controller object of that subsystem
+
+### power_cycle
+```python
+Subsystem.power_cycle(self, sec)
+```
+power off and on in seconds
+
+Args:
+    sec (int): the seconds between power off and power on
+
+### reset
+```python
+Subsystem.reset(self)
+```
+reset the nvme subsystem through register nssr.nssrc
+### shutdown_notify
+```python
+Subsystem.shutdown_notify(self, abrupt)
+```
+notify nvme subsystem a shutdown event through register cc.chn
+
+Args:
+    abrupt (bool): it will be an abrupt shutdown (return immediately) or clean shutdown (wait shutdown completely)
 

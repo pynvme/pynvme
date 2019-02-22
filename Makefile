@@ -55,7 +55,7 @@ all: cython_lib tags
 .PHONY: all
 
 doc:
-	pydocmd simple nvme+ > README.md
+	pydocmd simple nvme++ > README.md
 
 setup:
 	sudo HUGEMEM=${memsize} ./spdk/scripts/setup.sh
