@@ -1086,7 +1086,7 @@ def test_ioworker_invalid_io_size(nvme0, nvme0n1):
 
 # test error handle of driver, test could continue after failed case
 @pytest.mark.xfail(reason="read write confliction on same LBA")
-def test_ioworker_iops_confliction(nvme0n1):
+def test_ioworker_iops_confliction(verify, nvme0n1):
     import time
     start_time = time.time()
     ww = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
@@ -1112,7 +1112,7 @@ def test_ioworker_iops_confliction(nvme0n1):
     assert time.time()-start_time < 20
 
     
-def test_ioworker_activate_crc32(nvme0n1, nvme0):
+def test_ioworker_activate_crc32(nvme0n1, verify, nvme0):
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
     
     r1 = nvme0n1.ioworker(io_size=8, lba_align=8,
@@ -1133,7 +1133,7 @@ def test_ioworker_activate_crc32(nvme0n1, nvme0):
     assert r1["io_count_read"] > r2["io_count_read"]
 
     
-def test_ioworker_iops_confliction_read_write_mix(nvme0n1):
+def test_ioworker_iops_confliction_read_write_mix(nvme0n1, verify):
     import time
     start_time = time.time()
     w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
@@ -1359,7 +1359,7 @@ def test_ioworkers_with_many_huge_io(nvme0n1, nvme0):
                      qprio=0, qdepth=9).start().close()
 
 
-def test_ioworkers_read_and_write_conflict(nvme0n1, nvme0):
+def test_ioworkers_read_and_write_conflict(nvme0n1, nvme0, verify):
     """read write confliction will cause data mismatch.
 
     When the same LBA the read and write commands are operating on, NVMe
@@ -1367,9 +1367,9 @@ def test_ioworkers_read_and_write_conflict(nvme0n1, nvme0):
     data of read command got could be old data or the new data of the write
     command just written. 
     """
-
+    
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
-    with pytest.warns(UserWarning, match="ioworker device ERROR status: 02/81"):
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
         with nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
                               lba_random=False,
                               region_start=0, region_end=128,

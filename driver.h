@@ -66,8 +66,8 @@ typedef struct ioworker_rets
 } ioworker_rets;
   
 extern int driver_init(void);
-extern int driver_probe(void);
 extern int driver_fini(void);
+extern void driver_config(uint64_t cfg_word);
 
 extern pcie* pcie_init(struct spdk_nvme_ctrlr* ctrlr);
 extern int pcie_cfg_read8(struct spdk_pci_device* pci,

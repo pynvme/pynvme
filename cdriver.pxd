@@ -70,8 +70,8 @@ cdef extern from "driver.h":
                                     qpair * qpair, unsigned short cid)
 
     int driver_init()
-    int driver_probe()
     int driver_fini()
+    void driver_config(unsigned long cfg_word)
 
     pcie * pcie_init(ctrlr * c)
     int pcie_cfg_read8(pcie * pci,

@@ -71,6 +71,13 @@ def aer(nvme0):
     logging.debug("unregister aer callback function")
     nvme0.register_aer_cb(None)
 
+
+@pytest.fixture(scope="function")
+def verify():
+    d.config(verify=True)
+    yield
+    d.config(verify=False)
+
     
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):

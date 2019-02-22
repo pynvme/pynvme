@@ -51,8 +51,19 @@
 #include "driver.h"
 
 
-#define US_PER_S   (1000ULL*1000ULL)
-#define MIN(X,Y)   ((X) < (Y) ? (X) : (Y))
+#define US_PER_S              (1000ULL*1000ULL)
+#define MIN(X,Y)              ((X) < (Y) ? (X) : (Y))
+
+#ifndef BIT
+#define BIT(a)                (1UL << (a))
+#endif /* BIT */
+
+// the global configuration of the driver
+#define DCFG_VERIFY_READ      (BIT(0))
+#define DCFG_FUA_READ         (BIT(1))
+#define DCFG_FUA_WRITE        (BIT(2))
+
+static uint64_t g_cfg_word = 0;
 
 
 //// shared data
@@ -386,7 +397,9 @@ static void cmd_log_add_cpl_cb(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
   //SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
   
   //verify read data
-  if (log_entry->cmd.opc == 2 && log_entry->buf != NULL)
+  if (log_entry->cmd.opc == 2 &&
+      log_entry->buf != NULL &&
+      g_cfg_word & DCFG_VERIFY_READ) 
   {
     int ret = 0;
     
@@ -587,6 +600,12 @@ int driver_fini(void)
   }
   
 	return 0;
+}
+
+
+void driver_config(uint64_t cfg_word)
+{
+  g_cfg_word = cfg_word;
 }
 
 
@@ -1121,24 +1140,14 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
 
   if (true == nvme_cpl_is_error(cpl))
   {
-    uint16_t error = ((*(unsigned short*)(&cpl->status))>>1)&0x7ff;
-    
     // terminate ioworker when any error happen
+    // only keep the first error code
+    uint16_t error = ((*(unsigned short*)(&cpl->status))>>1)&0x7ff;
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "ioworker error happen in cpl\n");
-
-    if (error == 0x0281 && args->read_percentage < 100)
+    gctx->flag_finish = true;
+    if (rets->error == 0)
     {
-      // read/write mix, ignore read data verify result 02/81,
-    }
-    else
-    {
-      gctx->flag_finish = true;
-    
-      // only keep the first error code
-      if (rets->error == 0)
-      {
-        rets->error = error;
-      }
+      rets->error = error;
     }
   }
 

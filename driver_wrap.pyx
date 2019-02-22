@@ -224,7 +224,7 @@ Example:
     >>> print("IOPS: %dK/s\\n", r.io_count_read/r.mseconds)
 ```
 
-The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. Similarily, after writing of multiple ioworkers in the same LBA region, the subsequent read does not know the latest data content. As a mitigation solution, we suggest to separate read and write operations to differnt IOWorkers and different LBA regions in test scripts, so it can be avoid to read and write same LBA at simultanously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other. Test scripts can disable or enable inline verification of read. 
+The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. Similarily, after writing of multiple ioworkers in the same LBA region, the subsequent read does not know the latest data content. As a mitigation solution, we suggest to separate read and write operations to differnt IOWorkers and different LBA regions in test scripts, so it can be avoid to read and write same LBA at simultanously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other. Test scripts can disable or enable inline verification of read by function config(). By default, it is disabled.  
 
 Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explict code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair. 
 
@@ -1962,6 +1962,25 @@ class _IOWorker(object):
                 PyMem_Free(args.io_counter_per_latency)
 
 
+def config(verify, fua_read=False, fua_write=False):
+    """config driver global setting
+
+    Args:
+        verify (bool): enable inline checksum verification of read
+        fua_read (bool): enable FUA of read
+                         default: False
+        fua_write (bool): enable FUA of write
+                          default: False
+
+    Returns:
+        None
+    """
+    
+    d.driver_config((verify << 0) |
+                    (fua_read << 1) |
+                    (fua_write << 2))
+    
+    
 # module init, needs root privilege
 if os.geteuid() == 0:
     # CTRL-c to exit
