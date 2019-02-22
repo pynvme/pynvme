@@ -544,7 +544,7 @@ int driver_init(void)
   opts.core_mask = buf;
   opts.shm_id = 0;
   opts.name = "pynvme";
-  opts.mem_size = 5892;
+  opts.mem_size = 2048;
   if (spdk_env_init(&opts) < 0)
   {
     fprintf(stderr, "Unable to initialize SPDK env\n");

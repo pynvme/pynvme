@@ -162,11 +162,14 @@ Pynvme writes and reads data in buffer to NVMe device LBA space. In order to ver
 
 Buffer should be allocated for data commands, and held till that command is completed because the buffer is being used by NVMe device. Users need to pay more attention on the life scope of the buffer in Python test scripts.
 
-NVMe commands are all asychronous. Test scripts can sync thourgh waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in Python scripts, the callback funciton is called when that command is completed. Callback functions are eventually called by waitdone(), and so do not call waitdone in callback function to avoid re-entry of waitdone functions, which requires a lock inside.
+NVMe commands are all asychronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in Python scripts, the callback funciton is called when that command is completed. Callback functions are eventually called by waitdone(), and so do not call waitdone in callback function to avoid re-entry of waitdone functions, which requires a lock inside.
 
 If DUT cannot complete the command in 5 seconds, that command would be timeout.
 
-Pynvme traces recent thousands of commands in the cmdlog, as well as the completion entries. User can list cmdlog to find the commands issued in different command queues, and their timestamps.
+Pynvme traces recent thousands of commands in the cmdlog, as well as the completion entries. The cmdlog traces each qpair's commands and status. Pynvme supports up to 16 qpairs and their cmdlogs. User can list cmdlog to find the commands issued in different command queues, and their timestamps. In the progress of test, we can also use rpc to monitor DUT's registers, qpair, buffer and the cmdlog from 3rd-party tools. For example,
+```shell
+watch -n 1 sudo ./spdk/scripts/rpc.py get_nvme_controllers  # we use exised get_nvme_controllers rpc method to get all DUT information
+```
 
 The cost is high and unconvinent to send each read and write command in Python scripts. Pynvme provides the low-cost IOWorker to send IOs in different processores. IOWorker takes full use of multi-core to not only send read/write IO in high speed, but also verify the correctness of data on the fly. User can get IOWorker's test statistics through its close() method. Here is an example of reading 4K data randomly with the IOWorker.
 
@@ -180,14 +183,9 @@ Example:
     >>> print("IOPS: %dK/s\n", r.io_count_read/r.mseconds)
 ```
 
-The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. For test scripts, one mitigation solution is separating read and write operations to differnt IOWorkers and different LBA regions, so it can be avoid to read and write same LBA at simultanously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other.
+The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. Similarily, after writing of multiple ioworkers in the same LBA region, the subsequent read does not know the latest data content. As a mitigation solution, we suggest to separate read and write operations to differnt IOWorkers and different LBA regions in test scripts, so it can be avoid to read and write same LBA at simultanously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other. Test scripts can disable or enable inline verification of read.
 
 Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explict code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair.
-
-In the progress of test, we can use rpc to monitor DUT's registers, qpair, buffer and the cmdlog. The cmdlog traces each qpair's commands and status. Pynvme supports up to 16 qpairs and their cmdlogs.
-```shell
-watch -n 1 sudo ./spdk/scripts/rpc.py get_nvme_controllers  # we use exised get_nvme_controllers rpc method to get all DUT information
-```
 
 
 Restrictions
