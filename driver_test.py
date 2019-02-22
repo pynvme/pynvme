@@ -1134,23 +1134,16 @@ def test_ioworker_activate_crc32(nvme0n1, verify, nvme0):
 
     
 def test_ioworker_iops_confliction_read_write_mix(nvme0n1, verify):
-    import time
-    start_time = time.time()
-    w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
-                         lba_random=False,
-                         region_start=0, region_end=1000,
-                         read_percentage=50,
-                         iops=0, io_count=0, time=10,
-                         qprio=0, qdepth=16).start()
+    # rw mixed ioworkers cause verification fail
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+        w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
+                             lba_random=False,
+                             region_start=0, region_end=1000,
+                             read_percentage=50,
+                             iops=0, io_count=0, time=10,
+                             qprio=0, qdepth=16).start().close()
 
-    report = w.close()
-    # rw mixed ioworkers just mask data verification result
-    assert report.error == 0
-    assert report['mseconds'] > 9999
-    assert time.time()-start_time > 9
-    assert time.time()-start_time < 20
-
-
+        
 def test_ioworker_iops(nvme0n1):
     import time
     start_time = time.time()
@@ -1243,7 +1236,7 @@ def test_ioworker_io_region_2(nvme0n1):
     assert time.time()-start_time < 20
 
 
-def test_ioworker_write_read_verify(nvme0n1):
+def test_ioworker_write_read_verify(nvme0n1, verify):
     w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8, lba_random=False,
                          region_start=0, region_end=100000, read_percentage=0,
                          iops=0, io_count=100000/8, time=0, qprio=0, qdepth=64).start().close()

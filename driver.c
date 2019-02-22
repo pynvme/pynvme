@@ -63,19 +63,19 @@
 #define DCFG_FUA_READ         (BIT(1))
 #define DCFG_FUA_WRITE        (BIT(2))
 
-static uint64_t g_cfg_word = 0;
-
 
 //// shared data
 ///////////////////////////////
 
 #define DRIVER_IO_TOKEN_NAME      "driver_io_token"
 #define DRIVER_CRC32_TABLE_NAME   "driver_crc32_table"
+#define DRIVER_GLOBAL_CONFIG_NAME "driver_global_config"
 
 // TODO: support multiple namespace
 static uint64_t g_driver_table_size = 0;
 static uint64_t* g_driver_io_token_ptr = NULL;
 static uint32_t* g_driver_csum_table_ptr = NULL;
+static uint64_t* g_driver_global_config_ptr = NULL;
 
 static int memzone_reserve_shared_memory(uint64_t table_size)
 {
@@ -103,7 +103,8 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
     g_driver_csum_table_ptr = spdk_memzone_lookup(DRIVER_CRC32_TABLE_NAME);
   }
   
-  if (g_driver_io_token_ptr == NULL || g_driver_csum_table_ptr == NULL)
+  if (g_driver_io_token_ptr == NULL ||
+      g_driver_csum_table_ptr == NULL)
   {
     SPDK_ERRLOG("fail to find memzone space\n");
     return -1;
@@ -322,11 +323,18 @@ static int cmd_log_init(void)
     for (int i=0; i<CMD_LOG_MAX_Q; i++)
     {
       cmd_log_qpair_clear(i);
-    }    
+    }
+
+    // also init config word with cmdlog
+    g_driver_global_config_ptr = spdk_memzone_reserve(DRIVER_GLOBAL_CONFIG_NAME,
+                                                      sizeof(uint64_t),
+                                                      0, 0);
+    *g_driver_global_config_ptr = 0;
   }
   else
   {
     cmd_log_queue_table = spdk_memzone_lookup(DRIVER_CMDLOG_TABLE_NAME);
+    g_driver_global_config_ptr = spdk_memzone_lookup(DRIVER_GLOBAL_CONFIG_NAME);
   }
 
   if (cmd_log_queue_table == NULL)
@@ -342,6 +350,7 @@ static int cmd_log_init(void)
 static void cmd_log_finish(void)
 {
   spdk_memzone_free(DRIVER_CMDLOG_TABLE_NAME);
+  spdk_memzone_free(DRIVER_GLOBAL_CONFIG_NAME);
 }
 
 
@@ -397,28 +406,29 @@ static void cmd_log_add_cpl_cb(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
   //SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
   
   //verify read data
-  if (log_entry->cmd.opc == 2 &&
-      log_entry->buf != NULL &&
-      g_cfg_word & DCFG_VERIFY_READ) 
+  if (log_entry->cmd.opc == 2 && log_entry->buf != NULL)
   {
-    int ret = 0;
-    
-    assert (log_entry->lba_count != 0);
-    assert (log_entry->lba_size != 0);
-    assert (log_entry->lba_size == 512);
-    
-    ret = buffer_verify_data(log_entry->buf,
-                             log_entry->lba,
-                             log_entry->lba_count,
-                             log_entry->lba_size);
-    if (ret != 0)
+    if ((*g_driver_global_config_ptr & DCFG_VERIFY_READ) != 0)
     {
-      //Unrecovered Read Error: The read data could not be recovered from the media.
-      log_entry->cpl.status.sct = 0x02;
-      log_entry->cpl.status.sc = 0x81;
+      int ret = 0;
+    
+      assert (log_entry->lba_count != 0);
+      assert (log_entry->lba_size != 0);
+      assert (log_entry->lba_size == 512);
+
+      ret = buffer_verify_data(log_entry->buf,
+                               log_entry->lba,
+                               log_entry->lba_count,
+                               log_entry->lba_size);
+      if (ret != 0)
+      {
+        //Unrecovered Read Error: The read data could not be recovered from the media.
+        log_entry->cpl.status.sct = 0x02;
+        log_entry->cpl.status.sc = 0x81;
+      }
     }
   }
-
+  
   //callback to cython layer
   if (log_entry->cb_fn)
   {
@@ -605,7 +615,7 @@ int driver_fini(void)
 
 void driver_config(uint64_t cfg_word)
 {
-  g_cfg_word = cfg_word;
+  *g_driver_global_config_ptr = cfg_word;
 }
 
 

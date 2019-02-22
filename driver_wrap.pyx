@@ -1975,7 +1975,8 @@ def config(verify, fua_read=False, fua_write=False):
     Returns:
         None
     """
-    
+
+    # FIXME: implement FUA in driver.c
     d.driver_config((verify << 0) |
                     (fua_read << 1) |
                     (fua_write << 2))
