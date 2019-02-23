@@ -232,7 +232,7 @@ Pynvme also supports NVMe/TCP.
 Example:
 ```python
     >>> import nvme as d
-    >>> c = d.Controller(b'127.0.0.1')   # connect to controller by NVMe/TCP target's IP address
+    >>> c = d.Controller(b'127.0.0.1')   # connect to the NVMe/TCP target by IP address, and the port is fixed to 4420
     >>> n = d.Namespace(c, 1)            # test as NVMe/PCIe devices
     >>> assert n.id_data(8, 0) != 0      # get identify namespace data
     >>> assert n.id_data(16, 8) == n.id_data(8, 0)
