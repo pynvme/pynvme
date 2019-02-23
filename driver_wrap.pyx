@@ -228,6 +228,20 @@ The controller is not responsible for checking the LBA of a Read or Write comman
 
 Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explict code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair. 
 
+Pynvme also supports NVMe/TCP. 
+Example:
+```python
+    >>> import nvme as d
+    >>> c = d.Controller(b'127.0.0.1')   # connect to controller by NVMe/TCP target's IP address
+    >>> n = d.Namespace(c, 1)            # test as NVMe/PCIe devices
+    >>> assert n.id_data(8, 0) != 0      # get identify namespace data
+    >>> assert n.id_data(16, 8) == n.id_data(8, 0)
+```
+
+User can create a local NVMe/TCP target for test purpose, by:
+```shell
+make nvmt
+```
 
 Restrictions
 ------------
@@ -235,18 +249,18 @@ Restrictions
 Pynvme is focused on mainstream client NVMe SSD, following NVMe spec v1.3c. Some features are NOT supported for now. We will continue to develop the features listed below to support more tests and devices in future. 
 1. Weighted Round Robin arbitration
 2. SGL
+3. multiple controller
 3. multiple namespace management
-4. Directive operations
+4. directive operations
 5. sudden power cycle: shutdown while writing data
 6. metadata and protect information
 7. virtualization management
-8. security send/receive and RPMB
+8. security send/receive
+8. RPMB
 9. boot partition
 10. Management Interface
 12. Open-channel SSD
 13. Vendor Specific commands
-14. platform compatibility
-11. NVMe over Fabrics
 
 If you have any questions or suggestions, please report them in [Issues](https://github.com/cranechu/pynvme/issues). Issues and pull requests are warmly welcome. 
 """
@@ -636,7 +650,9 @@ cdef class Controller(object):
     """Controller class. Prefer to use fixture "nvme0" in test scripts.
 
     Args:
-        bdf (bytes): the bus/device/function address of the DUT, example: b'01:00.0'.
+        addr (bytes): the bus/device/function address of the DUT, for example: 
+                      b'01:00.0' (PCIe BDF address);
+                      b'127.0.0.1' (TCP IP address).
 
     Example:
 ```python
@@ -676,8 +692,8 @@ cdef class Controller(object):
     cdef char _bdf[20]
     cdef Buffer hmb_buf
     
-    def __cinit__(self, bdf):
-        strncpy(self._bdf, bdf, strlen(bdf)+1)
+    def __cinit__(self, addr):
+        strncpy(self._bdf, addr, strlen(addr)+1)
         self._create()
 
     def __dealloc__(self):
