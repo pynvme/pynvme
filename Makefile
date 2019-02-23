@@ -75,7 +75,8 @@ test: setup
 	cat test.log | grep "180 passed, 7 skipped, 1 xfailed, 1 warnings" || exit -1
 
 nvmt: setup      # create a NVMe/TCP target on 2 cores, based on memory bdev, for local test only
-	sudo ./spdk/app/nvmf_tgt/nvmf_tgt -m 3 &   
+	sudo ./spdk/app/nvmf_tgt/nvmf_tgt -m 3 &
+	sleep 5
 	sudo ./spdk/scripts/rpc.py construct_malloc_bdev -b Malloc0 64 512
 	sudo ./spdk/scripts/rpc.py nvmf_create_transport -t TCP -p 4
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_create nqn.2016-06.io.spdk:cnode1 -a -s SPDK00000000000001
