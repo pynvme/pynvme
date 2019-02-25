@@ -1967,7 +1967,10 @@ class _IOWorker(object):
 
             # close resources in right order
             nvme0n1.close()
-            del qpair
+
+            # delete resources
+            if 'qpair' in locals():
+                del qpair
             del nvme0n1
             del nvme0
 

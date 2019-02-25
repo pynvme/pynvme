@@ -44,6 +44,15 @@ import nvme as d
 import nvme  # test double import
 
 
+@pytest.mark.skip("nvme over tcp")
+def test_nvme_tcp_basic():
+    c = d.Controller(b'127.0.0.1')
+    n = d.Namespace(c, 1)
+    test_get_identify_quick(c, n)
+    del n
+    del c
+
+    
 def test_create_device(nvme0, nvme0n1):
     assert nvme0 is not None
 
