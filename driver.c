@@ -505,7 +505,7 @@ static void* rpc_server(void* args)
 {
   int rc = 0;
 
-  SPDK_INFOLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
   
   // start the rpc
   rc = spdk_rpc_listen("/var/tmp/spdk.sock");
