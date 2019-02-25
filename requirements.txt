@@ -1,5 +1,6 @@
 libpci
 cython
+pyyaml
 pytest
 pytest-cov
 pytemperature
