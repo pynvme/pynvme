@@ -81,7 +81,6 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
 {
   if (spdk_process_is_primary())
   {
-    // TODO: for now, only support single namespace test
     assert(g_driver_io_token_ptr == NULL);
     assert(g_driver_csum_table_ptr == NULL);
 
@@ -1414,26 +1413,6 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 
   free(io_ctx);
   return ret;
-}
-
-//TODO: ioworker progress indicates work percentage in ioworker's
-//process to the main process
-
-void* ioworker_progress_init(char* name)
-{
-  //create shared memzone to hold the progress data, return the name
-  return NULL;
-}
-
-void* ioworker_progress_find(char* name)
-{
-  //find the progress data in shared memory, return the address
-  return NULL;
-}
-
-void ioworker_progress_fini(char* name)
-{
-  //release the shared data
 }
 
 

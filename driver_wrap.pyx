@@ -1527,10 +1527,7 @@ cdef class Namespace(object):
                                               default: None, not to collect the data
 
         Rets:
-            ioworker instance
-
-        Notice:
-            use ioworker.progress to get the realtime io counters
+            ioworker object
         """
 
         assert not (time==0 and io_count==0), "when to stop the ioworker?"
@@ -1995,7 +1992,7 @@ def config(verify, fua_read=False, fua_write=False):
         None
     """
 
-    # FIXME: implement FUA in driver.c
+    # TODO: implement FUA in driver.c
     d.driver_config((verify << 0) |
                     (fua_read << 1) |
                     (fua_write << 2))

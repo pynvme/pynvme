@@ -151,9 +151,6 @@ extern int ioworker_entry(struct spdk_nvme_ns* ns,
                           struct spdk_nvme_qpair *qpair,
                           ioworker_args* args,
                           ioworker_rets* rets);
-extern void* ioworker_progress_init(char* name);
-extern void* ioworker_progress_find(char* name);
-extern void ioworker_progress_fini(char* name);
 
 extern void log_buf_dump(const char* header, const void* buf, size_t len);
 extern void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count);

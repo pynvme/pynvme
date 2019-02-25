@@ -837,10 +837,7 @@ Args:
                                       default: None, not to collect the data
 
 Rets:
-    ioworker instance
-
-Notice:
-    use ioworker.progress to get the realtime io counters
+    ioworker object
 
 ### nsid
 id of the namespace
