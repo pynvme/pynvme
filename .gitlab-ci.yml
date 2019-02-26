@@ -1,0 +1,22 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+driver_test:
+  before_script:
+    - echo $MAKE_TARGET
+    - echo $SCRIPT_PATH
+    - echo $DUT_PCIADDR
+    - whoami
+    - lspci
+    - sudo lspci -s $DUT_PCIADDR -vv
+    - date
+    - pwd
+    - cd spdk
+    - sudo ./scripts/pkgdep.sh
+    - ./configure --enable-debug; make
+    - cd ..; make
+  script:
+    - make $MAKE_TARGET
+  after_script:
+    - make clean
+    - sudo ./spdk/scripts/setup.sh status
