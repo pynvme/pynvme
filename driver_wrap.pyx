@@ -40,9 +40,8 @@
 ##//distutils: define_macros=CYTHON_TRACE=1
 
 
-"""pynvme, testing NVMe targets in Python
-
-https://github.com/cranechu/pynvme
+"""pynvme, test NVMe devices in Python. https://github.com/cranechu/pynvme 
+[![pipeline status](https://gitlab.com/cranechu/pynvme/badges/master/pipeline.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 
 Pynvme Driver is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. pycharm and pytest, Pynvme is a convinent and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilage to use pynvme.
 
@@ -262,7 +261,45 @@ Pynvme is focused on mainstream client NVMe SSD, following NVMe spec v1.3c. Some
 12. Open-channel SSD
 13. Vendor Specific commands
 
+
+IOWorker
+========
+
+arguments
+---------
+
+returns
+-------
+
+status
+------
+
+
+Source Code
+===========
+- spdk/
+- driver_wrap.pyx
+- cdriver.pxd
+- driver.h
+- driver.c
+- setup.py
+- Makefile
+- driver_test.py
+- conftest.py
+- pytest.ini
+
 If you have any questions or suggestions, please report them in [Issues](https://github.com/cranechu/pynvme/issues). Issues and pull requests are warmly welcome. 
+
+
+Pytest Fixtures
+===============
+- nvme0
+- nvme0n1
+
+Debug
+=====
+- log
+- ...
 """
 
 # python package
