@@ -1,6 +1,23 @@
 # nvme
-pynvme, test NVMe devices in Python. https://github.com/cranechu/pynvme
+pynvme, test NVMe devices in Python. [https://github.com/cranechu/pynvme]
 [![pipeline status](https://gitlab.com/cranechu/pynvme/badges/master/pipeline.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
+
+- [nvme](#nvme)
+- [Tutorial](#tutorial)
+- [Install](#install)
+- [Features](#features)
+- [Source Code](#source-code-1)
+- [Pytest Fixtures](#pytest-fixtures)
+- [Debug Pynvme](#debug-pynvme)
+- [Help Document](#help-document)
+  * [config](#config)
+  * [Pcie](#pcie)
+  * [Controller](#controller)
+  * [Namespace](#namespace)
+  * [Qpair](#qpair)
+  * [Buffer](#buffer)
+  * [Subsystem](#subsystem)
+  * [DotDict](#dotdict)
 
 Pynvme Driver is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. pycharm and pytest, Pynvme is a convinent and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilage to use pynvme.
 
@@ -206,9 +223,10 @@ IOWorker
 Please refer to "nvme0n1.ioworker" examples in driver_test.py.
 
 
-Source Code
-===========
+Source Files
+============
 Here is a brief introduction on source code files.
+
 | files        | ntoes        |
 | ------------- |-------------|
 | spdk   | pynvme is built on SPDK  |
@@ -238,15 +256,19 @@ Pynvme uses pytest to test it self. Users can also use pytest as the test framew
 
 Debug Pynvme
 ============
-1. assert: it is recommended to compile SPDK with --enable-debug
+1. assert: it is recommended to compile SPDK with --enable-debug.
 1. log: users can change log levels for driver and scripts. All logs are captured/hided by pytest in default. Please use argument "-s" to print logs in test time.
-  1. driver: spdk_log_set_print_level in driver.c, for SPDK related logs
-  2. scripts: log_cli_level in pytest.ini, for python/pytest scripts
-2. gdb: when driver crashes or misbehaviors, use can collect debug information through gdb
-  1. core dump: sudo coredumpctl debug
-  2. generate core dump in dead loop: CTRL-  3. test within gdb: sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
+    1. driver: spdk_log_set_print_level in driver.c, for SPDK related logs
+    2. scripts: log_cli_level in pytest.ini, for python/pytest scripts
+2. gdb: when driver crashes or misbehaviors, use can collect debug information through gdb.
+    1. core dump: sudo coredumpctl debug
+    2. generate core dump in dead loop: CTRL-    3. test within gdb: sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
 
-If you meet any issue, or have any suggestions, please report them in [Issues](https://github.com/cranechu/pynvme/issues). They are warmly welcome.
+If you meet any issue, or have any suggestions, please report them to [Issues](https://github.com/cranechu/pynvme/issues). They are warmly welcome.
+
+
+Help Document
+=============
 
 ## Buffer
 ```python
