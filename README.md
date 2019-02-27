@@ -1,7 +1,6 @@
 # nvme
-pynvme, testing NVMe targets in Python
-
-https://github.com/cranechu/pynvme
+pynvme, test NVMe devices in Python. https://github.com/cranechu/pynvme
+[![pipeline status](https://gitlab.com/cranechu/pynvme/badges/master/pipeline.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 
 Pynvme Driver is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. pycharm and pytest, Pynvme is a convinent and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilage to use pynvme.
 
@@ -202,26 +201,52 @@ User can create a local NVMe/TCP target for test purpose, by:
 make nvmt
 ```
 
-Restrictions
-------------
+IOWorker
+--------
+Please refer to "nvme0n1.ioworker" examples in driver_test.py.
 
-Pynvme is focused on mainstream client NVMe SSD, following NVMe spec v1.3c. Some features are NOT supported for now. We will continue to develop the features listed below to support more tests and devices in future.
-1. Weighted Round Robin arbitration
-2. SGL
-3. multiple controller
-3. multiple namespace management
-4. directive operations
-5. sudden power cycle: shutdown while writing data
-6. metadata and protect information
-7. virtualization management
-8. security send/receive
-8. RPMB
-9. boot partition
-10. Management Interface
-12. Open-channel SSD
-13. Vendor Specific commands
 
-If you have any questions or suggestions, please report them in [Issues](https://github.com/cranechu/pynvme/issues). Issues and pull requests are warmly welcome.
+Source Code
+===========
+Here is a brief introduction on source code files.
+| files        | ntoes        |
+| ------------- |-------------|
+| spdk   | pynvme is built on SPDK  |
+| driver_wrap.pyx  | pynvme uses cython to bind python and C. All python classes are defined here.  |
+| cdriver.pxd  | interface between python and C  |
+| driver.h  | interface of C  |
+| driver.c  | the core part of pynvme, which extends SPDK for test purpose  |
+| setup.py  | cython configuration for compile |
+| Makefile | it is a part of SPDK makefiles |
+| driver_test.py | pytest cases for pynvme test. Users can develop more test cases for their NVMe devices. |
+| conftest.py | predefined pytest fixtures. Find more details below. |
+| pytest.ini | pytest runtime configuration |
+
+
+Pytest Fixtures
+===============
+Pynvme uses pytest to test it self. Users can also use pytest as the test framework to test their NVMe devices. Pytest's fixture is a powerful way to create and free resources in the test.
+
+| fixture    | scope    | ntoes        |
+| ------------- |-----|--------|
+| pciaddr | session | PCIe BDF address of the DUT, pass in by argument --pciaddr |
+| pcie | session | the object of the PCIe device. |
+| nvme0 | session | the object of NVMe controller |
+| nvme0n1 | session | the object of first Namespace of the controller |
+| verify | function | declare this fixture in test cases where data crc is to be verified. |
+
+
+Debug Pynvme
+============
+1. assert: it is recommended to compile SPDK with --enable-debug
+1. log: users can change log levels for driver and scripts. All logs are captured/hided by pytest in default. Please use argument "-s" to print logs in test time.
+  1. driver: spdk_log_set_print_level in driver.c, for SPDK related logs
+  2. scripts: log_cli_level in pytest.ini, for python/pytest scripts
+2. gdb: when driver crashes or misbehaviors, use can collect debug information through gdb
+  1. core dump: sudo coredumpctl debug
+  2. generate core dump in dead loop: CTRL-  3. test within gdb: sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
+
+If you meet any issue, or have any suggestions, please report them in [Issues](https://github.com/cranechu/pynvme/issues). They are warmly welcome.
 
 ## Buffer
 ```python
