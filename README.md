@@ -1,15 +1,15 @@
 # nvme
 pynvme, test NVMe devices in Python. [https://github.com/cranechu/pynvme]
+
 [![pipeline status](https://gitlab.com/cranechu/pynvme/badges/master/pipeline.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 
-- [nvme](#nvme)
 - [Tutorial](#tutorial)
 - [Install](#install)
 - [Features](#features)
-- [Source Code](#source-code-1)
-- [Pytest Fixtures](#pytest-fixtures)
-- [Debug Pynvme](#debug-pynvme)
-- [Help Document](#help-document)
+- [Files](#files)
+- [Fixtures](#fixtures)
+- [Debug](#debug)
+- [Documentation](#documentation)
   * [config](#config)
   * [Pcie](#pcie)
   * [Controller](#controller)
@@ -223,8 +223,8 @@ IOWorker
 Please refer to "nvme0n1.ioworker" examples in driver_test.py.
 
 
-Source Files
-============
+Files
+=====
 Here is a brief introduction on source code files.
 
 | files        | ntoes        |
@@ -241,8 +241,8 @@ Here is a brief introduction on source code files.
 | pytest.ini | pytest runtime configuration |
 
 
-Pytest Fixtures
-===============
+Fixtures
+========
 Pynvme uses pytest to test it self. Users can also use pytest as the test framework to test their NVMe devices. Pytest's fixture is a powerful way to create and free resources in the test.
 
 | fixture    | scope    | ntoes        |
@@ -254,8 +254,8 @@ Pynvme uses pytest to test it self. Users can also use pytest as the test framew
 | verify | function | declare this fixture in test cases where data crc is to be verified. |
 
 
-Debug Pynvme
-============
+Debug
+=====
 1. assert: it is recommended to compile SPDK with --enable-debug.
 1. log: users can change log levels for driver and scripts. All logs are captured/hided by pytest in default. Please use argument "-s" to print logs in test time.
     1. driver: spdk_log_set_print_level in driver.c, for SPDK related logs
@@ -267,7 +267,7 @@ Debug Pynvme
 If you meet any issue, or have any suggestions, please report them to [Issues](https://github.com/cranechu/pynvme/issues). They are warmly welcome.
 
 
-Help Document
+Documentation
 =============
 
 ## Buffer
