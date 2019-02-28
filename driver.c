@@ -99,9 +99,13 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
     g_driver_io_token_ptr = spdk_memzone_lookup(DRIVER_IO_TOKEN_NAME);
     g_driver_csum_table_ptr = spdk_memzone_lookup(DRIVER_CRC32_TABLE_NAME);
   }
+
+  if (g_driver_csum_table_ptr == NULL)
+  {
+    SPDK_ERRLOG("memory is not large enough to keep CRC32 of the whole drive data. Data verification is disabled\n");
+  }
   
-  if (g_driver_io_token_ptr == NULL ||
-      g_driver_csum_table_ptr == NULL)
+  if (g_driver_io_token_ptr == NULL)
   {
     SPDK_ERRLOG("fail to find memzone space\n");
     return -1;
@@ -123,10 +127,12 @@ void crc32_clear(uint64_t lba, uint64_t lba_count, int sanitize, int uncorr)
     len = g_driver_table_size;
   }
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "clear checksum table, lba 0x%lx, c %d, len %ld\n",
-               lba, c, len);
-  assert(g_driver_csum_table_ptr != NULL);
-  memset(&g_driver_csum_table_ptr[lba], c, len);
+  if (g_driver_csum_table_ptr != NULL)
+  {
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "clear checksum table, lba 0x%lx, c %d, len %ld\n",
+                  lba, c, len);
+    memset(&g_driver_csum_table_ptr[lba], c, len);
+  }
 }
 
 static void crc32_fini(void)
@@ -188,21 +194,44 @@ static void buffer_fill_data(void* buf,
     ptr[0] = lba;
     ptr[lba_size/sizeof(uint64_t)-1] = token+i;
 
-    //keep crc in memory
+    //keep crc in memory if allocated
     // suppose device modify data correctly. If the command fail, we cannot
     // tell what part of data is updated, while what not. Even when atomic
-    // write is supported, we still cannot tell that. 
-    g_driver_csum_table_ptr[lba] = buffer_calc_csum(ptr, lba_size);
+    // write is supported, we still cannot tell that.
+    if (g_driver_csum_table_ptr != NULL)
+    {
+      g_driver_csum_table_ptr[lba] = buffer_calc_csum(ptr, lba_size);
+    }
   }
 }
 
-static int buffer_verify_data(void* buf,
-                              unsigned long lba,
-                              uint32_t lba_count,
-                              uint32_t lba_size)
+static int buffer_verify_data(const void* buf,
+                              const unsigned long lba_first,
+                              const uint32_t lba_count,
+                              const uint32_t lba_size)
 {
+  unsigned long lba = lba_first;
+  
   for (uint32_t i=0; i<lba_count; i++, lba++)
   {
+    unsigned long* ptr = (unsigned long*)(buf+i*lba_size);
+    if (lba != ptr[0])
+    {
+      SPDK_WARNLOG("lba mismatch: lba 0x%lx, but got: 0x%lx\n", lba, ptr[0]);
+      return -2;
+    }
+  }    
+
+  if (g_driver_csum_table_ptr == NULL)
+  {
+    //no crc table allcoated, skip verification
+    return 0;
+  }
+
+  lba = lba_first;
+  for (uint32_t i=0; i<lba_count; i++, lba++)
+  {
+    unsigned long* ptr = (unsigned long*)(buf+i*lba_size);
     uint32_t expected_crc = g_driver_csum_table_ptr[lba];
     if (expected_crc == 0)
     {
@@ -216,13 +245,6 @@ static int buffer_verify_data(void* buf,
       return -1;
     }
     
-    unsigned long* ptr = (unsigned long*)(buf+i*lba_size);
-    if (lba != ptr[0])
-    {
-      SPDK_WARNLOG("lba mismatch: lba 0x%lx, but got: 0x%lx\n", lba, ptr[0]);
-      return -2;
-    }
-
     uint32_t computed_crc = buffer_calc_csum(ptr, lba_size);
     if (computed_crc != expected_crc)
     {
