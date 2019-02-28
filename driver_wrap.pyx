@@ -44,6 +44,8 @@
 
 [![pipeline status](https://gitlab.com/cranechu/pynvme/badges/master/pipeline.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=Gh7neA4ee4w" target="_blank"><img align="right" src="http://img.youtube.com/vi/Gh7neA4ee4w/0.jpg" alt="pynvme introduction" width="320" border="3" /></a>
+
 - [Tutorial](#tutorial)
 - [Install](#install)
 - [Features](#features)
