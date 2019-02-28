@@ -211,28 +211,20 @@ static int buffer_verify_data(const void* buf,
                               const uint32_t lba_size)
 {
   unsigned long lba = lba_first;
-  
+
   for (uint32_t i=0; i<lba_count; i++, lba++)
   {
     unsigned long* ptr = (unsigned long*)(buf+i*lba_size);
-    if (lba != ptr[0])
+    uint32_t computed_crc = buffer_calc_csum(ptr, lba_size);
+    uint32_t expected_crc = computed_crc;
+
+    // if crc table is not available, just use computed crc as
+    //expected crc, to bypass verification
+    if (g_driver_csum_table_ptr != NULL)
     {
-      SPDK_WARNLOG("lba mismatch: lba 0x%lx, but got: 0x%lx\n", lba, ptr[0]);
-      return -2;
+      expected_crc = g_driver_csum_table_ptr[lba];
     }
-  }    
 
-  if (g_driver_csum_table_ptr == NULL)
-  {
-    //no crc table allcoated, skip verification
-    return 0;
-  }
-
-  lba = lba_first;
-  for (uint32_t i=0; i<lba_count; i++, lba++)
-  {
-    unsigned long* ptr = (unsigned long*)(buf+i*lba_size);
-    uint32_t expected_crc = g_driver_csum_table_ptr[lba];
     if (expected_crc == 0)
     {
       //no mapping, nothing to verify
@@ -244,8 +236,13 @@ static int buffer_verify_data(const void* buf,
       SPDK_WARNLOG("lba uncorrectable: lba 0x%lx\n", lba);
       return -1;
     }
+
+    if (lba != ptr[0])
+    {
+      SPDK_WARNLOG("lba mismatch: lba 0x%lx, but got: 0x%lx\n", lba, ptr[0]);
+      return -2;
+    }
     
-    uint32_t computed_crc = buffer_calc_csum(ptr, lba_size);
     if (computed_crc != expected_crc)
     {
       SPDK_WARNLOG("crc mismatch: lba 0x%lx, expected crc 0x%x, but got: 0x%x\n",
@@ -253,7 +250,7 @@ static int buffer_verify_data(const void* buf,
       return -3;
     }
   }
-
+  
   return 0;
 }
 
