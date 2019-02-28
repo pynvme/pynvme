@@ -263,7 +263,8 @@ Debug
     2. scripts: log_cli_level in pytest.ini, for python/pytest scripts
 2. gdb: when driver crashes or misbehaviours, use can collect debug information through gdb.
     1. core dump: sudo coredumpctl debug
-    2. generate core dump in dead loop: CTRL-    3. test within gdb: sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
+    2. generate core dump in dead loop: CTRL-\
+    3. test within gdb: sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
 
 If you meet any issue, or have any suggestions, please report them to [Issues](https://github.com/cranechu/pynvme/issues). They are warmly welcome.
 
