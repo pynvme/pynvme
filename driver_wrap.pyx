@@ -148,7 +148,7 @@ Performance test, while monitoring the device temperature. Example:
 Install
 =======
 
-Pynvme is installed by compiling source code. 
+Pynvme is installed from compiling source code. It is recommended to install and use pynvme in Fedora 29 or later. Ubuntu is also tested. Pynvme cannot be installed in NVMe device, because kernel's NVMe driver should be unloaded before starting pynvme and SPDK. It is recommended to install OS and pynvme into SATA drive. 
 
 System Requirement
 ------------------
