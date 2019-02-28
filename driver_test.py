@@ -673,6 +673,55 @@ def test_subsystem_shutdown_notify(nvme0, subsystem, repeat):
     assert powercycle == get_power_cycles(nvme0)
 
 
+def test_write_fua_latency(nvme0n1, nvme0):
+    buf = d.Buffer(4096)
+    q = d.Qpair(nvme0, 8)
+
+    now = time.time()
+    nvme0n1.write(q, buf, 0, 8).waitdone()
+    non_fua_time = time.time()-now
+    logging.info("normal write latency %ds" % non_fua_time)
+
+    now = time.time()
+    nvme0n1.write(q, buf, 0, 8, 1<<30).waitdone()
+    fua_time = time.time()-now
+    logging.info("FUA write latency %ds" % fua_time)
+    
+    assert fua_time > non_fua_time
+
+
+def test_read_fua_latency(nvme0n1, nvme0):
+    buf = d.Buffer(4096)
+    q = d.Qpair(nvme0, 8)
+
+    # first time read to load data into SSD buffer
+    nvme0n1.read(q, buf, 0, 8).waitdone()
+
+    now = time.time()
+    nvme0n1.read(q, buf, 0, 8).waitdone()
+    non_fua_time = time.time()-now
+    logging.info("normal read latency %ds" % non_fua_time)
+
+    now = time.time()
+    nvme0n1.read(q, buf, 0, 8, 1<<30).waitdone()
+    fua_time = time.time()-now
+    logging.info("FUA read latency %ds" % fua_time)
+    
+    assert fua_time > non_fua_time
+
+
+def test_write_limited_retry(nvme0n1, nvme0):
+    buf = d.Buffer(4096)
+    q = d.Qpair(nvme0, 8)
+    nvme0n1.write(q, buf, 0, 8, 1<<31).waitdone()
+
+    
+def test_read_limited_retry(nvme0n1, nvme0):
+    buf = d.Buffer(4096)
+    q = d.Qpair(nvme0, 8)
+    nvme0n1.read(q, buf, 0, 8, 1<<31).waitdone()
+
+    
 # TODO: DUT-i pass, DUT-L hang, try more...
 @pytest.mark.skip(reason="limited support")
 def test_subsystem_reset(nvme0, subsystem):

@@ -60,8 +60,6 @@
 
 // the global configuration of the driver
 #define DCFG_VERIFY_READ      (BIT(0))
-#define DCFG_FUA_READ         (BIT(1))
-#define DCFG_FUA_WRITE        (BIT(2))
 
 
 //// shared data
@@ -946,14 +944,15 @@ int ns_cmd_read_write(int is_read,
   assert(buf != NULL);
   assert(lba_size == 512);
   assert(len >= lba_count*lba_size);
-
+  assert((io_flags&0xffff) == 0);
+  
   //setup cmd structure
   memset(&cmd, 0, sizeof(struct spdk_nvme_cmd));
   cmd.opc = is_read ? 2 : 1;
   cmd.nsid = ns->id;
   cmd.cdw10 = lba;
   cmd.cdw11 = lba>>32;
-  cmd.cdw12 = (lba_count-1)+(io_flags<<16);
+  cmd.cdw12 = io_flags | (lba_count-1);
   cmd.cdw13 = 0;
   cmd.cdw14 = 0;
   cmd.cdw15 = 0;
