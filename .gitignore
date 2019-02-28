@@ -19,3 +19,5 @@ driver_wrap.c
 __pycache__
 cov_report
 gdbcmds
+env
+

@@ -67,10 +67,9 @@ setup: reset
 
 cython_lib:
 	@python3 setup.py build_ext -i
-	gcc -pthread -shared -Wl,-z,relro -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld -g build/temp.linux-x86_64-3.7/driver_wrap.o ./spdk/build/lib/libspdk_pynvme.a ./spdk/build/lib/libspdk_nvme.a ./spdk/build/lib/libspdk_env_dpdk.a ./spdk/build/lib/libspdk_util.a ./spdk/build/lib/libspdk_sock.a -Wl,--whole-archive ./spdk/build/lib/libspdk_sock_posix.a ./spdk/build/lib/libspdk_json.a ./spdk/build/lib/libspdk_jsonrpc.a -Wl,--no-whole-archive ./spdk/build/lib/libspdk_rpc.a ./spdk/build/lib/libspdk_log.a ./spdk/dpdk/build/lib/librte_eal.a ./spdk/dpdk/build/lib/librte_mbuf.a ./spdk/dpdk/build/lib/librte_ring.a ./spdk/dpdk/build/lib/librte_mempool.a ./spdk/dpdk/build/lib/librte_bus_pci.a ./spdk/dpdk/build/lib/librte_pci.a ./spdk/dpdk/build/lib/librte_kvargs.a -L/usr/lib64 -luuid -lnuma -lpthread -lpython3.7m -o ./nvme.cpython-37m-x86_64-linux-gnu.so
 
 tags: 
-	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=dpdk --exclude=ioat --exclude=bdev --exclude=webpages
+	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=dpdk --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env 
 
 test: setup
 	sudo python3 -m pytest driver_test.py --pciaddr=${pciaddr} -v -x -r Efsx |& tee -a test.log

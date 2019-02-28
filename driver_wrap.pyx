@@ -60,7 +60,7 @@
   * [Subsystem](#subsystem)
   * [DotDict](#dotdict)
 
-Pynvme Driver is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. pycharm and pytest, Pynvme is a convinent and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilage to use pynvme.
+Pynvme Driver is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. emacs, pycharm and/or pytest, Pynvme is a convenient and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilege to use pynvme.
 
 Pynvme provides several classes to access and test NVMe devices:
 1. Subsystem: controls the power and reset of NVMe subsystem
@@ -69,7 +69,7 @@ Pynvme provides several classes to access and test NVMe devices:
 4. Namespace: abstracts NVMe namespace and operates NVM commands
 5. Qpair: manages NVMe IO SQ/CQ. Admin SQ/CQ are managed by Controller
 6. Buffer: allocates and manipulates the data buffer on host memory
-7. IOWorker: reads and/or writes NVMe Namespace in seperated processors
+7. IOWorker: reads and/or writes NVMe Namespace in separated processors
 Please use "help" to find more details of these classes.
 
 Pynvme works on Linux, and uses SPDK as the NVMe driver. DPDK and SPDK are statically linked in the module's .so object file, so users do not need to setup SPDK develop environment. The host Linux OS image is installed in a SATA drive, because the kernel's NVMe drive will be unloaded by Pynvme during the test. Pynvme does write data to your NVMe devices, so it could corrupt your data in the device. Users have to provide correct BDF (Bus:Device.Function) address to initialize the controller of the DUT device.
@@ -86,7 +86,7 @@ Fetch the controller's identify data. Example:
     >>> nvme0 = d.Controller(b"01:00.0")  # initialize NVMe controller with its PCIe BDF address
     >>> id_buf = d.Buffer(4096)  # allocate the buffer
     >>> nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  # read namespace identify data into buffer
-    >>> nvme0.waitdone()  # nvme commands are executed asynchorously, so we have to
+    >>> nvme0.waitdone()  # nvme commands are executed asynchronously, so we have to
     >>> id_buf.dump()   # print the whole buffer
 ```
 
@@ -172,9 +172,10 @@ Prerequisites
 ```shell
 git submodule update --init --recursive
 ./spdk/scripts/pkgdep.sh
+sudo dnf install python3-pip # Ubuntu: sudo apt-get install python3-pip 
 sudo python3 -m pip install -r requirements.txt
 ```
-The preerquisites can be changed from release to release. 
+The prerequisites can be changed from release to release. 
 
 Build
 -----
@@ -219,16 +220,16 @@ Pynvme writes and reads data in buffer to NVMe device LBA space. In order to ver
 
 Buffer should be allocated for data commands, and held till that command is completed because the buffer is being used by NVMe device. Users need to pay more attention on the life scope of the buffer in Python test scripts.
 
-NVMe commands are all asychronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in Python scripts, the callback funciton is called when that command is completed. Callback functions are eventually called by waitdone(), and so do not call waitdone in callback function to avoid re-entry of waitdone functions, which requires a lock inside.
+NVMe commands are all asynchronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in Python scripts, the callback function is called when that command is completed. Callback functions are eventually called by waitdone(), and so do not call waitdone in callback function to avoid re-entry of waitdone functions, which requires a lock inside.
 
 If DUT cannot complete the command in 5 seconds, that command would be timeout. 
 
 Pynvme traces recent thousands of commands in the cmdlog, as well as the completion entries. The cmdlog traces each qpair's commands and status. Pynvme supports up to 16 qpairs and their cmdlogs. User can list cmdlog to find the commands issued in different command queues, and their timestamps. In the progress of test, we can also use rpc to monitor DUT's registers, qpair, buffer and the cmdlog from 3rd-party tools. For example, 
 ```shell
-watch -n 1 sudo ./spdk/scripts/rpc.py get_nvme_controllers  # we use exised get_nvme_controllers rpc method to get all DUT information
+watch -n 1 sudo ./spdk/scripts/rpc.py get_nvme_controllers  # we use existed get_nvme_controllers rpc method to get all DUT information
 ```
 
-The cost is high and unconvinent to send each read and write command in Python scripts. Pynvme provides the low-cost IOWorker to send IOs in different processores. IOWorker takes full use of multi-core to not only send read/write IO in high speed, but also verify the correctness of data on the fly. User can get IOWorker's test statistics through its close() method. Here is an example of reading 4K data randomly with the IOWorker.
+The cost is high and inconvenient to send each read and write command in Python scripts. Pynvme provides the low-cost IOWorker to send IOs in different processes. IOWorker takes full use of multi-core to not only send read/write IO in high speed, but also verify the correctness of data on the fly. User can get IOWorker's test statistics through its close() method. Here is an example of reading 4K data randomly with the IOWorker.
 
 Example:
 ```python
@@ -240,9 +241,9 @@ Example:
     >>> print("IOPS: %dK/s\\n", r.io_count_read/r.mseconds)
 ```
 
-The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. Similarily, after writing of multiple ioworkers in the same LBA region, the subsequent read does not know the latest data content. As a mitigation solution, we suggest to separate read and write operations to differnt IOWorkers and different LBA regions in test scripts, so it can be avoid to read and write same LBA at simultanously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other. Test scripts can disable or enable inline verification of read by function config(). By default, it is disabled.  
+The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. Similarly, after writing of multiple IOWorkers in the same LBA region, the subsequent read does not know the latest data content. As a mitigation solution, we suggest to separate read and write operations to different IOWorkers and different LBA regions in test scripts, so it can be avoid to read and write same LBA at simultaneously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other. Test scripts can disable or enable inline verification of read by function config(). By default, it is disabled.  
 
-Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explict code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair. 
+Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explicit code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair. 
 
 Pynvme also supports NVMe/TCP. 
 Example:
@@ -268,7 +269,7 @@ Files
 =====
 Here is a brief introduction on source code files. 
 
-| files        | ntoes        | 
+| files        | notes        | 
 | ------------- |-------------|
 | spdk   | pynvme is built on SPDK  |
 | driver_wrap.pyx  | pynvme uses cython to bind python and C. All python classes are defined here.  |
@@ -286,7 +287,7 @@ Fixtures
 ========
 Pynvme uses pytest to test it self. Users can also use pytest as the test framework to test their NVMe devices. Pytest's fixture is a powerful way to create and free resources in the test. 
 
-| fixture    | scope    | ntoes        | 
+| fixture    | scope    | notes        | 
 | ------------- |-----|--------|
 | pciaddr | session | PCIe BDF address of the DUT, pass in by argument --pciaddr |
 | pcie | session | the object of the PCIe device. |
@@ -298,10 +299,10 @@ Pynvme uses pytest to test it self. Users can also use pytest as the test framew
 Debug
 =====
 1. assert: it is recommended to compile SPDK with --enable-debug.  
-1. log: users can change log levels for driver and scripts. All logs are captured/hided by pytest in default. Please use argument "-s" to print logs in test time.   
+1. log: users can change log levels for driver and scripts. All logs are captured/hidden by pytest in default. Please use argument "-s" to print logs in test time.   
     1. driver: spdk_log_set_print_level in driver.c, for SPDK related logs
     2. scripts: log_cli_level in pytest.ini, for python/pytest scripts
-2. gdb: when driver crashes or misbehaviors, use can collect debug information through gdb.  
+2. gdb: when driver crashes or misbehaviours, use can collect debug information through gdb.  
     1. core dump: sudo coredumpctl debug
     2. generate core dump in dead loop: CTRL-\
     3. test within gdb: sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
