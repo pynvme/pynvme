@@ -656,7 +656,8 @@ def test_pcie_reset(nvme0, pcie):
     assert powercycle == get_power_cycles(nvme0)
 
 
-def test_subsystem_shutdown_notify(nvme0, subsystem):
+@pytest.mark.parametrize("repeat", range(10))
+def test_subsystem_shutdown_notify(nvme0, subsystem, repeat):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
         nvme0.getlogpage(2, buf, 512).waitdone()
@@ -664,8 +665,10 @@ def test_subsystem_shutdown_notify(nvme0, subsystem):
 
     powercycle = get_power_cycles(nvme0)
     logging.info("power cycles: %d" % powercycle)
+    
     subsystem.shutdown_notify()
     assert powercycle == get_power_cycles(nvme0)
+    
     subsystem.shutdown_notify(True)
     assert powercycle == get_power_cycles(nvme0)
 
@@ -872,34 +875,24 @@ def test_abort_aer_commands(nvme0, aer):
         nvme0.waitdone(104)
 
 
-def test_ioworker_more_than_expected(nvme0n1):
+def test_ioworker_maximum(nvme0n1):
     wl = []
     start_time = time.time()
-    
+
+    # support upto 16 qpairs, 1 admin, 15 io queues
     for i in range(15):
-        logging.info("start ioworker %d" % i)
         a = nvme0n1.ioworker(io_size=8, lba_align=16,
                              lba_random=False, qdepth=16,
                              read_percentage=100, time=10)
         wl.append(a)
-    assert len(wl) == 15
 
     for w in wl:
         w.start()
-
-    logging.info("start one more ioworker")
-    a = nvme0n1.ioworker(io_size=8, lba_align=16,
-                         lba_random=False, qdepth=16,
-                         read_percentage=100, time=100).start()
+    logging.info("started all ioworkers")
 
     for w in wl:
         w.close()
-
-    # the last one should be failed to create
-    with pytest.warns(UserWarning, match="ioworker host ERROR"):    
-        a.close()
-    assert time.time() - start_time < 50
-    
+            
     
 def test_ioworker_progress(nvme0, nvme0n1):
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()

@@ -597,9 +597,15 @@ cdef class Subsystem(object):
             cc = cc | 0x4000
         self._nvme[0x14] = cc
 
-        if not abrupt:
-            logging.debug("waiting csts.shst ...")
-            while (self._nvme[0x1c] & 0xc) != 0x8: pass
+        # refer to spec 7.6.2, host delay is recommended
+        rtd3e = self._nvme.id_data(91, 88)
+        if rtd3e == 0:
+            rtd3e = 1000_000
+        time.sleep(rtd3e/1000_000)
+
+        # wait shutdown processing is complete
+        while (self._nvme[0x1c] & 0xc) != 0x8: pass
+        logging.debug("shutdown completed")
 
     def reset(self):
         """reset the nvme subsystem through register nssr.nssrc"""
