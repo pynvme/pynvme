@@ -170,6 +170,7 @@ git clone https://github.com/cranechu/pynvme
 Prerequisites
 -------------
 ```shell
+cd pynvme
 git submodule update --init --recursive
 sudo ./spdk/scripts/pkgdep.sh
 sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip 
