@@ -181,9 +181,9 @@ The prerequisites can be changed from release to release.
 Build
 -----
 ```shell
-cd spdk; ./configure; cd ..   # configurate SPDK
-make spdk                     # compile SPDK
-make                          # compile pynvme
+cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
+make spdk                                    # compile SPDK
+make                                         # compile pynvme
 ```
 Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so 
 
