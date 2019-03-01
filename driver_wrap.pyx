@@ -171,8 +171,8 @@ Prerequisites
 -------------
 ```shell
 git submodule update --init --recursive
-./spdk/scripts/pkgdep.sh
-sudo dnf install python3-pip # Ubuntu: sudo apt-get install python3-pip 
+sudo ./spdk/scripts/pkgdep.sh
+sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip 
 sudo python3 -m pip install -r requirements.txt
 ```
 The prerequisites can be changed from release to release. 
@@ -180,12 +180,9 @@ The prerequisites can be changed from release to release.
 Build
 -----
 ```shell
-cd spdk
-make clean
-./configure --enable-debug  # --without-isal when required
-make
-cd ..
-make clean; make
+cd spdk; ./configure; cd ..   # configurate SPDK
+make spdk                     # compile SPDK
+make                          # compile pynvme
 ```
 Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so 
 

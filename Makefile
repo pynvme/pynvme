@@ -46,13 +46,18 @@ pciaddr=$(shell lspci | grep 'Non-Volatile memory' | grep -o '..:..\..' | head -
 #reserve 3G to others, get all remaining memory for DPDK
 memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%4)*3/4}')
 
+
 #cython part
 clean: cython_clean
 cython_clean:
 	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* test.log
 
-all: cython_lib tags
-.PHONY: all
+all: cython_lib
+.PHONY: all spdk
+
+spdk:
+	cd spdk/dpdk; git checkout spdk-18.08; cd ../..
+	cd spdk; make clean; ./configure --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
 
 doc:
 	pydocmd simple nvme++ > README.md

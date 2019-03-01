@@ -587,8 +587,6 @@ SPDK_RPC_REGISTER("get_nvme_controllers", rpc_get_nvme_controllers, SPDK_RPC_STA
 ////driver system
 ///////////////////////////////
 
-static_assert(DEBUG, "must enable DEBUG for more assert and check");
-
 int driver_init(void)
 {
   int ret = 0;
@@ -1084,13 +1082,12 @@ static bool ioworker_send_one_is_finish(struct ioworker_args* args,
 static void ioworker_one_io_throttle(struct ioworker_global_ctx* gctx,
                                      struct timeval* now)
 {
-  struct timeval diff;
-  struct timeval* tv = &gctx->io_due_time;
-
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "this io due at %ld.%06ld\n", tv->tv_sec, tv->tv_usec);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "this io due at %ld.%06ld\n",
+                gctx->io_due_time.tv_sec, gctx->io_due_time.tv_usec);
   if (true == timercmp(&gctx->io_due_time, now, >))
   {
     //delay usec to meet the IOPS prequisit
+    struct timeval diff;
     timersub(&gctx->io_due_time, now, &diff);
     usleep(timeval_to_us(&diff));
   }
