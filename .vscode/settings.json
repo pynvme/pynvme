@@ -1,0 +1,10 @@
+{
+    "python.unitTest.pyTestArgs": [
+        "--pciaddr=01:00.0"
+    ],
+    "python.unitTest.unittestEnabled": false,
+    "python.unitTest.nosetestsEnabled": false,
+    "python.unitTest.pyTestEnabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.unitTest.pyTestPath": "./pytest_sudo.sh"
+}
