@@ -5,7 +5,14 @@
     "python.unitTest.unittestEnabled": false,
     "python.unitTest.nosetestsEnabled": false,
     "python.unitTest.pyTestEnabled": true,
-    "python.linting.pylintEnabled": true,
     "python.unitTest.pyTestPath": "./.vscode/pytest_sudo.sh", 
-    "python.pythonPath": "./.vscode/python_sudo.sh"
+    "python.pythonPath": "./.vscode/python_sudo.sh",
+    "python.disableInstallationCheck": true,
+    "python.linting.enabled": false,
+    "workbench.panel.defaultLocation": "right",
+    "outline.problems.enabled": false,
+    "outline.problems.badges": false,
+    "outline.problems.colors": false,
+    "problems.decorations.enabled": false,
+    "problems.autoReveal": false
 }

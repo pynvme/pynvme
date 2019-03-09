@@ -1,1 +1,1 @@
-sudo python3 -m pytest $@
+sudo /usr/bin/python3 -m pytest $@
