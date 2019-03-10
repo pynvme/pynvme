@@ -55,7 +55,9 @@ cython_clean:
 all: cython_lib
 .PHONY: all spdk
 
-spdk:
+spdk: clean
+	sudo ./spdk/scripts/pkgdep.sh
+	sudo pip3 install -r requirements.txt
 	cd spdk/dpdk; git checkout spdk-18.08; cd ../..
 	cd spdk; make clean; ./configure --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
 
