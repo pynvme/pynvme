@@ -1558,18 +1558,18 @@ cdef class Namespace(object):
             lba_align (short): IO alignment, unit is LBA
             lba_random (bool): True if sending IO with random starting LBA
             read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only
-            time (int): specified maximum seconds of the IOWorker
-                        default:0, no limit (upto 24hr)
-            qdepth (int): queue depth of the Qpair created by the IOWorker
+            time (int): specified maximum time of the IOWorker in seconds, up to 24*3600
+                        default:0, means no limit
+            qdepth (int): queue depth of the Qpair created by the IOWorker, up to 1024
                           default: 64
             region_start (long): sending IO in the specified LBA region, start
                                  default: 0
             region_end (long): sending IO in the specified LBA region, end but not include
                                default: 0xffff_ffff_ffff_ffff
             iops (int): specified maximum IOPS. IOWorker throttles the sending IO speed.
-                        default: 0, no limit
+                        default: 0, means no limit
             io_count (long): specified maximum IO counts to send.
-                             default: 0, no limit
+                             default: 0, means no limit
             lba_start (long): the LBA address of the first command.
                               default: 0, means start from region_start
             qprio (int): SQ priority.

@@ -43,8 +43,8 @@ include $(SPDK_ROOT_DIR)/mk/spdk.lib.mk
 #find the first NVMe device as the DUT
 pciaddr=$(shell lspci | grep 'Non-Volatile memory' | grep -o '..:..\..' | head -1)
 
-#reserve 3G to others, get all remaining memory for DPDK
-memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%4)*3/4}')
+#reserve memory for driver
+memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%4)/2}')
 
 
 #cython part

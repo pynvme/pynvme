@@ -649,7 +649,14 @@ int driver_fini(void)
 
 void driver_config(uint64_t cfg_word)
 {
-  *g_driver_global_config_ptr = cfg_word;
+  if (g_driver_csum_table_ptr != NULL)
+  {
+    *g_driver_global_config_ptr = cfg_word;
+  }
+  else
+  {
+    SPDK_INFOLOG(SPDK_LOG_NVME, "no enough memory, not to enable data verification feature.\n");
+  }
 }
 
 
