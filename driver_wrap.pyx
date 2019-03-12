@@ -46,7 +46,7 @@
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=Gh7neA4ee4w" target="_blank"><img align="right" src="http://img.youtube.com/vi/Gh7neA4ee4w/0.jpg" alt="pynvme introduction" width="480" border="0" /></a>
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=_UE7gn68uwg" target="_blank"><img align="right" src="http://img.youtube.com/vi/_UE7gn68uwg/0.jpg" alt="pynvme introduction" width="480" border="0" /></a>
 
 - [Tutorial](#tutorial)
 - [Install](#install)
@@ -62,9 +62,9 @@
   * [Buffer](#buffer)
   * [Subsystem](#subsystem)
 
-Pynvme is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. emacs, pycharm and/or pytest, Pynvme is a convenient and professional NVMe device test solution. It can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilege to use pynvme.
+Pynvme is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. emacs, vscode and/or pytest, Pynvme is a convenient and professional NVMe device test solution. 
 
-Pynvme provides several classes to access and test NVMe devices:
+Pynvme can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilege to use pynvme. It provides classes to access and test NVMe devices:
 1. Subsystem: controls the power and reset of NVMe subsystem
 2. Pcie: accesses PCIe device's config space
 3. Controller: accesses NVMe registers and operates admin commands
@@ -72,7 +72,7 @@ Pynvme provides several classes to access and test NVMe devices:
 5. Qpair: manages NVMe IO SQ/CQ. Admin SQ/CQ are managed by Controller
 6. Buffer: allocates and manipulates the data buffer on host memory
 7. IOWorker: reads and/or writes NVMe Namespace in separated processors
-Please use "help" to find more details of these classes.
+Please use python "help()" to find more details of these classes.
 
 Pynvme works on Linux, and uses SPDK as the NVMe driver. DPDK and SPDK are statically linked in the module's .so object file, so users do not need to setup SPDK develop environment. The host Linux OS image is installed in a SATA drive, because the kernel's NVMe drive will be unloaded by Pynvme during the test. Pynvme does write data to your NVMe devices, so it could corrupt your data in the device. Users have to provide correct BDF (Bus:Device.Function) address to initialize the controller of the DUT device.
 

@@ -102,7 +102,8 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
 
   if (g_driver_csum_table_ptr == NULL)
   {
-    SPDK_ERRLOG("memory is not large enough to keep CRC32 of the whole drive data. Data verification is disabled\n");
+    SPDK_NOTICELOG("memory is not large enough to keep CRC32 table.\n");
+    SPDK_NOTICELOG("Data verification is disabled!\n");
   }
   
   if (g_driver_io_token_ptr == NULL)
