@@ -63,6 +63,7 @@ def test_create_device_invalid():
 
 
 def test_create_device_again(nvme0):
+    # """docstring cuts all tests below."""
     with pytest.raises(d.NvmeEnumerateError):
         d.Controller(b"10:00.0")
 
@@ -1042,7 +1043,7 @@ def test_ioworker_output_io_per_second_consistency(nvme0n1, nvme0):
 
 @pytest.mark.parametrize('depth', [256, 512, 1022])
 def test_ioworker_huge_qdepth(nvme0, nvme0n1, depth):
-    """test huge queue in ioworker"""
+    # """test huge queue in ioworker"""
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
     nvme0n1.ioworker(io_size=8, lba_align=16,
                      lba_random=False, qdepth=depth,
@@ -1409,13 +1410,13 @@ def test_ioworkers_with_many_huge_io(nvme0n1, nvme0):
 
 
 def test_ioworkers_read_and_write_conflict(nvme0n1, nvme0, verify):
-    """read write confliction will cause data mismatch.
-
-    When the same LBA the read and write commands are operating on, NVMe
-    spec does not garentee the order of read and write operation, so the 
-    data of read command got could be old data or the new data of the write
-    command just written. 
-    """
+    # """read write confliction will cause data mismatch.
+    # 
+    # When the same LBA the read and write commands are operating on, NVMe
+    # spec does not garentee the order of read and write operation, so the 
+    # data of read command got could be old data or the new data of the write
+    # command just written. 
+    # """
     
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
@@ -1435,11 +1436,12 @@ def test_ioworkers_read_and_write_conflict(nvme0n1, nvme0, verify):
 
 
 def test_ioworkers_read_and_write(nvme0n1, nvme0):
-    """read write confliction will cause data mismatch.
+    # """read write confliction will cause data mismatch.
+    # 
+    # One mitigation solution is separate read and write to differnt IOWorkers
+    # and operate different LBA regions to avoid read-write confliction. 
+    # """
 
-    One mitigation solution is separate read and write to differnt IOWorkers
-    and operate different LBA regions to avoid read-write confliction. 
-    """
     with nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
                           lba_random=False,
                           region_start=0, region_end=128,
