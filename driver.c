@@ -526,13 +526,16 @@ static void* rpc_server(void* args)
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
   
   // start the rpc
-  rc = spdk_rpc_listen("/var/tmp/spdk.sock");
+  rc = spdk_rpc_listen("/var/tmp/pynvme.sock");
   if (rc != 0)
   {
     SPDK_ERRLOG("rpc fail to get the sock \n");
     return NULL;
   }
 
+  // pynvme run as root, but rpc client no need
+  chmod("/var/tmp/pynvme.sock", 0777);
+  
   spdk_rpc_set_state(SPDK_RPC_STARTUP);
 
   while(1)
