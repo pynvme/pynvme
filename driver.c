@@ -549,13 +549,14 @@ static void* rpc_server(void* args)
 
 
 static void
-rpc_get_nvme_controllers(struct spdk_jsonrpc_request *request,
-                         const struct spdk_json_val *params)
+rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
+                   const struct spdk_json_val *params)
 {
   struct spdk_json_write_ctx *w;
 
   w = spdk_jsonrpc_begin_result(request);
-  if (w == NULL) {
+  if (w == NULL)
+  {
     return;
   }
 
@@ -563,21 +564,12 @@ rpc_get_nvme_controllers(struct spdk_jsonrpc_request *request,
 
   for (int i=0; i<CMD_LOG_MAX_Q; i++)
   {
+    // only send valid qpair
     if (cmd_log_queue_table[i].tail_index < CMD_LOG_DEPTH)
     {
       uint32_t tail = cmd_log_queue_table[i].tail_index;
-      struct cmd_log_entry_t* table = cmd_log_queue_table[i].table;
 
-      spdk_json_write_uint32(w, tail);
-
-      // send commands details
-      spdk_json_write_array_begin(w);
-      for (int j=0; j<4; j++)
-      {
-        uint32_t index = (tail+CMD_LOG_DEPTH-1-j)%CMD_LOG_DEPTH;
-        spdk_json_write_uint32(w, table[index].cmd.opc);
-      }
-      spdk_json_write_array_end(w);
+      spdk_json_write_string_fmt(w, "%d: %d", i, tail);
     }
   }
 
@@ -585,8 +577,11 @@ rpc_get_nvme_controllers(struct spdk_jsonrpc_request *request,
   
   spdk_jsonrpc_end_result(request, w);
 }
-SPDK_RPC_REGISTER("get_nvme_controllers", rpc_get_nvme_controllers, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
+SPDK_RPC_REGISTER("list_all_qpair", rpc_list_all_qpair, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
 
+      //struct cmd_log_entry_t* table = cmd_log_queue_table[i].table;
+      //uint32_t index = (tail+CMD_LOG_DEPTH-1-j)%CMD_LOG_DEPTH;
+      //spdk_json_write_uint32(w, table[index].cmd.opc);
 
 ////driver system
 ///////////////////////////////

@@ -963,7 +963,7 @@ def test_ioworker_progress(nvme0, nvme0n1):
 def test_ioworker_simplified(nvme0n1):
     nvme0n1.ioworker(io_size=8, lba_align=16,
                      lba_random=True, qdepth=16,
-                     read_percentage=0, time=2).start().close()
+                     read_percentage=100, time=24*3600).start().close()
 
     with nvme0n1.ioworker(io_size=8, lba_align=16,
                           lba_random=True, qdepth=16,
