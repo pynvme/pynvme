@@ -561,27 +561,32 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
   }
 
   spdk_json_write_array_begin(w);
-
   for (int i=0; i<CMD_LOG_MAX_Q; i++)
   {
     // only send valid qpair
     if (cmd_log_queue_table[i].tail_index < CMD_LOG_DEPTH)
     {
-      uint32_t tail = cmd_log_queue_table[i].tail_index;
-
-      spdk_json_write_string_fmt(w, "%d: %d", i, tail);
+      //json: leading 0 means octal, so +1 to avoid it
+      spdk_json_write_uint32(w, i+1);
     }
   }
-
   spdk_json_write_array_end(w);
   
   spdk_jsonrpc_end_result(request, w);
 }
 SPDK_RPC_REGISTER("list_all_qpair", rpc_list_all_qpair, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
 
+static void
+rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
+                const struct spdk_json_val *params)
+{
       //struct cmd_log_entry_t* table = cmd_log_queue_table[i].table;
       //uint32_t index = (tail+CMD_LOG_DEPTH-1-j)%CMD_LOG_DEPTH;
       //spdk_json_write_uint32(w, table[index].cmd.opc);
+  
+}
+SPDK_RPC_REGISTER("get_cmdlog", rpc_get_cmdlog, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
+
 
 ////driver system
 ///////////////////////////////
