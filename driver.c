@@ -576,64 +576,55 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
 SPDK_RPC_REGISTER("list_all_qpair", rpc_list_all_qpair, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
 
 
-struct rpc_get_cmdlog {
-  uint32_t qid;
-};
-
-static const struct spdk_json_object_decoder rpc_get_cmdlog_decoders[] = {
-	{"qid", offsetof(struct rpc_get_cmdlog, qid), spdk_json_decode_uint32, false},
-};
-
 static void
 rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
                const struct spdk_json_val *params)
 {
-	/* struct rpc_get_cmdlog req = {}; */
-
-  /* SPDK_NOTICELOG("aaa\n"); */
-
-	/* if (params == NULL) */
-  /* { */
-  /*   SPDK_ERRLOG("no parameters\n"); */
-  /*   spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS, */
-  /*                                    "Invalid parameters"); */
-  /*   return; */
-  /* } */
-  /* SPDK_NOTICELOG("bbb\n"); */
-  
-  /* if (spdk_json_decode_object(params, rpc_get_cmdlog_decoders, 1, &req)) */
-  /* { */
-  /*   SPDK_ERRLOG("spdk_json_decode_object failed\n"); */
-  /*   spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS, */
-  /*                                    "Invalid parameters"); */
-  /*   return; */
-  /* } */
-  /* SPDK_NOTICELOG("ccc\n"); */
-
-  unsigned int qid = 3;//req.qid-1;
+  uint32_t qid;
+  size_t count;
   struct spdk_json_write_ctx *w;
 
+	if (params == NULL)
+  {
+    SPDK_ERRLOG("no parameters\n");
+    spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
+                                     "Invalid parameters");
+    return;
+  }
+  
+  if (spdk_json_decode_array(params, spdk_json_decode_uint32,
+                             &qid, 1, &count, sizeof(uint32_t)))
+  {
+    SPDK_ERRLOG("spdk_json_decode_object failed\n");
+    spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
+                                     "Invalid parameters");
+    return;
+  }
+
+  if (count != 1)
+  {
+    SPDK_ERRLOG("only 1 parameter required for qid\n");
+    spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
+                                     "Invalid parameters");
+    return;
+  }
+
+  qid = qid-1;  //avoid 0 in json
+  
   w = spdk_jsonrpc_begin_result(request);
   if (w == NULL)
   {
     return;
   }
 
-  SPDK_NOTICELOG("qid = %d\n", qid);
   spdk_json_write_array_begin(w);
-  for (int i=0; i<10; i++)
+  struct cmd_log_entry_t* table = cmd_log_queue_table[qid].table;
+  for (uint32_t i=0; i<cmd_log_queue_table[qid].tail_index; i++)
   {
-      //json: leading 0 means octal, so +1 to avoid it
-      //struct cmd_log_entry_t* table = cmd_log_queue_table[i].table;
-      //uint32_t index = (tail+CMD_LOG_DEPTH-1-j)%CMD_LOG_DEPTH;
-      //spdk_json_write_uint32(w, table[index].cmd.opc);
-    spdk_json_write_string_fmt(w, "test test again %d ...", qid);
-    SPDK_NOTICELOG("qid = %d\n", i);
+    spdk_json_write_string_fmt(w, "%d: opc %d", i, table[i].cmd.opc);
   }
   spdk_json_write_array_end(w);
-  SPDK_NOTICELOG("qid = %d\n", qid);
   spdk_jsonrpc_end_result(request, w);
-  SPDK_NOTICELOG("qid = %d\n", qid);
 }
 SPDK_RPC_REGISTER("get_cmdlog", rpc_get_cmdlog, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
 
