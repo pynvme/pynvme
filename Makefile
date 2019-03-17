@@ -79,7 +79,7 @@ tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=dpdk --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env 
 
 test: setup
-	sudo python3 -m pytest driver_test.py --pciaddr=${pciaddr} -v -r Efsx |& tee -a test.log
+	sudo python3 -m pytest driver_test.py::test_ioworker_simplified --pciaddr=${pciaddr} -v -s
 	cat test.log | grep "193 passed, 8 skipped, 1 xfailed, 1 warnings" || exit -1
 
 nvmt: setup      # create a NVMe/TCP target on 2 cores, based on memory bdev, for local test only
