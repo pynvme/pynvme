@@ -70,7 +70,7 @@ reset:
 	-sudo fuser -k 4420/tcp
 
 setup: reset
-	sudo modprobe -r vfio
+	sudo modprobe -r kvmgt  # rmmod vfio to speed up init
 	sudo HUGEMEM=${memsize} ./spdk/scripts/setup.sh
 
 cython_lib:
