@@ -5,8 +5,13 @@
     "python.unitTest.unittestEnabled": false,
     "python.unitTest.nosetestsEnabled": false,
     "python.unitTest.pyTestEnabled": true,
-    "python.unitTest.pyTestPath": "./.vscode/pytest_sudo.sh", 
     "python.pythonPath": "./.vscode/python_sudo.sh",
     "workbench.panel.defaultLocation": "right",
-    "python.linting.enabled": false
+    "python.linting.enabled": false,
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/node_modules/*/**": true, 
+        "**/spdk/*/**": true
+      }
 }

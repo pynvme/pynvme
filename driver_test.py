@@ -154,10 +154,10 @@ def test_get_nvme_register_vs(nvme0):
 
 
 def test_get_lba_format(nvme0n1):
-    nvme0n1.get_lba_format() == nvme0n1.get_lba_format(512, 0)
-    nvme0n1.get_lba_format(4096, 0) != nvme0n1.get_lba_format(512, 0)
-    nvme0n1.get_lba_format(4097, 0) == None
-    nvme0n1.get_lba_format() < 16
+    assert nvme0n1.get_lba_format() == nvme0n1.get_lba_format(512, 0)
+    assert nvme0n1.get_lba_format(4096, 0) != nvme0n1.get_lba_format(512, 0)
+    assert nvme0n1.get_lba_format(4097, 0) == None
+    assert nvme0n1.get_lba_format() < 16
     
 
 def test_enable_and_disable_hmb(nvme0):

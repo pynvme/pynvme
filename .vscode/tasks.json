@@ -13,6 +13,18 @@
             "runOptions": {
                 "runOn": "folderOpen"
             }
+        },
+        {
+            "label": "refresh_trigger",
+            "type": "shell",
+            "command": "watch -n 1 touch refresh",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
         }
+        
     ]
 }
