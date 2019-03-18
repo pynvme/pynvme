@@ -516,195 +516,6 @@ static void attach_cb(void *cb_ctx,
 }
 
 
-////rpc
-///////////////////////////////
-
-static void* rpc_server(void* args)
-{
-  int rc = 0;
-
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
-  
-  // start the rpc
-  rc = spdk_rpc_listen("/var/tmp/pynvme.sock");
-  if (rc != 0)
-  {
-    SPDK_ERRLOG("rpc fail to get the sock \n");
-    return NULL;
-  }
-
-  // pynvme run as root, but rpc client no need
-  chmod("/var/tmp/pynvme.sock", 0777);
-  
-  spdk_rpc_set_state(SPDK_RPC_STARTUP);
-
-  while(1)
-  {
-    spdk_rpc_accept();
-    usleep(100000);
-  }
-
-  spdk_rpc_close();
-}
-
-
-static void
-rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
-                   const struct spdk_json_val *params)
-{
-  struct spdk_json_write_ctx *w;
-
-  w = spdk_jsonrpc_begin_result(request);
-  if (w == NULL)
-  {
-    return;
-  }
-
-  spdk_json_write_array_begin(w);
-  for (int i=0; i<CMD_LOG_MAX_Q; i++)
-  {
-    // only send valid qpair
-    if (cmd_log_queue_table[i].tail_index < CMD_LOG_DEPTH)
-    {
-      //json: leading 0 means octal, so +1 to avoid it
-      spdk_json_write_uint32(w, i+1);
-    }
-  }
-  spdk_json_write_array_end(w);
-  spdk_jsonrpc_end_result(request, w);
-}
-SPDK_RPC_REGISTER("list_all_qpair", rpc_list_all_qpair, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
-
-
-static void
-rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
-               const struct spdk_json_val *params)
-{
-  uint32_t qid;
-  size_t count;
-  struct spdk_json_write_ctx *w;
-
-	if (params == NULL)
-  {
-    SPDK_ERRLOG("no parameters\n");
-    spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
-                                     "Invalid parameters");
-    return;
-  }
-  
-  if (spdk_json_decode_array(params, spdk_json_decode_uint32,
-                             &qid, 1, &count, sizeof(uint32_t)))
-  {
-    SPDK_ERRLOG("spdk_json_decode_object failed\n");
-    spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
-                                     "Invalid parameters");
-    return;
-  }
-
-  if (count != 1)
-  {
-    SPDK_ERRLOG("only 1 parameter required for qid\n");
-    spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
-                                     "Invalid parameters");
-    return;
-  }
-
-  qid = qid-1;  //avoid 0 in json
-  
-  w = spdk_jsonrpc_begin_result(request);
-  if (w == NULL)
-  {
-    return;
-  }
-
-  spdk_json_write_array_begin(w);
-  struct cmd_log_entry_t* table = cmd_log_queue_table[qid].table;
-  for (uint32_t i=0; i<cmd_log_queue_table[qid].tail_index; i++)
-  {
-    spdk_json_write_string_fmt(w, "%d: opc %d", i, table[i].cmd.opc);
-  }
-  spdk_json_write_array_end(w);
-  spdk_jsonrpc_end_result(request, w);
-}
-SPDK_RPC_REGISTER("get_cmdlog", rpc_get_cmdlog, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
-
-
-////driver system
-///////////////////////////////
-
-int driver_init(void)
-{
-  int ret = 0;
-  char buf[20];
-  struct spdk_env_opts opts;
-
-  //init random sequence reproducible
-  srandom(1);
-  
-  // distribute multiprocessing to different cores
-  spdk_env_opts_init(&opts);
-  sprintf(buf, "0x%x", 1<<(getpid()%get_nprocs()));
-  opts.core_mask = buf;
-  opts.shm_id = 0;
-  opts.name = "pynvme";
-  opts.mem_size = 2048;
-  if (spdk_env_init(&opts) < 0)
-  {
-    fprintf(stderr, "Unable to initialize SPDK env\n");
-    return -1;
-  }
-
-  // distribute multiprocessing to different cores  
-  // log level setup
-  spdk_log_set_flag("nvme");
-  spdk_log_set_print_level(SPDK_LOG_INFO);
-
-  // start rpc server in primary process only
-  if (spdk_process_is_primary())
-  {
-    pthread_t rpc_t;
-    pthread_create(&rpc_t, NULL, rpc_server, NULL);
-  }
-
-  // init cmd log
-  ret = cmd_log_init();
-  if (ret != 0)
-  {
-    return ret;
-  }
-
-  cmd_log_qpair_init(0);
-
-  return ret;
-}
-
-
-int driver_fini(void)
-{
-  //delete cmd log of admin queue
-  if (spdk_process_is_primary())
-  {
-    cmd_log_qpair_clear(0);
-    cmd_log_finish();
-    SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
-  }  
-	return 0;
-}
-
-
-void driver_config(uint64_t cfg_word)
-{
-  if (g_driver_csum_table_ptr != NULL)
-  {
-    *g_driver_global_config_ptr = cfg_word;
-  }
-  else
-  {
-    SPDK_INFOLOG(SPDK_LOG_NVME, "no enough memory, not to enable data verification feature.\n");
-  }
-}
-
-
 ////module: pcie ctrlr
 ///////////////////////////////
 
@@ -1652,3 +1463,210 @@ const char* cmd_name(uint8_t opc, int set)
     return "Unknown command set";
   }
 }
+
+
+////rpc
+///////////////////////////////
+
+static void* rpc_server(void* args)
+{
+  int rc = 0;
+
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
+  
+  // start the rpc
+  rc = spdk_rpc_listen("/var/tmp/pynvme.sock");
+  if (rc != 0)
+  {
+    SPDK_ERRLOG("rpc fail to get the sock \n");
+    return NULL;
+  }
+
+  // pynvme run as root, but rpc client no need
+  chmod("/var/tmp/pynvme.sock", 0777);
+  
+  spdk_rpc_set_state(SPDK_RPC_STARTUP);
+
+  while(1)
+  {
+    spdk_rpc_accept();
+    usleep(100000);
+  }
+
+  spdk_rpc_close();
+}
+
+
+static void
+rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
+                   const struct spdk_json_val *params)
+{
+  struct spdk_json_write_ctx *w;
+
+  w = spdk_jsonrpc_begin_result(request);
+  if (w == NULL)
+  {
+    return;
+  }
+
+  spdk_json_write_array_begin(w);
+  for (int i=0; i<CMD_LOG_MAX_Q; i++)
+  {
+    // only send valid qpair
+    if (cmd_log_queue_table[i].tail_index < CMD_LOG_DEPTH)
+    {
+      //json: leading 0 means octal, so +1 to avoid it
+      spdk_json_write_uint32(w, i+1);
+    }
+  }
+  spdk_json_write_array_end(w);
+  spdk_jsonrpc_end_result(request, w);
+}
+SPDK_RPC_REGISTER("list_all_qpair", rpc_list_all_qpair, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
+
+
+static void
+rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
+               const struct spdk_json_val *params)
+{
+  uint32_t qid;
+  size_t count;
+  struct spdk_json_write_ctx *w;
+
+	if (params == NULL)
+  {
+    SPDK_ERRLOG("no parameters\n");
+    spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
+                                     "Invalid parameters");
+    return;
+  }
+  
+  if (spdk_json_decode_array(params, spdk_json_decode_uint32,
+                             &qid, 1, &count, sizeof(uint32_t)))
+  {
+    SPDK_ERRLOG("spdk_json_decode_object failed\n");
+    spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
+                                     "Invalid parameters");
+    return;
+  }
+
+  if (count != 1)
+  {
+    SPDK_ERRLOG("only 1 parameter required for qid\n");
+    spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
+                                     "Invalid parameters");
+    return;
+  }
+
+  qid = qid-1;  //avoid 0 in json
+  
+  w = spdk_jsonrpc_begin_result(request);
+  if (w == NULL)
+  {
+    return;
+  }
+
+  struct cmd_log_entry_t* table = cmd_log_queue_table[qid].table;
+  uint32_t index = cmd_log_queue_table[qid].tail_index;
+  uint32_t seq = 0;
+
+  // list the cmdlog in reversed order
+  spdk_json_write_array_begin(w);
+  do
+  {
+    // get the next index to read log
+    if (index == 0)
+    {
+      index = CMD_LOG_DEPTH;
+    }
+    index -= 1;
+
+    // get the string of the op name
+    spdk_json_write_string_fmt(w, "%d: %s, lba 0x%x",
+                               seq++,
+                               cmd_name(table[index].cmd.opc,
+                                        qid?1:0),
+                               table[index].cmd.cdw10);
+  } while (index != cmd_log_queue_table[qid].tail_index);
+  spdk_json_write_array_end(w);
+  spdk_jsonrpc_end_result(request, w);
+}
+SPDK_RPC_REGISTER("get_cmdlog", rpc_get_cmdlog, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
+
+
+////driver system
+///////////////////////////////
+
+int driver_init(void)
+{
+  int ret = 0;
+  char buf[20];
+  struct spdk_env_opts opts;
+
+  //init random sequence reproducible
+  srandom(1);
+  
+  // distribute multiprocessing to different cores
+  spdk_env_opts_init(&opts);
+  sprintf(buf, "0x%x", 1<<(getpid()%get_nprocs()));
+  opts.core_mask = buf;
+  opts.shm_id = 0;
+  opts.name = "pynvme";
+  opts.mem_size = 2048;
+  if (spdk_env_init(&opts) < 0)
+  {
+    fprintf(stderr, "Unable to initialize SPDK env\n");
+    return -1;
+  }
+
+  // distribute multiprocessing to different cores  
+  // log level setup
+  spdk_log_set_flag("nvme");
+  spdk_log_set_print_level(SPDK_LOG_INFO);
+
+  // start rpc server in primary process only
+  if (spdk_process_is_primary())
+  {
+    pthread_t rpc_t;
+    pthread_create(&rpc_t, NULL, rpc_server, NULL);
+  }
+
+  // init cmd log
+  ret = cmd_log_init();
+  if (ret != 0)
+  {
+    return ret;
+  }
+
+  cmd_log_qpair_init(0);
+
+  return ret;
+}
+
+
+int driver_fini(void)
+{
+  //delete cmd log of admin queue
+  if (spdk_process_is_primary())
+  {
+    cmd_log_qpair_clear(0);
+    cmd_log_finish();
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
+  }  
+	return 0;
+}
+
+
+void driver_config(uint64_t cfg_word)
+{
+  if (g_driver_csum_table_ptr != NULL)
+  {
+    *g_driver_global_config_ptr = cfg_word;
+  }
+  else
+  {
+    SPDK_INFOLOG(SPDK_LOG_NVME, "no enough memory, not to enable data verification feature.\n");
+  }
+}
+
+
