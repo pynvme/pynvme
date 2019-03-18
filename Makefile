@@ -66,7 +66,7 @@ doc:
 
 reset:
 	sudo HUGEMEM=${memsize} ./spdk/scripts/setup.sh reset
-	-sudo rm /var/tmp/spdk.sock*
+	-sudo rm /var/tmp/pynvme.sock*
 	-sudo fuser -k 4420/tcp
 
 setup: reset

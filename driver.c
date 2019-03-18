@@ -1582,13 +1582,10 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
     index -= 1;
 
     // get the string of the op name
-    spdk_json_write_string_fmt(w, "%d: %s, lba 0x%x",
-                               seq++,
-                               cmd_name(table[index].cmd.opc,
-                                        qid?1:0),
-                               table[index].cmd.cdw10);
+    spdk_json_write_string_fmt(w, "%d: %d", seq++, table[index].cmd.opc);
   } while (index != cmd_log_queue_table[qid].tail_index);
   spdk_json_write_array_end(w);
+  
   spdk_jsonrpc_end_result(request, w);
 }
 SPDK_RPC_REGISTER("get_cmdlog", rpc_get_cmdlog, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
