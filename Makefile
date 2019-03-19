@@ -65,7 +65,7 @@ doc:
 	pydocmd simple nvme++ > README.md
 
 reset:
-	sudo HUGEMEM=${memsize} ./spdk/scripts/setup.sh reset
+	sudo ./spdk/scripts/setup.sh reset
 	-sudo rm /var/tmp/pynvme.sock*
 	-sudo fuser -k 4420/tcp
 

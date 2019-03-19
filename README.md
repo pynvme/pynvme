@@ -150,7 +150,7 @@ Test
 ----
 - Setup SPDK runtime environment and start python3 with root privilege.
 ```shell
-make setup  # setup SPDK runtime environment
+make setup  # kernel NVMe driver is removed here, and SPDK NVMe driver works now
 sudo python3
 ```
 - import pynvme module in python3.
@@ -160,6 +160,11 @@ import nvme
 - You can also try tests in pytest.
 ```shell
 make test
+```
+
+- After test, you may wish to bring kernel NVMe driver back like this.
+```shell
+make reset
 ```
 
 Documents
