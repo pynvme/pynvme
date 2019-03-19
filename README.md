@@ -182,7 +182,7 @@ Pynvme writes and reads data in buffer to NVMe device LBA space. In order to ver
 
 Buffer should be allocated for data commands, and held till that command is completed because the buffer is being used by NVMe device. Users need to pay more attention on the life scope of the buffer in Python test scripts.
 
-NVMe commands are all asynchronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in Python scripts, the callback function is called when that command is completed. Callback functions are eventually called by waitdone(), and so do not call waitdone in callback function to avoid re-entry of waitdone functions, which requires a lock inside.
+NVMe commands are all asynchronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in python scripts, the callback function is called when that command is completed in waitdone(). Pynvme driver provides two arguments to python callback functions: cdw0 of the Completion Queue Entry, and the status (includes Phase Tag and Status Field).
 
 If DUT cannot complete the command in 5 seconds, that command would be timeout.
 

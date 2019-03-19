@@ -1668,3 +1668,16 @@ def test_ioworker_test_end(nvme0n1):
     assert time.time()-start_time < 3
 
     
+def test_ioworker_longtime(nvme0n1, repeat):
+    l = []
+    qcount = 15
+    for i in range(qcount):
+        a = nvme0n1.ioworker(io_size=8, lba_align=8,
+                             region_start=0, region_end=256*1024*8, # 1GB space
+                             lba_random=False, qdepth=16,
+                             read_percentage=100, time=40*60).start()
+        l.append(a)
+
+    for a in l:
+        r = a.close()
+
