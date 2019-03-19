@@ -1610,7 +1610,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
 
     // get the string of the op name
     spdk_json_write_string_fmt(w, "%d: %d", seq++, table[index].cmd.opc);
-  } while (index != cmd_log_queue_table[qid].tail_index);
+  } while (seq < 50);  // only send the most recent part of cmdlog
   spdk_json_write_array_end(w);
   
   spdk_jsonrpc_end_result(request, w);
