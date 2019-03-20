@@ -1275,7 +1275,7 @@ cdef class Controller(object):
     def aer(self, cb=None):
         """asynchorous event request admin command.
 
-        Not suggested to use this command in scripts because driver manages to send and monitor aer commands. Scripts should register an aer callback function if it wants to handle aer.
+        Not suggested to use this command in scripts because driver manages to send and monitor aer commands. Scripts should register an aer callback function if it wants to handle aer, and use the fixture aer.
 
         Args:
             cb (function): callback function called at completion
@@ -1310,6 +1310,39 @@ cdef class Controller(object):
 
         d.nvme_register_aer_cb(self._ctrlr, aer_cmd_cb, <void*>func)
 
+    def send_cmd(self, opcode, buf=None, nsid=0,
+                 cdw10=0, cdw11=0, cdw12=0,
+                 cdw13=0, cdw14=0, cdw15=0,
+                 cb=None):
+        """send generic admin commands.
+
+        This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands. 
+
+        Args:
+            opcode (int): operate code of the command
+            buf (Buffer): buffer of the command
+                          default: None
+            nsid (int): nsid field of the command
+                        default: 0
+            cb (function): callback function called at completion
+                           default: None
+
+        Rets:
+            self (Controller)
+        """
+
+        self.send_admin_raw(buf, opcode,
+                            nsid,
+                            cdw10,
+                            cdw11,
+                            cdw12,
+                            cdw13,
+                            cdw14,
+                            cdw15,
+                            cb_func=cmd_cb,
+                            cb_arg=<void*>cb)
+        return self
+    
     cdef int send_admin_raw(self,
                             Buffer buf,
                             unsigned int opcode,
@@ -1589,7 +1622,7 @@ cdef class Namespace(object):
         """
 
         assert not (time==0 and io_count==0), "when to stop the ioworker?"
-        assert qdepth>0 and qdepth<=1024, "support qdepth upto 1024"
+        assert qdepth>0 and qdepth<=1022, "support qdepth upto 1022"
         assert qdepth <= (self._nvme[0]&0xffff) + 1, "qdepth is larger than specification"  
         
         pciaddr = self._bdf
@@ -1809,6 +1842,40 @@ cdef class Namespace(object):
         assert ret == 0, "error in submitting read write commands: 0x%x" % ret
         return ret
 
+    def send_cmd(self, opcode, qpair, buf=None, nsid=0,
+                 cdw10=0, cdw11=0, cdw12=0,
+                 cdw13=0, cdw14=0, cdw15=0,
+                 cb=None):
+        """send generic IO commands.
+
+        This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands. 
+
+        Args:
+            opcode (int): operate code of the command
+            qpair (Qpair): qpair used to send this command
+            buf (Buffer): buffer of the command
+                          default: None
+            nsid (int): nsid field of the command
+                        default: 0
+            cb (function): callback function called at completion
+                           default: None
+
+        Rets:
+            qpair (Qpair): the qpair used to send this command, for ease of chained call
+        """
+
+        self.send_io_raw(qpair, buf, opcode,
+                         nsid,
+                         cdw10,
+                         cdw11,
+                         cdw12,
+                         cdw13,
+                         cdw14,
+                         cdw15,
+                         cb_func=cmd_cb,
+                         cb_arg=<void*>cb)
+        return qpair
+    
     cdef int send_io_raw(self,
                          Qpair qpair,
                          Buffer buf,

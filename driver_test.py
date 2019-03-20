@@ -1122,6 +1122,11 @@ def test_ioworker_invalid_qdepth(nvme0, nvme0n1):
 
     with pytest.warns(UserWarning, match="ioworker FAIL"):
         nvme0n1.ioworker(io_size=8, lba_align=64,
+                         lba_random=False, qdepth=1023,
+                         read_percentage=100, time=2).start().close()
+
+    with pytest.warns(UserWarning, match="ioworker FAIL"):
+        nvme0n1.ioworker(io_size=8, lba_align=64,
                          lba_random=False, qdepth=5000,
                          read_percentage=100, time=2).start().close()
         
@@ -1667,14 +1672,42 @@ def test_ioworker_test_end(nvme0n1):
                      read_percentage=0, time=2).start().close()
     assert time.time()-start_time < 3
 
+
+def test_admin_generic_cmd(nvme0):
+    features_value = 0
+
+    def getfeatures_cb_1(cdw0, status):
+        nonlocal features_value; features_value = cdw0
+    nvme0.getfeatures(0x7, cb=getfeatures_cb_1).waitdone()
+
+    def getfeatures_cb_2(cdw0, status):
+        nonlocal features_value; assert features_value == cdw0
+    nvme0.send_cmd(0xa, nsid=1, cdw10=7, cb=getfeatures_cb_2).waitdone()
     
+    with pytest.warns(UserWarning, match="ERROR status: 00/02"):
+        nvme0.send_cmd(0xa).waitdone()
+
+    with pytest.warns(UserWarning, match="ERROR status: 00/01"):
+        nvme0.send_cmd(0xff).waitdone()
+
+        
+def test_io_generic_cmd(nvme0n1, nvme0):
+    q = d.Qpair(nvme0, 8)
+    # invalid command
+    with pytest.warns(UserWarning, match="ERROR status: 00/01"):
+        nvme0n1.send_cmd(0xff, q, nsid=1).waitdone()
+    # invalid nsid
+    with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
+        nvme0n1.send_cmd(0x0, q).waitdone()
+    # flush command
+    nvme0n1.send_cmd(0x0, q, nsid=1).waitdone()
+
+        
 @pytest.mark.parametrize("repeat", range(16))
 def test_ioworker_stress(nvme0n1, repeat):
     l = []
-    qcount = 15
-    for i in range(qcount):
+    for i in range(15):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             region_start=0, region_end=256*1024*8, # 1GB space
                              lba_random=False, qdepth=16,
                              read_percentage=100, time=10).start()
         l.append(a)
@@ -1685,11 +1718,22 @@ def test_ioworker_stress(nvme0n1, repeat):
         
 def test_ioworker_longtime(nvme0n1, verify):
     l = []
-    qcount = 15
-    for i in range(qcount):
-        a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             region_start=0, region_end=256*1024*8, # 1GB space
-                             lba_random=False, qdepth=16,
+    for i in range(15):
+        a = nvme0n1.ioworker(io_size=8, lba_align=8, 
+                             lba_random=True, qdepth=512,
+                             read_percentage=100, time=40*60).start()
+        l.append(a)
+
+    for a in l:
+        r = a.close()
+
+        
+@pytest.mark.skip(reason="to debug")
+def test_ioworker_longtime2(nvme0n1, verify):
+    l = []
+    for i in range(15):
+        a = nvme0n1.ioworker(io_size=8, lba_align=8, 
+                             lba_random=True, qdepth=1022, # deep queue made test not stop
                              read_percentage=100, time=40*60).start()
         l.append(a)
 
