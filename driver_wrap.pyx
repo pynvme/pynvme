@@ -107,6 +107,17 @@ Yet another hello world example of SPDK nvme driver. Example:
     >>> assert data_buf[100:] = b'hello world'
 ```
 
+Test invalid command. Example:
+```python
+    >>> import nvme as d
+    >>> nvme0 = d.Controller(b"01:00.0")
+    >>> nvme0n1 = d.Namespace(nvme0, 1)
+    >>> qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
+    >>> logging.info("send an invalid command with opcode 0xff")
+    >>> with pytest.warns(UserWarning, match="ERROR status: 00/01"):
+    >>>     nvme0n1.send_cmd(0xff, qpair, nsid=1).waitdone()
+```
+
 Performance test, while monitoring the device temperature. Example:
 ```python
     >>> import nvme as d
@@ -208,6 +219,20 @@ make test
 make reset
 ```
 
+VSCode
+------
+In pynvme folder, user can start vscode to edit, test and debug script:
+```shell
+code .
+```
+
+In order to monitor qpairs status and cmdlog along the runtime of testing, user can install vscode extension pynvme-console:
+```shell
+code --install-extension pynvme-console-0.0.1.vsix
+```
+
+VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run in command line. 
+
 Documents
 ---------
 - Please refer to this README.md for examples and manuals. 
@@ -223,7 +248,9 @@ Pynvme writes and reads data in buffer to NVMe device LBA space. In order to ver
 
 Buffer should be allocated for data commands, and held till that command is completed because the buffer is being used by NVMe device. Users need to pay more attention on the life scope of the buffer in Python test scripts.
 
-NVMe commands are all asynchronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in python scripts, the callback function is called when that command is completed in waitdone(). Pynvme driver provides two arguments to python callback functions: cdw0 of the Completion Queue Entry, and the status (includes Phase Tag and Status Field).
+NVMe commands are all asynchronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in python scripts, the callback function is called when that command is completed in waitdone(). 
+
+Pynvme driver provides two arguments to python callback functions: cdw0 of the Completion Queue Entry, and the status. The argument status includes both Phase Tag and Status Field. 
 
 If DUT cannot complete the command in 5 seconds, that command would be timeout. 
 
