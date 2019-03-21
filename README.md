@@ -139,21 +139,20 @@ git clone https://github.com/cranechu/pynvme
 
 Prerequisites
 -------------
+First, to fetch all required dependencies source code, and the python pip.
 ```shell
 cd pynvme
 git submodule update --init --recursive
-sudo ./spdk/scripts/pkgdep.sh
 sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip
-sudo python3 -m pip install -r requirements.txt
 ```
-The prerequisites can be changed from release to release.
 
 Build
 -----
+Compile the SPDK, and then pynvme.
 ```shell
 cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
 make spdk                                    # compile SPDK
-make                                         # compile pynvme
+make clean; make                             # compile pynvme
 ```
 Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so
 
@@ -164,13 +163,15 @@ Test
 make setup  # kernel NVMe driver is removed here, and SPDK NVMe driver works now
 sudo python3
 ```
-- import pynvme module in python3.
-```python
-import nvme
-```
-- You can also try tests in pytest.
+
+- Now, you can try the tests in pytest.
 ```shell
 make test
+```
+
+- Find pynvme documents in README.md, or use help() in python:
+```shell
+sudo python3 -c "import nvme; help(nvme)"
 ```
 
 - After test, you may wish to bring kernel NVMe driver back like this.
@@ -178,27 +179,36 @@ make test
 make reset
 ```
 
+
 VSCode
 ------
-In pynvme folder, user can start vscode to edit, test and debug script:
+Pynvme works with VSCode!
+
+Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configurate the user account to run sudo without a password.
 ```shell
-code .
+sudo visudo
 ```
 
-In order to monitor qpairs status and cmdlog along the runtime of testing, user can install vscode extension pynvme-console:
+In order to monitor qpairs status and cmdlog along the progress of testing, user can install vscode extension pynvme-console:
 ```shell
 code --install-extension pynvme-console-0.0.1.vsix
 ```
+The extension pynvme-console gives realtime device status and cmdlog of every qpair in vscode's tree-views and (read-only) editors.
 
-VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run in command line.
-
-Documents
----------
-- Please refer to this README.md for examples and manuals.
-- help in Python:
-```python
-import nvme; help(nvme)
+Before start vscode, modify .vscode/settings.json with correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device. Then in pynvme folder, we can start vscode to edit, debug and test scripts:
+```shell
+make setup; code .  # make sure to enable SPDK nvme driver before starting vscode
 ```
+
+For each test file, import required python packages first:
+```python
+import nvme
+import logging
+import nvme as d    # this is pynvme's python package name
+```
+
+VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run in command line, or Emacs.
+
 
 Features
 ========

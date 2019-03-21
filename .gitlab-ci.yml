@@ -14,11 +14,10 @@ driver_test:
   script:
     - sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip
     - cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
-    - make spdk                     # compile SPDK
-    - make                          # compile pynvme
+    - make spdk                                    # compile SPDK
+    - make clean; make                             # compile pynvme
     - make setup
     - make $MAKE_TARGET
     - make reset
-    - make clean
   after_script:
     - sudo ./spdk/scripts/setup.sh status

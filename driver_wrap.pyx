@@ -193,7 +193,7 @@ Compile the SPDK, and then pynvme.
 ```shell
 cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
 make spdk                                    # compile SPDK
-make                                         # compile pynvme
+make clean; make                             # compile pynvme
 ```
 Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so 
 
@@ -225,7 +225,7 @@ VSCode
 ------
 Pynvme works with VSCode! 
 
-Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configure the user account to run sudo without a password. 
+Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configurate the user account to run sudo without a password. 
 ```shell
 sudo visudo
 ```
