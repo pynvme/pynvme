@@ -1,5 +1,5 @@
-# nvme
-pynvme, test NVMe devices in Python. [https://github.com/cranechu/pynvme]
+# pynvme
+test NVMe devices in Python. [https://github.com/cranechu/pynvme]
 
 [![Status](https://gitlab.com/cranechu/pynvme/badges/master/pipeline.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
@@ -21,7 +21,7 @@ pynvme, test NVMe devices in Python. [https://github.com/cranechu/pynvme]
   * [Buffer](#buffer)
   * [Subsystem](#subsystem)
 
-Pynvme is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. emacs, vscode and/or pytest, Pynvme is a convenient and professional NVMe device test solution.
+Pynvme is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. emacs, vscode and pytest, pynvme is a convenient and professional NVMe device test solution.
 
 Pynvme can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilege to use pynvme. It provides classes to access and test NVMe devices:
 1. Subsystem: controls the power and reset of NVMe subsystem

@@ -53,7 +53,7 @@ cython_clean:
 	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* test.log
 
 all: cython_lib
-.PHONY: all spdk
+.PHONY: all spdk doc
 
 spdk: clean
 	sudo ./spdk/scripts/pkgdep.sh
