@@ -1734,7 +1734,7 @@ def test_ioworker_longtime2(nvme0n1, verify):
     for i in range(15):
         a = nvme0n1.ioworker(io_size=8, lba_align=8, 
                              lba_random=True, qdepth=1022, # deep queue made test not stop
-                             read_percentage=100, time=40*60).start()
+                             read_percentage=100, time=30*60).start()
         l.append(a)
 
     for a in l:
