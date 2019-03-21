@@ -7,7 +7,6 @@ __pycache__/
 webpages/*.pyc
 webpages/public
 webpages/content/pages
-*.pdf
 *.so
 driver
 driver.d
