@@ -11,17 +11,14 @@ driver_test:
     - sudo lspci -s $DUT_PCIADDR -vv
     - date
     - pwd
-    - sudo ./spdk/scripts/pkgdep.sh
-    - sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip 
-    - sudo python3 -m pip install -r requirements.txt
+  script:
+    - sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip
     - cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
     - make spdk                     # compile SPDK
     - make                          # compile pynvme
-    - ls
     - make setup
-    - sudo ./spdk/scripts/setup.sh status
-  script:
     - make $MAKE_TARGET
-  after_script:
+    - make reset
     - make clean
+  after_script:
     - sudo ./spdk/scripts/setup.sh status
