@@ -21,3 +21,4 @@ driver_test:
     - make reset
   after_script:
     - sudo ./spdk/scripts/setup.sh status
+    - make clean
