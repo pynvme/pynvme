@@ -61,7 +61,7 @@ spdk: clean
 	cd spdk/dpdk; git checkout spdk-18.08; cd ../..
 	cd spdk; make clean; ./configure --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
 
-doc:
+doc: cython_lib
 	pydocmd simple nvme++ > README.md
 
 reset:

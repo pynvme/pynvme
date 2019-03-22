@@ -40,7 +40,7 @@
 ##//distutils: define_macros=CYTHON_TRACE=1
 
 
-"""pynvme, test NVMe devices in Python. [https://github.com/cranechu/pynvme]  
+"""test NVMe devices in Python. [https://github.com/cranechu/pynvme]  
 
 [![Status](https://gitlab.com/cranechu/pynvme/badges/master/pipeline.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
@@ -50,6 +50,7 @@
 
 - [Tutorial](#tutorial)
 - [Install](#install)
+- [VSCode](#vscode)
 - [Features](#features)
 - [Files](#files)
 - [Fixtures](#fixtures)
@@ -62,7 +63,7 @@
   * [Buffer](#buffer)
   * [Subsystem](#subsystem)
 
-Pynvme is a python extension module. Users can operate NVMe SSD intuitively by Python scripts. It is designed for NVMe SSD testing with performance considered. With third-party tools, e.g. emacs, vscode and pytest, pynvme is a convenient and professional NVMe device test solution.
+The pynvme is a python extension module. Users can operate NVMe SSD intuitively in Python scripts. It is designed for NVMe SSD testing with performance considered. Integrated with third-party tools, vscode and pytest, pynvme provides a convenient and professional NVMe device test solution.
 
 Pynvme can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilege to use pynvme. It provides classes to access and test NVMe devices:
 1. Subsystem: controls the power and reset of NVMe subsystem
@@ -199,18 +200,13 @@ Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-
 
 Test
 ----
-- Setup SPDK runtime environment and start python3 with root privilege.
+Setup SPDK runtime environment to remove kernel NVMe driver and enable SPDK NVMe driver. Now, we can try the tests of pynvme.
 ```shell
-make setup  # kernel NVMe driver is removed here, and SPDK NVMe driver works now
-sudo python3
-```
-
-- Now, you can try the tests in pytest.
-```shell
+make setup
 make test
 ```
 
-- Find pynvme documents in README.md, or use help() in python:
+User can find pynvme documents in README.md, or use help() in python:
 ```shell
 sudo python3 -c "import nvme; help(nvme)"
 ```
@@ -222,8 +218,8 @@ make reset
 
 
 VSCode
-------
-Pynvme works with VSCode! 
+======
+Pynvme works with VSCode! And pytest also!
 
 Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configurate the user account to run sudo without a password. 
 ```shell
@@ -236,7 +232,13 @@ code --install-extension pynvme-console-0.0.1.vsix
 ```
 The extension pynvme-console gives realtime device status and cmdlog of every qpair in vscode's tree-views and (read-only) editors. 
 
-Before start vscode, modify .vscode/settings.json with correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device. Then in pynvme folder, we can start vscode to edit, debug and test scripts:
+Before start vscode, modify .vscode/settings.json with correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device. 
+```shell
+lspci
+# 01:00.0 Non-Volatile memory controller: Lite-On Technology Corporation Device 2300 (rev 01)
+```
+
+Then in pynvme folder, we can start vscode to edit, debug and run scripts:
 ```shell
 make setup; code .  # make sure to enable SPDK nvme driver before starting vscode
 ```
