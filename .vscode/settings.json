@@ -1,11 +1,12 @@
 {
     "python.unitTest.pyTestArgs": [
+        //"-s", "--log-cli-level=DEBUG", // for more debug logging
         "--pciaddr=01:00.0"
     ],
     "python.unitTest.unittestEnabled": false,
     "python.unitTest.nosetestsEnabled": false,
     "python.unitTest.pyTestEnabled": true,
-    "python.pythonPath": "./.vscode/python_sudo.sh",
+    "python.unitTest.pyTestPath": "./.vscode/pytest.sudo.sh",
     "workbench.panel.defaultLocation": "right",
     "python.linting.enabled": false,
     "files.watcherExclude": {
