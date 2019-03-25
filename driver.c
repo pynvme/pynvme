@@ -1599,6 +1599,8 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
 
   // list the cmdlog in reversed order
   spdk_json_write_array_begin(w);
+
+  // only send the most recent part of cmdlog    
   do
   {
     // get the next index to read log
@@ -1608,11 +1610,16 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
     }
     index -= 1;
 
-    // get the string of the op name
-    spdk_json_write_string_fmt(w, "%d: %d", seq++, table[index].cmd.opc);
-  } while (seq < 50);  // only send the most recent part of cmdlog
-  spdk_json_write_array_end(w);
+    // no timeval, empty slot, not print
+    if (timercmp(&table[index].time_cmd, &(struct timeval){0}, !=))
+    {
+      // get the string of the op name
+      const char* opname = cmd_name(table[index].cmd.opc, qid==0?0:1);
+      spdk_json_write_string_fmt(w, "%d: %s", seq, opname);
+    }
+  } while (seq++ < 100);
   
+  spdk_json_write_array_end(w);
   spdk_jsonrpc_end_result(request, w);
 }
 SPDK_RPC_REGISTER("get_cmdlog", rpc_get_cmdlog, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
