@@ -50,7 +50,7 @@ memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%4)/2}')
 #cython part
 clean: cython_clean
 cython_clean:
-	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* test.log
+	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* test.log scripts/__pycache__
 
 all: cython_lib
 .PHONY: all spdk doc

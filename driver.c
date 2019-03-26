@@ -393,6 +393,7 @@ cmd_log_add_cmd(uint16_t qid,
   log_entry->lba_size = lba_size;
   log_entry->cb_fn = cb_fn;
   log_entry->cb_arg = cb_arg;
+  log_entry->time_cpl = (struct timeval){0};
   memcpy(&log_entry->cmd, cmd, sizeof(struct spdk_nvme_cmd));
   gettimeofday(&log_entry->time_cmd, NULL);
 
@@ -1611,11 +1612,32 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
     index -= 1;
 
     // no timeval, empty slot, not print
-    if (timercmp(&table[index].time_cmd, &(struct timeval){0}, !=))
+    struct timeval time_cmd = table[index].time_cmd;
+    if (timercmp(&time_cmd, &(struct timeval){0}, !=))
     {
       // get the string of the op name
-      const char* opname = cmd_name(table[index].cmd.opc, qid==0?0:1);
-      spdk_json_write_string_fmt(w, "%d: %s", seq, opname);
+      uint32_t* cmd = (uint32_t*)&table[index].cmd;
+      spdk_json_write_string_fmt(w, "%ld.%06ld: [cmd] >>>>>>>>>>\n"
+                                 "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
+                                 "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
+                                 "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
+                                 "0x%08x, 0x%08x, 0x%08x, 0x%08x", 
+                                 time_cmd.tv_sec, time_cmd.tv_usec,
+                                 cmd[0], cmd[1], cmd[2], cmd[3],
+                                 cmd[4], cmd[5], cmd[6], cmd[7],
+                                 cmd[8], cmd[9], cmd[10], cmd[11],
+                                 cmd[12], cmd[13], cmd[14], cmd[15]);
+    }
+
+    // print cpl cdws
+    struct timeval time_cpl = table[index].time_cpl;
+    if (timercmp(&time_cpl, &(struct timeval){0}, !=))
+    {
+      uint32_t* cpl = (uint32_t*)&table[index].cpl;
+      spdk_json_write_string_fmt(w, "%ld.%06ld: [cpl] <<<<<<<<<<\n"
+                                 "0x%08x, 0x%08x, 0x%08x, 0x%08x\n", 
+                                 time_cpl.tv_sec, time_cpl.tv_usec, 
+                                 cpl[0], cpl[1], cpl[2], cpl[3]);
     }
   } while (seq++ < 100);
   
