@@ -14,5 +14,6 @@
         "**/.git/subtree-cache/**": true,
         "**/node_modules/*/**": true, 
         "**/spdk/*/**": true
-      }
+    },
+    "terminal.integrated.fontFamily": "monospace"
 }
