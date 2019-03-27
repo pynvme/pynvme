@@ -708,6 +708,26 @@ cdef class Pcie(object):
         value = bytes(self[offset:offset+byte_count])
         return int.from_bytes(value, 'little')
 
+    def cap_offset(self, cap_id):
+        """get the offset of a capability
+
+        Args:
+            cap_id (int): capability id
+
+        Rets:
+            (int): the offset of the register
+            or None if the capability is not existed
+        """
+
+        next_offset = self.register(0x34, 1)
+        while next_offset != 0:
+            value = self.register(next_offset, 2)
+            cid = value % 256
+            cap_offset = next_offset
+            next_offset = value>>8
+            if cid == cap_id:
+                return cap_offset
+    
     def reset(self):
         """reset this pcie device"""
 

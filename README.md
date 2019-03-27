@@ -1084,6 +1084,19 @@ Pcie class. Prefer to use fixture "pcie" in test scripts
 Args:
     nvme (Controller): the nvme controller object of that subsystem
 
+### cap_offset
+```python
+Pcie.cap_offset(self, cap_id)
+```
+get the offset of a capability
+
+Args:
+    cap_id (int): capability id
+
+Rets:
+    (int): the offset of the register
+    or None if the capability is not existed
+
 ### register
 ```python
 Pcie.register(self, offset, byte_count)

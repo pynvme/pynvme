@@ -148,6 +148,12 @@ def test_get_pcie_registers(pcie):
     logging.info("vid %x, did %x" % (vid, did))
 
 
+def test_pcie_get_capabilites_offset(pcie):
+    assert None != pcie.cap_offset(1)
+    assert None != pcie.cap_offset(5)
+    assert None == pcie.cap_offset(2)
+    
+
 def test_get_nvme_register_vs(nvme0):
     cid = nvme0[0x08]
     assert cid == 0x010200 or cid == 0x010100 or cid == 0x010300
