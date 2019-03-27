@@ -177,13 +177,14 @@ Source Code
 -----------
 ```shell
 git clone https://github.com/cranechu/pynvme
+cd pynvme
 ```
+In pynvme directory, run install.sh to build everything. Or, you can follow instructions below. 
 
 Prerequisites
 -------------
-First, to fetch all required dependencies source code, and the python pip. 
+First, to fetch all required dependencies source code and packages.  
 ```shell
-cd pynvme
 git submodule update --init --recursive
 sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip 
 ```
