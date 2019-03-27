@@ -63,6 +63,7 @@ spdk: clean
 
 doc: cython_lib
 	pydocmd simple nvme++ > README.md
+	sed -i "1s/.*/# pynvme/" README.md
 
 reset:
 	sudo ./spdk/scripts/setup.sh reset

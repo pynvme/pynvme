@@ -168,10 +168,10 @@ make test
 
 User can find pynvme documents in README.md, or use help() in python:
 ```shell
-sudo python3 -c "import nvme; help(nvme)"
+sudo python3 -c "import nvme; help(nvme)"  # press q to quit
 ```
 
-- After test, you may wish to bring kernel NVMe driver back like this.
+After test, you may wish to bring kernel NVMe driver back like this:
 ```shell
 make reset
 ```
@@ -179,7 +179,9 @@ make reset
 
 VSCode
 ======
-Pynvme works with VSCode! And pytest also!
+The pynvme works with VSCode! And pytest too!
+
+Get and install vscode here: https://code.visualstudio.com/
 
 Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configurate the user account to run sudo without a password.
 ```shell
@@ -192,7 +194,7 @@ code --install-extension pynvme-console-0.0.1.vsix
 ```
 The extension pynvme-console gives realtime device status and cmdlog of every qpair in vscode's tree-views and (read-only) editors.
 
-Before start vscode, modify .vscode/settings.json with correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device.
+Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device.
 ```shell
 lspci
 # 01:00.0 Non-Volatile memory controller: Lite-On Technology Corporation Device 2300 (rev 01)
@@ -210,7 +212,7 @@ import logging
 import nvme as d    # this is pynvme's python package name
 ```
 
-VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run in command line, or Emacs.
+VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run test in shell or Emacs.
 
 
 Features
