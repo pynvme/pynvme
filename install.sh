@@ -12,6 +12,7 @@ else
   exit 1
 fi
 
+git checkout tags/v19.03.29
 git submodule update --init --recursive
 cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
 make spdk                                    # compile SPDK
