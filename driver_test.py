@@ -148,11 +148,26 @@ def test_get_pcie_registers(pcie):
     logging.info("vid %x, did %x" % (vid, did))
 
 
-def test_pcie_get_capabilites_offset(pcie):
-    assert None != pcie.cap_offset(1)
-    assert None != pcie.cap_offset(5)
+def test_pcie_capability_d3hot(pcie):
     assert None == pcie.cap_offset(2)
+
+    # get pm register
+    assert None != pcie.cap_offset(1)
+    pm_offset = pcie.cap_offset(1)
+    pmcs = pcie[pm_offset+4]
+    logging.info("pmcs %x" % pmcs)
     
+    # set d3hot
+    pcie[pm_offset+4] = pmcs|3     #D3hot
+    pmcs = pcie[pm_offset+4]
+    logging.info("pmcs %x" % pmcs)
+
+    # and exit d3hot
+    time.sleep(1)
+    pcie[pm_offset+4] = pmcs&0xfc  #D0
+    pmcs = pcie[pm_offset+4]
+    logging.info("pmcs %x" % pmcs)
+
 
 def test_get_nvme_register_vs(nvme0):
     cid = nvme0[0x08]
@@ -1746,3 +1761,4 @@ def test_ioworker_longtime2(nvme0n1, verify):
     for a in l:
         r = a.close()
 
+        
