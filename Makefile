@@ -53,13 +53,15 @@ cython_clean:
 	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* test.log scripts/__pycache__
 
 all: cython_lib
-.PHONY: all spdk doc
+.PHONY: all spdk doc debug
 
-spdk: clean
-	sudo ./spdk/scripts/pkgdep.sh
-	sudo pip3 install -r requirements.txt
-	cd spdk/dpdk; git checkout spdk-18.08; cd ../..
-	cd spdk; make clean; ./configure --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
+spdk:
+	cd spdk; ./configure --disable-debug --disable-asan --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
+
+debug: clean
+	cd spdk; ./configure --enable-debug --enable-asan --enable-tests --without-isal; make; cd ..
+	./spdk/test/unit/unittest.sh
+	python3 setup.py build_ext -i --force --debug -O "-fsanitize=address"
 
 doc: cython_lib
 	pydocmd simple nvme++ > README.md
@@ -75,7 +77,7 @@ setup: reset
 	sudo HUGEMEM=${memsize} ./spdk/scripts/setup.sh
 
 cython_lib:
-	@python3 setup.py build_ext -i
+	@python3 setup.py build_ext -i --force
 
 tags: 
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=dpdk --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env 

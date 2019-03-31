@@ -42,6 +42,9 @@ setup(
             "nvme",
             ["driver_wrap.pyx"],
 
+            # include paths
+            include_dirs = ['spdk/include'],
+            
             # dpdk prebuilt static libraries
             libraries=['uuid', 'numa', 'pthread'],
 

@@ -32,6 +32,8 @@
  */
 
 
+#include "spdk/nvme.h"
+
 typedef struct spdk_nvme_qpair qpair;
 typedef struct spdk_nvme_ctrlr ctrlr;
 typedef struct spdk_nvme_ns namespace;
@@ -108,15 +110,9 @@ extern int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
                              void* cb_arg);
 extern int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl);
 
-typedef void (*spdk_nvme_aer_cb)(void* aer_cb_arg,
-                                 const struct spdk_nvme_cpl* cpl);
 extern void nvme_register_aer_cb(struct spdk_nvme_ctrlr* ctrlr,
                                  spdk_nvme_aer_cb aer_cb,
                                  void* aer_cb_arg);
-typedef void (*spdk_nvme_timeout_cb)(void *cb_arg,
-				     struct spdk_nvme_ctrlr *ctrlr,
-				     struct spdk_nvme_qpair *qpair,
-				     uint16_t cid);
 extern void nvme_register_timeout_cb(struct spdk_nvme_ctrlr* ctrlr,
                                      spdk_nvme_timeout_cb timeout_cb,
                                      unsigned int timeout);

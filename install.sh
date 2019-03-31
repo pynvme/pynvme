@@ -12,8 +12,19 @@ else
   exit 1
 fi
 
+# get source code
 git checkout tags/v19.03.29
 git submodule update --init --recursive
+cd spdk/dpdk; git checkout spdk-18.08; cd ../..
+
+# get dependencies
+sudo ./spdk/scripts/pkgdep.sh
+sudo pip3 install -r requirements.txt
+
+# config first time
 cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
+
+# compile
 make spdk                                    # compile SPDK
-make clean; make
+make                                         # compile pynvme
+
