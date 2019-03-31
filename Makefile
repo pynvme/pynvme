@@ -61,7 +61,6 @@ spdk:
 debug: clean
 	cd spdk; ./configure --enable-debug --enable-asan --enable-tests --without-isal; make; cd ..
 	./spdk/test/unit/unittest.sh
-	python3 setup.py build_ext -i --force --debug -O "-fsanitize=address"
 
 doc: cython_lib
 	pydocmd simple nvme++ > README.md
