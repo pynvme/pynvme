@@ -1724,13 +1724,13 @@ def test_io_generic_cmd(nvme0n1, nvme0):
     nvme0n1.send_cmd(0x0, q, nsid=1).waitdone()
 
         
-@pytest.mark.parametrize("repeat", range(16))
+@pytest.mark.parametrize("repeat", range(60))
 def test_ioworker_stress(nvme0n1, repeat):
     l = []
     for i in range(15):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
                              lba_random=False, qdepth=16,
-                             read_percentage=100, time=10).start()
+                             read_percentage=100, time=3).start()
         l.append(a)
 
     for a in l:

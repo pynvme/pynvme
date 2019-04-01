@@ -48,9 +48,9 @@
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=_UE7gn68uwg" target="_blank"><img align="right" src="http://img.youtube.com/vi/_UE7gn68uwg/0.jpg" alt="pynvme introduction" width="480" border="0" /></a>
 
-- [Tutorial](#tutorial)
 - [Install](#install)
 - [VSCode](#vscode)
+- [Tutorial](#tutorial)
 - [Features](#features)
 - [Files](#files)
 - [Fixtures](#fixtures)
@@ -62,6 +62,7 @@
   * [Qpair](#qpair)
   * [Buffer](#buffer)
   * [Subsystem](#subsystem)
+
 
 The pynvme is a python extension module. Users can operate NVMe SSD intuitively in Python scripts. It is designed for NVMe SSD testing with performance considered. Integrated with third-party tools, vscode and pytest, pynvme provides a convenient and professional NVMe device test solution.
 
@@ -75,7 +76,108 @@ Pynvme can test multiple NVMe DUT devices, operate most of the NVMe commands, su
 7. IOWorker: reads and/or writes NVMe Namespace in separated processors
 Please use python "help()" to find more details of these classes.
 
-Pynvme works on Linux, and uses SPDK as the NVMe driver. DPDK and SPDK are statically linked in the module's .so object file, so users do not need to setup SPDK develop environment. The host Linux OS image is installed in a SATA drive, because the kernel's NVMe drive will be unloaded by Pynvme during the test. Pynvme does write data to your NVMe devices, so it could corrupt your data in the device. Users have to provide correct BDF (Bus:Device.Function) address to initialize the controller of the DUT device.
+Before moving forward, check and backup your data in NVMe SSD. It is always recommended to put ONLY one piece of NVMe SSD in your system. Pynvme is going to work soon! 
+
+
+Install
+=======
+
+Users can install and use pynvme in commodity computers. 
+
+System Requirement
+------------------
+1. CPU: x86_64
+2. OS: Linux, recommend Fedora 29, Ubuntu is also tested
+3. DRAM: 8GB or larger
+4. SATA: install OS and pynvme in a SATA drive.
+5. NVMe: NVMe SSD is the device to be tested. Backup your data! 
+6. Python3. Python2 is not supported. 
+
+Source Code
+-----------
+Fetch pynvme source code from GitHub, and simply run *install.sh* to build pynvme. *install.sh* generates the pynvme python package *nvme.cpython-37m-x86_64-linux-gnu.so*.
+```shell
+git clone https://github.com/cranechu/pynvme
+cd pynvme
+./install.sh
+```
+Now, it is ready to [start vscode](#vscode). Or, you can continue to refer to detailed installation instructions below. 
+
+Prerequisites
+-------------
+First, to fetch all required dependencies source code and packages.  
+```shell
+git submodule update --init --recursive
+sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip
+```
+
+Build
+-----
+Compile the SPDK, and then pynvme. 
+```shell
+cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
+make spdk                                    # compile SPDK
+make                                         # compile pynvme
+```
+Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so 
+
+Test
+----
+Setup SPDK runtime environment to remove kernel NVMe driver and enable SPDK NVMe driver. Now, we can try the tests of pynvme.
+```shell
+# backup your data in NVMe SSD before testing
+make setup
+make test
+```
+
+User can find pynvme documents in README.md, or use help() in python:
+```shell
+sudo python3 -c "import nvme; help(nvme)"  # press q to quit
+```
+
+After test, you may wish to bring kernel NVMe driver back like this:
+```shell
+make reset
+```
+
+
+VSCode
+======
+The pynvme works with VSCode! And pytest too! 
+
+1. First of all, install vscode here: https://code.visualstudio.com/
+
+2. Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configurate the user account to run sudo without a password. 
+```shell
+sudo visudo
+```
+
+3. In order to monitor qpairs status and cmdlog along the progress of testing, user can install vscode extension pynvme-console. The extension provides DUT status and cmdlogs in VSCode UI. 
+```shell
+code --install-extension pynvme-console-0.0.1.vsix
+```
+
+4. Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device. 
+```shell
+lspci
+# 01:00.0 Non-Volatile memory controller: Lite-On Technology Corporation Device 2300 (rev 01)
+```
+
+5. Then in pynvme folder, we can start vscode to edit, debug and run scripts:
+```shell
+make setup; code .  # make sure to enable SPDK nvme driver before starting vscode
+```
+
+6. Now, it is ready to create, debug and run test scripts on your NVMe SSD. In the beginning of each test file, import required python packages:
+```python
+import nvme
+import logging
+
+import nvme as d    # import pynvme's python package 
+
+```
+
+VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run test in shell or Emacs. 
 
 
 Tutorial
@@ -159,103 +261,6 @@ Performance test, while monitoring the device temperature. Example:
 ```
 
 
-Install
-=======
-
-Pynvme is installed from compiling source code. It is recommended to install and use pynvme in Fedora 29 or later. Ubuntu is also tested. Pynvme cannot be installed in NVMe device, because kernel's NVMe driver should be unloaded before starting pynvme and SPDK. It is recommended to install OS and pynvme into SATA drive. 
-
-System Requirement
-------------------
-
-1. Intel CPU with SSE4.2 instruction set
-2. Linux, e.g. Fedora 29 or later
-2. 8GB DRAM recommended, or larger if the DUT capacity is larger
-3. deep mode (S3) is supported in /sys/power/mem_sleep
-3. Python3. Python2 is not supported. 
-
-Source Code
------------
-```shell
-git clone https://github.com/cranechu/pynvme
-cd pynvme
-```
-In pynvme directory, run install.sh to build everything. Or, you can follow instructions below. 
-
-Prerequisites
--------------
-First, to fetch all required dependencies source code and packages.  
-```shell
-git submodule update --init --recursive
-sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip
-```
-
-Build
------
-Compile the SPDK, and then pynvme. 
-```shell
-cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
-make spdk                                    # compile SPDK
-make clean; make                             # compile pynvme
-```
-Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so 
-
-Test
-----
-Setup SPDK runtime environment to remove kernel NVMe driver and enable SPDK NVMe driver. Now, we can try the tests of pynvme.
-```shell
-make setup
-make test
-```
-
-User can find pynvme documents in README.md, or use help() in python:
-```shell
-sudo python3 -c "import nvme; help(nvme)"  # press q to quit
-```
-
-After test, you may wish to bring kernel NVMe driver back like this:
-```shell
-make reset
-```
-
-
-VSCode
-======
-The pynvme works with VSCode! And pytest too!
-
-Get and install vscode here: https://code.visualstudio.com/
-
-Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configurate the user account to run sudo without a password. 
-```shell
-sudo visudo
-```
-
-In order to monitor qpairs status and cmdlog along the progress of testing, user can install vscode extension pynvme-console:
-```shell
-code --install-extension pynvme-console-0.0.1.vsix
-```
-The extension pynvme-console gives realtime device status and cmdlog of every qpair in vscode's tree-views and (read-only) editors. 
-
-Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device. 
-```shell
-lspci
-# 01:00.0 Non-Volatile memory controller: Lite-On Technology Corporation Device 2300 (rev 01)
-```
-
-Then in pynvme folder, we can start vscode to edit, debug and run scripts:
-```shell
-make setup; code .  # make sure to enable SPDK nvme driver before starting vscode
-```
-
-For each test file, import required python packages first:
-```python
-import nvme
-import logging
-import nvme as d    # this is pynvme's python package name
-```
-
-VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run test in shell or Emacs. 
-
-
 Features
 ========
 
@@ -263,16 +268,11 @@ Pynvme writes and reads data in buffer to NVMe device LBA space. In order to ver
 
 Buffer should be allocated for data commands, and held till that command is completed because the buffer is being used by NVMe device. Users need to pay more attention on the life scope of the buffer in Python test scripts.
 
-NVMe commands are all asynchronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in python scripts, the callback function is called when that command is completed in waitdone(). 
+NVMe commands are all asynchronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in python scripts, the callback function is called when that command is completed in waitdone(). The command timeout limit of pynvme is 5 seconds. 
 
 Pynvme driver provides two arguments to python callback functions: cdw0 of the Completion Queue Entry, and the status. The argument status includes both Phase Tag and Status Field. 
 
-If DUT cannot complete the command in 5 seconds, that command would be timeout. 
-
-Pynvme traces recent thousands of commands in the cmdlog, as well as the completion entries. The cmdlog traces each qpair's commands and status. Pynvme supports up to 16 qpairs and their cmdlogs. User can list cmdlog to find the commands issued in different command queues, and their timestamps. In the progress of test, we can also use rpc to monitor DUT's registers, qpair, buffer and the cmdlog from 3rd-party tools. For example, 
-```shell
-watch -n 1 sudo ./spdk/scripts/rpc.py get_nvme_controllers  # we use existed get_nvme_controllers rpc method to get all DUT information
-```
+Pynvme traces recent thousands of commands in the cmdlog, as well as the completion entries. The cmdlog traces each qpair's commands and status. Pynvme supports up to 16 qpairs (including the admin qpair of the controller). Users can list cmdlog of each qpair to find the commands issued in different command queues. 
 
 The cost is high and inconvenient to send each read and write command in Python scripts. Pynvme provides the low-cost IOWorker to send IOs in different processes. IOWorker takes full use of multi-core to not only send read/write IO in high speed, but also verify the correctness of data on the fly. User can get IOWorker's test statistics through its close() method. Here is an example of reading 4K data randomly with the IOWorker.
 
@@ -289,21 +289,6 @@ Example:
 The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. Similarly, after writing of multiple IOWorkers in the same LBA region, the subsequent read does not know the latest data content. As a mitigation solution, we suggest to separate read and write operations to different IOWorkers and different LBA regions in test scripts, so it can be avoid to read and write same LBA at simultaneously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other. Test scripts can disable or enable inline verification of read by function config(). By default, it is disabled.  
 
 Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explicit code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair. 
-
-Pynvme also supports NVMe/TCP. 
-Example:
-```python
-    >>> import nvme as d
-    >>> c = d.Controller(b'127.0.0.1')   # connect to the NVMe/TCP target by IP address, and the port is fixed to 4420
-    >>> n = d.Namespace(c, 1)            # test as NVMe/PCIe devices
-    >>> assert n.id_data(8, 0) != 0      # get identify namespace data
-    >>> assert n.id_data(16, 8) == n.id_data(8, 0)
-```
-
-User can create a local NVMe/TCP target for test purpose, by:
-```shell
-make nvmt
-```
 
 IOWorker
 --------
@@ -326,6 +311,7 @@ Here is a brief introduction on source code files.
 | driver_test.py | pytest cases for pynvme test. Users can develop more test cases for their NVMe devices. |
 | conftest.py | predefined pytest fixtures. Find more details below. |
 | pytest.ini | pytest runtime configuration |
+| install.sh | build pynvme for the first time |
 
 
 Fixtures
