@@ -440,11 +440,9 @@ cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
 cdef class Buffer(object):
     """Buffer class allocated in DPDK memzone,so can be used by DMA. Data in buffer is clear to 0 in initialization.
 
-    Args:
-        size (int): the size (in bytes) of the buffer
-                    default: 4096
-        name (str): the name of the buffer
-                    default: 'buffer'
+    # Attributes
+        size (int): the size (in bytes) of the buffer. Default: 4096
+        name (str): the name of the buffer. Default: 'buffer'
 
     Examples:
 ```python
@@ -516,9 +514,8 @@ cdef class Buffer(object):
     def dump(self, size=None):
         """print the buffer content
 
-        Args:
-            size: the size of the buffer to print,
-                  default: None, means to print the whole buffer
+        # Attributes
+            size: the size of the buffer to print,. Default: None, means to print the whole buffer
         """
         if self.ptr and self.size:
             # 0 size means print the whole buffer
@@ -529,14 +526,12 @@ cdef class Buffer(object):
     def data(self, byte_end, byte_begin=None, type=int):
         """get field in the buffer. Little endian for integers.
 
-        Args:
+        # Attributes
             byte_end (int): the end byte number of this field, which is specified in NVMe spec. Included.
-            byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included.
-                              default: None, means only get 1 byte defined in byte_end
-            type (type): the type of the field. It should be int or str.
-                         default: int, convert to integer python object
+            byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
+            type (type): the type of the field. It should be int or str. Default: int, convert to integer python object
 
-        Rets:
+        # Returns
             (int or str): the data in the specified field
         """
 
@@ -576,7 +571,7 @@ cdef class Buffer(object):
     def set_dsm_range(self, index, lba, lba_count):
         """set dsm ranges in the buffer, for dsm/deallocation (a.ka trim) commands
 
-        Args:
+        # Attributes
             index (int): the index of the dsm range to set
             lba (int): the start lba of the range
             lba_count (int): the lba count of the range
@@ -587,7 +582,7 @@ cdef class Buffer(object):
 cdef class Subsystem(object):
     """Subsystem class. Prefer to use fixture "subsystem" in test scripts.
 
-    Args:
+    # Attributes
         nvme (Controller): the nvme controller object of that subsystem
     """
 
@@ -599,7 +594,7 @@ cdef class Subsystem(object):
     def power_cycle(self, sec=10):
         """power off and on in seconds
 
-        Args:
+        # Attributes
             sec (int): the seconds between power off and power on
         """
 
@@ -616,7 +611,7 @@ cdef class Subsystem(object):
     def shutdown_notify(self, abrupt=False):
         """notify nvme subsystem a shutdown event through register cc.chn
 
-        Args:
+        # Attributes
             abrupt (bool): it will be an abrupt shutdown (return immediately) or clean shutdown (wait shutdown completely)
         """
 
@@ -650,7 +645,7 @@ cdef class Subsystem(object):
 cdef class Pcie(object):
     """Pcie class. Prefer to use fixture "pcie" in test scripts
 
-    Args:
+    # Attributes
         nvme (Controller): the nvme controller object of that subsystem
     """
 
@@ -685,11 +680,11 @@ cdef class Pcie(object):
     def register(self, offset, byte_count):
         """access registers in pcie config space, and get its integer value.
 
-        Args:
+        # Attributes
             offset (int): the offset (in bytes) of the register in the config space
             byte_count (int): the size (in bytes) of the register
 
-        Rets:
+        # Returns
             (int): the value of the register
         """
 
@@ -700,10 +695,10 @@ cdef class Pcie(object):
     def cap_offset(self, cap_id):
         """get the offset of a capability
 
-        Args:
+        # Attributes
             cap_id (int): capability id
 
-        Rets:
+        # Returns
             (int): the offset of the register
             or None if the capability is not existed
         """
@@ -755,7 +750,7 @@ class NvmeDeletionError(Exception):
 cdef class Controller(object):
     """Controller class. Prefer to use fixture "nvme0" in test scripts.
 
-    Args:
+    # Attributes
         addr (bytes): the bus/device/function address of the DUT, for example: 
                       b'01:00.0' (PCIe BDF address);
                       b'127.0.0.1' (TCP IP address).
@@ -803,6 +798,7 @@ cdef class Controller(object):
         self._create()
 
     def __dealloc__(self):
+        # print("dealloc ctrlr: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
         self._close()
 
     def _reinit(self):
@@ -812,6 +808,7 @@ cdef class Controller(object):
 
     def _create(self):
         self._ctrlr = d.nvme_init(self._bdf)
+        # print("created ctrlr: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
         if self._ctrlr is NULL:
             raise NvmeEnumerateError(f"fail to create the controller")
         d.nvme_register_timeout_cb(self._ctrlr, timeout_driver_cb, _cTIMEOUT)
@@ -879,9 +876,8 @@ cdef class Controller(object):
     def cmdlog(self, count=0):
         """print recent commands and their completions.
 
-        Args:
-            count (int): the number of commands to print
-                         default: 0, to print the whole cmdlog
+        # Attributes
+            count (int): the number of commands to print. Default: 0, to print the whole cmdlog
         """
 
         d.log_cmd_dump_admin(self._ctrlr, count)
@@ -889,7 +885,7 @@ cdef class Controller(object):
     def reset(self):
         """controller reset: cc.en 1 => 0 => 1
 
-        Notices:
+        # Notices
             Test scripts should delete all io qpairs before reset!
         """
 
@@ -912,10 +908,10 @@ cdef class Controller(object):
     def cmdname(self, opcode):
         """get the name of the admin command
 
-        Args:
+        # Attributes
             opcode (int): the opcode of the admin command
 
-        Rets:
+        # Returns
             (str): the command name
         """
 
@@ -926,10 +922,10 @@ cdef class Controller(object):
     def supports(self, opcode):
         """check if the admin command is supported
 
-        Args:
+        # Attributes
             opcode (int): the opcode of the admin command
 
-        Rets:
+        # Returns
             (bool): if the command is supported
         """
 
@@ -941,11 +937,10 @@ cdef class Controller(object):
     def waitdone(self, expected=1):
         """sync until expected commands completion
 
-        Args:
-            expected (int): expected commands to complete
-                            default: 1
+        # Attributes
+            expected (int): expected commands to complete. Default: 1
 
-        Notices:
+        # Notices
             Do not call this function in commands callback functions.
         """
 
@@ -982,14 +977,12 @@ cdef class Controller(object):
     def abort(self, cid, sqid=0, cb=None):
         """abort admin commands
 
-        Args:
+        # Attributes
             cid (int): command id of the command to be aborted
-            sqid (int): sq id of the command to be aborted
-                        default: 0, to abort the admin command
-            cb (function): callback function called at completion
-                           default: None
+            sqid (int): sq id of the command to be aborted. Default: 0, to abort the admin command
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1008,16 +1001,13 @@ cdef class Controller(object):
     def identify(self, buf, nsid=1, cns=1, cb=None):
         """identify admin command
 
-        Args:
+        # Attributes
             buf (Buffer): the buffer to hold the identify data
-            nsid (int): nsid field in the command
-                        default: 1
-            cns (int): cns field in the command
-                       default: 1
-            cb (function): callback function called at completion
-                           default: None
+            nsid (int): nsid field in the command. Default: 1
+            cns (int): cns field in the command. Default: 1
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1036,14 +1026,12 @@ cdef class Controller(object):
     def id_data(self, byte_end, byte_begin=None, type=int, nsid=0, cns=1):
         """get field in controller identify data
 
-        Args:
+        # Attributes
             byte_end (int): the end byte number of this field, which is specified in NVMe spec. Included.
-            byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included.
-                              default: None, means only get 1 byte defined in byte_end
-            type (type): the type of the field. It should be int or str.
-                         default: int, convert to integer python object
+            byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
+            type (type): the type of the field. It should be int or str. Default: int, convert to integer python object
 
-        Rets:
+        # Returns
             (int or str): the data in the specified field
         """
 
@@ -1055,18 +1043,14 @@ cdef class Controller(object):
                     sel=0, buf=None, cb=None):
         """getfeatures admin command
 
-        Args:
+        # Attributes
             fid (int): feature id
-            cdw11 (int): cdw11 in the command
-                         default: 0
-            sel (int): sel field in the command
-                       default: 0
-            buf (Buffer): the buffer to hold the feature data
-                          default: None
-            cb (function): callback function called at completion
-                           default: None
+            cdw11 (int): cdw11 in the command. Default: 0
+            sel (int): sel field in the command. Default: 0
+            buf (Buffer): the buffer to hold the feature data. Default: None
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
         self.send_admin_raw(buf, 0xA,
@@ -1085,18 +1069,14 @@ cdef class Controller(object):
                     sv=0, buf=None, cb=None):
         """setfeatures admin command
 
-        Args:
+        # Attributes
             fid (int): feature id
-            cdw11 (int): cdw11 in the command
-                         default: 0
-            sv (int): sv field in the command
-                      default: 0
-            buf (Buffer): the buffer to hold the feature data
-                          default: None
-            cb (function): callback function called at completion
-                           default: None
+            cdw11 (int): cdw11 in the command. Default: 0
+            sv (int): sv field in the command. Default: 0
+            buf (Buffer): the buffer to hold the feature data. Default: None
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1115,18 +1095,15 @@ cdef class Controller(object):
     def getlogpage(self, lid, buf, size=None, offset=0, nsid=0xffffffff, cb=None):
         """getlogpage admin command
 
-        Args:
+        # Attributes
             lid (int): Log Page Identifier
             buf (Buffer): buffer to hold the log page
-            size (int): size (in byte) of data to get from the log page,
-                        default: None, means the size is the same of the buffer
+            size (int): size (in byte) of data to get from the log page,. Default: None, means the size is the same of the buffer
             offset (int): the location within a log page
-            nsid (int): nsid field in the command
-                        default: 0xffffffff
-            cb (function): callback function called at completion
-                           default: None
+            nsid (int): nsid field in the command. Default: 0xffffffff
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1155,16 +1132,13 @@ cdef class Controller(object):
     def format(self, lbaf=0, ses=0, nsid=1, cb=None):
         """format admin command
 
-        Args:
-            lbaf (int): lbaf (lba format) field in the command
-                        default: None, to find the 512B LBA format
+        # Attributes
+            lbaf (int): lbaf (lba format) field in the command. Default: None, to find the 512B LBA format
             ses (int): ses field in the command
-            nsid (int): nsid field in the command
-                        default: 1
-            cb (function): callback function called at completion
-                           default: None
+            nsid (int): nsid field in the command. Default: 1
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1188,14 +1162,12 @@ cdef class Controller(object):
     def sanitize(self, option=2, pattern=0, cb=None):
         """sanitize admin command
 
-        Args:
+        # Attributes
             option (int): sanitize option field in the command
-            pattern (int): pattern field in the command for overwrite method
-                           default: 0x5aa5a55a
-            cb (function): callback function called at completion
-                           default: None
+            pattern (int): pattern field in the command for overwrite method. Default: 0x5aa5a55a
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1216,14 +1188,12 @@ cdef class Controller(object):
     def dst(self, stc=1, nsid=0xffffffff, cb=None):
         """device self test (DST) admin command
 
-        Args:
+        # Attributes
             stc (int): selftest code (stc) field in the command
-            nsid (int): nsid field in the command
-                        default: 0xffffffff
-            cb (function): callback function called at completion
-                           default: None
+            nsid (int): nsid field in the command. Default: 0xffffffff
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1242,15 +1212,13 @@ cdef class Controller(object):
     def fw_download(self, buf, offset, size=None, cb=None):
         """firmware download admin command
 
-        Args:
+        # Attributes
             buf (Buffer): the buffer to hold the firmware data
             offset (int): offset field in the command
-            size (int): size field in the command
-                        default: None, means the size of the buffer
-            cb (function): callback function called at completion
-                           default: None
+            size (int): size field in the command. Default: None, means the size of the buffer
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1271,13 +1239,12 @@ cdef class Controller(object):
     def fw_commit(self, slot, action, cb=None):
         """firmware commit admin command
 
-        Args:
+        # Attributes
             slot (int): firmware slot field in the command
             action (int): action field in the command
-            cb (function): callback function called at completion
-                           default: None
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1301,14 +1268,12 @@ cdef class Controller(object):
     def downfw(self, filename, slot=0, action=1):
         """firmware download utility: by 4K, and activate in next reset
 
-        Args:
+        # Attributes
             filename (str): the pathname of the firmware binary file to download
-            slot (int): firmware slot field in the command
-                        default: 0, decided by device
-            cb (function): callback function called at completion
-                           default: None
+            slot (int): firmware slot field in the command. Default: 0, decided by device
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
         """
 
         logging.info("download firmware image %s to slot %d and activate" % (filename, slot))
@@ -1325,11 +1290,10 @@ cdef class Controller(object):
 
         Not suggested to use this command in scripts because driver manages to send and monitor aer commands. Scripts should register an aer callback function if it wants to handle aer, and use the fixture aer.
 
-        Args:
-            cb (function): callback function called at completion
-                           default: None
+        # Attributes
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1352,7 +1316,7 @@ cdef class Controller(object):
         When aer is triggered, the python callback function will
         be called. It is unregistered by aer fixture when test finish.
 
-        Args:
+        # Attributes
             func (function): callback function called at aer completion
         """
 
@@ -1366,16 +1330,13 @@ cdef class Controller(object):
 
         This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands. 
 
-        Args:
+        # Attributes
             opcode (int): operate code of the command
-            buf (Buffer): buffer of the command
-                          default: None
-            nsid (int): nsid field of the command
-                        default: 0
-            cb (function): callback function called at completion
-                           default: None
+            buf (Buffer): buffer of the command. Default: None
+            nsid (int): nsid field of the command. Default: 0
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             self (Controller)
         """
 
@@ -1432,7 +1393,7 @@ class QpairDeletionError(Exception):
 cdef class Qpair(object):
     """Qpair class. IO SQ and CQ are combinded as qpairs.
 
-    Args:
+    # Attributes
         nvme (Controller): controller where to create the queue
         depth (int): SQ/CQ queue depth
         prio (int): when Weighted Round Robin is enabled, specify SQ priority here
@@ -1448,10 +1409,12 @@ cdef class Qpair(object):
             raise QpairCreationError("depth should >= 2")
             
         self._qpair = d.qpair_create(nvme._ctrlr, prio, depth)
+        # print("created qpair: %x" % <unsigned long>self._qpair); sys.stdout.flush()
         if self._qpair is NULL:
             raise QpairCreationError("qpair create fail")
 
     def __dealloc__(self):
+        # print("dealloc qpair: %x" % <unsigned long>self._qpair); sys.stdout.flush()
         if self._qpair is not NULL:
             if d.qpair_free(self._qpair) != 0:
                 raise QpairDeletionError()
@@ -1467,9 +1430,8 @@ cdef class Qpair(object):
     def cmdlog(self, count=0):
         """print recent IO commands and their completions in this qpair.
 
-        Args:
-            count (int): the number of commands to print
-                         default: 0, to print the whole cmdlog
+        # Attributes
+            count (int): the number of commands to print. Default: 0, to print the whole cmdlog
         """
 
         d.log_cmd_dump(self._qpair, count)
@@ -1477,11 +1439,10 @@ cdef class Qpair(object):
     def waitdone(self, expected=1):
         """sync until expected commands completion
 
-        Args:
-            expected (int): expected commands to complete
-                            default: 1
+        # Attributes
+            expected (int): expected commands to complete. Default: 1
 
-        Notices:
+        # Notices
             Do not call this function in commands callback functions.
         """
 
@@ -1516,7 +1477,7 @@ class NamespaceDeletionError(Exception):
 cdef class Namespace(object):
     """Namespace class. Prefer to use fixture "nvme0n1" in test scripts.
 
-    Args:
+    # Attributes
         nvme (Controller): controller where to create the queue
         nsid (int): nsid of the namespace
     """
@@ -1533,6 +1494,7 @@ cdef class Namespace(object):
         strncpy(self._bdf, nvme._bdf, 8)
         self._nsid = nsid
         self._ns = d.ns_init(nvme._ctrlr, nsid)
+        # print("created namespace: %x" % <unsigned long>self._ns); sys.stdout.flush()
         if self._ns is NULL:
             raise NamespaceCreationError()
         self.sector_size = d.ns_get_sector_size(self._ns)
@@ -1544,7 +1506,9 @@ cdef class Namespace(object):
             Release resources explictly, del is not garentee to call __dealloc__.
             Fixture nvme0n1 uses this function, and prefer to use fixture in scripts, instead of calling this function directly.
         """
+        
         logging.debug("close namespace")
+        # print("dealloc namespace: %x" % <unsigned long>self._ns); sys.stdout.flush()
         if self._ns is not NULL:
             if d.ns_fini(self._ns) != 0:
                 raise NamespaceDeletionError()
@@ -1563,10 +1527,10 @@ cdef class Namespace(object):
     def cmdname(self, opcode):
         """get the name of the IO command
 
-        Args:
+        # Attributes
             opcode (int): the opcode of the IO command
 
-        Rets:
+        # Returns
             (str): the command name
         """
 
@@ -1577,10 +1541,10 @@ cdef class Namespace(object):
     def supports(self, opcode):
         """check if the IO command is supported
 
-        Args:
+        # Attributes
             opcode (int): the opcode of the IO command
 
-        Rets:
+        # Returns
             (bool): if the command is supported
         """
 
@@ -1590,14 +1554,12 @@ cdef class Namespace(object):
     def id_data(self, byte_end, byte_begin=None, type=int):
         """get field in namespace identify data
 
-        Args:
+        # Attributes
             byte_end (int): the end byte number of this field, which is specified in NVMe spec. Included.
-            byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included.
-                              default: None, means only get 1 byte defined in byte_end
-            type (type): the type of the field. It should be int or str.
-                         default: int, convert to integer python object
+            byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
+            type (type): the type of the field. It should be int or str. Default: int, convert to integer python object
 
-        Rets:
+        # Returns
             (int or str): the data in the specified field
         """
 
@@ -1606,13 +1568,11 @@ cdef class Namespace(object):
     def get_lba_format(self, data_size=512, meta_size=0):
         """find the lba format by its data size and meta data size
 
-        Args:
-            data_size (int): data size
-                             default: 512
-            meta_size (int): meta data size
-                             default: 0
+        # Attributes
+            data_size (int): data size. Default: 512
+            meta_size (int): meta data size. Default: 0
 
-        Rets:
+        # Returns
             (int or None): the lba format has the specified data size and meta data size
         """
         # find the lba format with 512B size
@@ -1639,33 +1599,23 @@ cdef class Namespace(object):
 
         Each ioworker can run upto 24 hours.
 
-        Args:
+        # Attributes
             io_size (short): IO size, unit is LBA
             lba_align (short): IO alignment, unit is LBA
             lba_random (bool): True if sending IO with random starting LBA
             read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only
-            time (int): specified maximum time of the IOWorker in seconds, up to 24*3600
-                        default:0, means no limit
-            qdepth (int): queue depth of the Qpair created by the IOWorker, up to 1024
-                          default: 64
-            region_start (long): sending IO in the specified LBA region, start
-                                 default: 0
-            region_end (long): sending IO in the specified LBA region, end but not include
-                               default: 0xffff_ffff_ffff_ffff
-            iops (int): specified maximum IOPS. IOWorker throttles the sending IO speed.
-                        default: 0, means no limit
-            io_count (long): specified maximum IO counts to send.
-                             default: 0, means no limit
-            lba_start (long): the LBA address of the first command.
-                              default: 0, means start from region_start
-            qprio (int): SQ priority.
-                         default: 0, for default Round Robin arbitration
-            output_io_per_second (list): list to hold the output data of io_per_second.
-                                         default: None, not to collect the data
-            output_percentile_latency (dict): dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in ms.
-                                              default: None, not to collect the data
+            time (int): specified maximum time of the IOWorker in seconds, up to 24*3600. Default:0, means no limit
+            qdepth (int): queue depth of the Qpair created by the IOWorker, up to 1024. Default: 64
+            region_start (long): sending IO in the specified LBA region, start. Default: 0
+            region_end (long): sending IO in the specified LBA region, end but not include. Default: 0xffff_ffff_ffff_ffff
+            iops (int): specified maximum IOPS. IOWorker throttles the sending IO speed. Default: 0, means no limit
+            io_count (long): specified maximum IO counts to send. Default: 0, means no limit
+            lba_start (long): the LBA address of the first command. Default: 0, means start from region_start
+            qprio (int): SQ priority. Default: 0, as Round Robin arbitration
+            output_io_per_second (list): list to hold the output data of io_per_second. Default: None, not to collect the data
+            output_percentile_latency (dict): dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in ms. Default: None, not to collect the data
 
-        Rets:
+        # Returns
             ioworker object
         """
 
@@ -1683,23 +1633,21 @@ cdef class Namespace(object):
     def read(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
         """read IO command
 
-        Args:
+        # Attributes
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the data buffer of the command, meta data is not supported.
             lba (int): the starting lba address, 64 bits
             lba_count (int): the lba count of this command, 16 bits
-            io_flags (int): io flags defined in NVMe specification, 16 bits
-                            default: 0
-            cb (function): callback function called at completion
-                           default: None
+            io_flags (int): io flags defined in NVMe specification, 16 bits. Default: 0
+            cb (function): callback function called at completion. Default: None
 
-        Returns:
+        # Returns
             qpair (Qpair): the qpair used to send this command, for ease of chained call
 
-        Raises:
+        # Raises
             SystemError: the read command fails
 
-        Notices:
+        # Notices
             buf cannot be released before the command completes.
         """
 
@@ -1713,23 +1661,21 @@ cdef class Namespace(object):
     def write(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
         """write IO command
 
-        Args:
+        # Attributes
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the data buffer of the write command, meta data is not supported.
             lba (int): the starting lba address, 64 bits
             lba_count (int): the lba count of this command, 16 bits
-            io_flags (int): io flags defined in NVMe specification, 16 bits
-                            default: 0
-            cb (function): callback function called at completion
-                           default: None
+            io_flags (int): io flags defined in NVMe specification, 16 bits. Default: 0
+            cb (function): callback function called at completion. Default: None
 
-        Returns:
+        # Returns
             qpair (Qpair): the qpair used to send this command, for ease of chained call
 
-        Raises:
+        # Raises
             SystemError: the write command fails
 
-        Notices:
+        # Notices
             buf cannot be released before the command completes.
         """
 
@@ -1744,22 +1690,20 @@ cdef class Namespace(object):
     def dsm(self, qpair, buf, range_count, attribute=0x4, cb=None):
         """data-set management IO command
 
-        Args:
+        # Attributes
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the buffer of the lba ranges. Use buffer.set_dsm_range to prepare the buffer.
             range_count (int): the count of lba ranges in the buffer
-            attribute (int): attribute field of the command
-                             default: 0x4, as deallocation
-            cb (function): callback function called at completion
-                           default: None
+            attribute (int): attribute field of the command. Default: 0x4, as deallocation
+            cb (function): callback function called at completion. Default: None
 
-        Returns:
+        # Returns
             qpair (Qpair): the qpair used to send this command, for ease of chained call
 
-        Raises:
+        # Raises
             SystemError: the command fails
 
-        Notices:
+        # Notices
             buf cannot be released before the command completes.
         """
 
@@ -1773,23 +1717,21 @@ cdef class Namespace(object):
     def compare(self, qpair, buf, lba, lba_count, io_flags=0, cb=None):
         """compare IO command
 
-        Args:
+        # Attributes
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the data buffer of the command, meta data is not supported.
             lba (int): the starting lba address, 64 bits
             lba_count (int): the lba count of this command, 16 bits
-            io_flags (int): io flags defined in NVMe specification, 16 bits
-                            default: 0
-            cb (function): callback function called at completion
-                           default: None
+            io_flags (int): io flags defined in NVMe specification, 16 bits. Default: 0
+            cb (function): callback function called at completion. Default: None
 
-        Returns:
+        # Returns
             qpair (Qpair): the qpair used to send this command, for ease of chained call
 
-        Raises:
+        # Raises
             SystemError: the command fails
 
-        Notices:
+        # Notices
             buf cannot be released before the command completes.
         """
 
@@ -1805,15 +1747,14 @@ cdef class Namespace(object):
     def flush(self, qpair, cb=None):
         """flush IO command
 
-        Args:
+        # Attributes
             qpair (Qpair): use the qpair to send this command
-            cb (function): callback function called at completion
-                           default: None
+            cb (function): callback function called at completion. Default: None
 
-        Returns:
+        # Returns
             qpair (Qpair): the qpair used to send this command, for ease of chained call
 
-        Raises:
+        # Raises
             SystemError: the command fails
         """
 
@@ -1825,17 +1766,16 @@ cdef class Namespace(object):
     def write_uncorrectable(self, qpair, lba, lba_count, cb=None):
         """write uncorrectable IO command
 
-        Args:
+        # Attributes
             qpair (Qpair): use the qpair to send this command
             lba (int): the starting lba address, 64 bits
             lba_count (int): the lba count of this command, 16 bits
-            cb (function): callback function called at completion
-                           default: None
+            cb (function): callback function called at completion. Default: None
 
-        Returns:
+        # Returns
             qpair (Qpair): the qpair used to send this command, for ease of chained call
 
-        Raises:
+        # Raises
             SystemError: the command fails
         """
 
@@ -1850,19 +1790,17 @@ cdef class Namespace(object):
     def write_zeroes(self, qpair, lba, lba_count, io_flags=0, cb=None):
         """write zeroes IO command
 
-        Args:
+        # Attributes
             qpair (Qpair): use the qpair to send this command
             lba (int): the starting lba address, 64 bits
             lba_count (int): the lba count of this command, 16 bits
-            io_flags (int): io flags defined in NVMe specification, 16 bits
-                            default: 0
-            cb (function): callback function called at completion
-                           default: None
+            io_flags (int): io flags defined in NVMe specification, 16 bits. Default: 0
+            cb (function): callback function called at completion. Default: None
 
-        Returns:
+        # Returns
             qpair (Qpair): the qpair used to send this command, for ease of chained call
 
-        Raises:
+        # Raises
             SystemError: the command fails
         """
 
@@ -1898,17 +1836,14 @@ cdef class Namespace(object):
 
         This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands. 
 
-        Args:
+        # Attributes
             opcode (int): operate code of the command
             qpair (Qpair): qpair used to send this command
-            buf (Buffer): buffer of the command
-                          default: None
-            nsid (int): nsid field of the command
-                        default: 0
-            cb (function): callback function called at completion
-                           default: None
+            buf (Buffer): buffer of the command. Default: None
+            nsid (int): nsid field of the command. Default: 0
+            cb (function): callback function called at completion. Default: None
 
-        Rets:
+        # Returns
             qpair (Qpair): the qpair used to send this command, for ease of chained call
         """
 
@@ -2164,14 +2099,12 @@ class _IOWorker(object):
 def config(verify, fua_read=False, fua_write=False):
     """config driver global setting
 
-    Args:
+    # Attributes
         verify (bool): enable inline checksum verification of read
-        fua_read (bool): enable FUA of read
-                         default: False
-        fua_write (bool): enable FUA of write
-                          default: False
+        fua_read (bool): enable FUA of read. Default: False
+        fua_write (bool): enable FUA of write. Default: False
 
-    Returns:
+    # Returns
         None
     """
 
