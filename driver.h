@@ -90,6 +90,8 @@ extern int nvme_get_reg32(struct spdk_nvme_ctrlr* ctrlr,
                           unsigned int* value);
 
 extern int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* c);
+extern void nvme_deallocate_ranges(struct spdk_nvme_ctrlr* ctrlr,
+                                   void* buf, unsigned int count);
 extern void nvme_cmd_cb_print_cpl(void* qpair, const struct spdk_nvme_cpl* cpl);
 
 

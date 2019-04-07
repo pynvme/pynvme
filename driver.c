@@ -644,9 +644,11 @@ int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
   return spdk_nvme_ctrlr_process_admin_completions(ctrlr);
 }
 
-static void nvme_deallocate_ranges(struct spdk_nvme_dsm_range *ranges,
-                                   unsigned int count)
+void nvme_deallocate_ranges(struct spdk_nvme_ctrlr* ctrlr, 
+                            void* buf, unsigned int count)
 {
+  struct spdk_nvme_dsm_range *ranges = (struct spdk_nvme_dsm_range*)buf;
+  
   for (unsigned int i=0; i<count; i++)
   {
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "deallocate lba 0x%lx, count %d\n",
@@ -693,13 +695,6 @@ int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
 
   if (qpair)
   {
-    // update host-side table for the trimed data
-    // other write-like operation updates crc32 table in driver wraper
-    if (opcode == 9)
-    {
-      nvme_deallocate_ranges(buf, cdw10+1);
-    }
-    
     //send io cmd in qpair
     rc = spdk_nvme_ctrlr_cmd_io_raw(ctrlr, qpair, &cmd, buf, len,
                                     cmd_log_add_cpl_cb, log_entry);

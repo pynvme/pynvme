@@ -1707,7 +1707,10 @@ cdef class Namespace(object):
             buf cannot be released before the command completes.
         """
 
-        assert buf is not None, "no buffer allocated"
+        assert buf is not None, "no range prepared"
+
+        # update host-side table for the trimed data
+        self.deallocate_ranges(buf, range_count)
         self.send_io_raw(qpair, buf, 9, self._nsid,
                          range_count-1, attribute,
                          0, 0, 0, 0,
@@ -1858,7 +1861,12 @@ cdef class Namespace(object):
                          cb_func=cmd_cb,
                          cb_arg=<void*>cb)
         return qpair
-    
+
+    cdef void deallocate_ranges(self,
+                                Buffer buf,
+                                unsigned int range_count):
+        d.nvme_deallocate_ranges(self._nvme._ctrlr, buf.ptr, range_count)
+
     cdef int send_io_raw(self,
                          Qpair qpair,
                          Buffer buf,

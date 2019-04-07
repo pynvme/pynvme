@@ -407,7 +407,7 @@ def test_write_and_compare(nvme0, nvme0n1):
         nvme0n1.compare(q, buf, 0, 8).waitdone()
 
 
-def test_trim_and_read(nvme0, nvme0n1):
+def test_dsm_trim_and_read(nvme0, nvme0n1):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
 

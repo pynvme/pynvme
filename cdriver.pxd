@@ -90,6 +90,9 @@ cdef extern from "driver.h":
     int nvme_get_reg32(ctrlr * c,
                        unsigned int offset,
                        unsigned int * value)
+    
+    void nvme_deallocate_ranges(ctrlr *c,
+                                void * buf, unsigned int count)
     int nvme_wait_completion_admin(ctrlr * c)
     void nvme_cmd_cb_print_cpl(void * qpair, const cpl * cpl)
     int nvme_send_cmd_raw(ctrlr * c,
