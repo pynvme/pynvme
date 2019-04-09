@@ -273,29 +273,24 @@ void buffer_fini(void* buf)
 
 struct cmd_log_entry_t {
   // cmd and cpl
-  struct timeval time_cmd;
   struct spdk_nvme_cmd cmd;
-  struct timeval time_cpl;
+  struct timeval time_cmd;
   struct spdk_nvme_cpl cpl;
+  uint64_t cpl_latency_us;
 
   // for data verification after read
   void* buf;
-  uint64_t lba;
-  uint16_t lba_count;
-  uint32_t lba_size;
   
-  // callback to user functions
+  // callback to user cb functions
   spdk_nvme_cmd_cb cb_fn;
   void* cb_arg;
-
-  uint64_t dummy[5];
 };
-static_assert(sizeof(struct cmd_log_entry_t) == 192, "cacheline aligned");
+static_assert(sizeof(struct cmd_log_entry_t) == 128, "cacheline aligned");
 
 struct cmd_log_table_t {
   struct cmd_log_entry_t table[CMD_LOG_DEPTH];
   uint32_t tail_index;
-  uint32_t dummy[47];
+  uint32_t dummy[31];
 };
 static_assert(sizeof(struct cmd_log_table_t) == sizeof(struct cmd_log_entry_t)*(CMD_LOG_DEPTH+1), "cacheline aligned");
 
@@ -370,84 +365,32 @@ static void cmd_log_finish(void)
 }
 
 
-static struct cmd_log_entry_t*
-cmd_log_add_cmd(uint16_t qid,
-                void* buf,
-                uint64_t lba,
-                uint16_t lba_count,
-                uint32_t lba_size,
-                const struct spdk_nvme_cmd* cmd,
-                spdk_nvme_cmd_cb cb_fn,
-                void *cb_arg)
-{
-  struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];
-  struct cmd_log_entry_t* log_entry = &log_table->table[log_table->tail_index];
-
-  assert(qid < CMD_LOG_MAX_Q);
-  assert(log_table != NULL);
-
-  log_entry->buf = buf;
-  log_entry->lba = lba;
-  log_entry->lba_count = lba_count;
-  log_entry->lba_size = lba_size;
-  log_entry->cb_fn = cb_fn;
-  log_entry->cb_arg = cb_arg;
-  log_entry->time_cpl = (struct timeval){0};
-  memcpy(&log_entry->cmd, cmd, sizeof(struct spdk_nvme_cmd));
-  gettimeofday(&log_entry->time_cmd, NULL);
-
-  return log_entry;
-}
-
-
-static void cmd_log_commit_cmd(uint16_t qid)
-{
-  struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];
-  uint32_t tail_index = log_table->tail_index;
-
-  assert(tail_index < CMD_LOG_DEPTH);
-
-  // add tail to commit the new cmd only when it is sent successfully
-  tail_index += 1;
-  if (tail_index == CMD_LOG_DEPTH)
-  {
-    tail_index = 0;
-  }
-  log_table->tail_index = tail_index;
-}
-
-
 static void cmd_log_add_cpl_cb(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
 {
   struct timeval diff;
+  struct timeval now;
   struct cmd_log_entry_t* log_entry = (struct cmd_log_entry_t*)cb_ctx;
 
   assert(cpl != NULL);
   assert(log_entry != NULL);
 
   //reuse dword2 of cpl as latency value
-  gettimeofday(&log_entry->time_cpl, NULL);
+  gettimeofday(&now, NULL);
   memcpy(&log_entry->cpl, cpl, sizeof(struct spdk_nvme_cpl));
-  timersub(&log_entry->time_cpl, &log_entry->time_cmd, &diff);
-  (&log_entry->cpl.cdw0)[2] = timeval_to_us(&diff);
-  //SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
+  timersub(&now, &log_entry->time_cmd, &diff);
+  log_entry->cpl_latency_us = timeval_to_us(&diff);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
   
   //verify read data
   if (log_entry->cmd.opc == 2 && log_entry->buf != NULL)
   {
     if ((*g_driver_global_config_ptr & DCFG_VERIFY_READ) != 0)
     {
-      int ret = 0;
-    
-      assert (log_entry->lba_count != 0);
-      assert (log_entry->lba_size != 0);
-      assert (log_entry->lba_size == 512);
-
-      ret = buffer_verify_data(log_entry->buf,
-                               log_entry->lba,
-                               log_entry->lba_count,
-                               log_entry->lba_size);
-      if (ret != 0)
+      struct spdk_nvme_cmd* cmd = &log_entry->cmd;
+      uint64_t lba = cmd->cdw10 + ((uint64_t)(cmd->cdw11)<<32);
+      uint16_t lba_count = (cmd->cdw12 & 0xffff);
+                                  
+      if (0 != buffer_verify_data(log_entry->buf, lba, lba_count, 512))
       {
         //Unrecovered Read Error: The read data could not be recovered from the media.
         log_entry->cpl.status.sct = 0x02;
@@ -461,6 +404,39 @@ static void cmd_log_add_cpl_cb(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
   {
     log_entry->cb_fn(log_entry->cb_arg, &log_entry->cpl);
   }
+}
+
+
+// for spdk internel ues: nvme_qpair_submit_request
+extern void cmdlog_add_cmd(uint16_t qid, struct nvme_request* req);
+void cmdlog_add_cmd(uint16_t qid, struct nvme_request* req)
+{
+  struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];  
+  uint32_t tail_index = log_table->tail_index;
+  struct cmd_log_entry_t* log_entry = &log_table->table[tail_index];
+
+  assert(qid < CMD_LOG_MAX_Q);
+  assert(log_table != NULL);
+  assert(tail_index < CMD_LOG_DEPTH);
+
+  log_entry->buf = req->payload.contig_or_cb_arg;
+  log_entry->cb_fn = req->cb_fn;
+  log_entry->cb_arg = req->cb_arg;
+  log_entry->cpl_latency_us = 0;
+  memcpy(&log_entry->cmd, &req->cmd, sizeof(struct spdk_nvme_cmd));
+  gettimeofday(&log_entry->time_cmd, NULL);
+
+  // change callback to cmdlog cb, and cmdlog cb cals users cb
+  req->cb_fn = cmd_log_add_cpl_cb;
+  req->cb_arg = log_entry;
+  
+  // add tail to commit the new cmd only when it is sent successfully
+  tail_index += 1;
+  if (tail_index == CMD_LOG_DEPTH)
+  {
+    tail_index = 0;
+  }
+  log_table->tail_index = tail_index;
 }
 
 
@@ -673,9 +649,7 @@ int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
                       void* cb_arg)
 {
   int rc = 0;
-  uint16_t qid;
   struct spdk_nvme_cmd cmd;
-  struct cmd_log_entry_t* log_entry;
 
   assert(ctrlr != NULL);
 
@@ -690,26 +664,15 @@ int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
   cmd.cdw14 = cdw14;
   cmd.cdw15 = cdw15;
 
-  qid = qpair ? qpair->id : 0;
-  log_entry = cmd_log_add_cmd(qid, NULL, 0, 0, 0, &cmd, cb_fn, cb_arg);
-
   if (qpair)
   {
     //send io cmd in qpair
-    rc = spdk_nvme_ctrlr_cmd_io_raw(ctrlr, qpair, &cmd, buf, len,
-                                    cmd_log_add_cpl_cb, log_entry);
+    rc = spdk_nvme_ctrlr_cmd_io_raw(ctrlr, qpair, &cmd, buf, len, cb_fn, cb_arg);
   }
   else
   {
     //not qpair, admin cmd
-    rc = spdk_nvme_ctrlr_cmd_admin_raw(ctrlr, &cmd, buf, len,
-                                       cmd_log_add_cpl_cb, log_entry);
-  }
-
-  if (rc == 0)
-  {
-    // no error, cmd is sent, so commit it to cmdlog
-    cmd_log_commit_cmd(qid);
+    rc = spdk_nvme_ctrlr_cmd_admin_raw(ctrlr, &cmd, buf, len, cb_fn, cb_arg);
   }
 
   return rc;
@@ -823,9 +786,7 @@ int ns_cmd_read_write(int is_read,
                       spdk_nvme_cmd_cb cb_fn,
                       void* cb_arg)
 {
-  int rc = 0;
   struct spdk_nvme_cmd cmd;
-  struct cmd_log_entry_t* log_entry;
   uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
 
   assert(ns != NULL);
@@ -858,20 +819,8 @@ int ns_cmd_read_write(int is_read,
     buffer_fill_data(buf, lba, lba_count, lba_size);
   }
 
-  //get entry in cmd log
-  log_entry = cmd_log_add_cmd(qpair->id, buf, lba, lba_count, lba_size,
-                              &cmd, cb_fn, cb_arg);
-
   //send io cmd in qpair
-  rc = spdk_nvme_ctrlr_cmd_io_raw(ns->ctrlr, qpair, &cmd, buf, len,
-                                  cmd_log_add_cpl_cb, log_entry);
-  if (rc == 0)
-  {
-    // cmd was sent, commit it to cmdlog
-    cmd_log_commit_cmd(qpair->id);
-  }
-
-  return rc;
+  return spdk_nvme_ctrlr_cmd_io_raw(ns->ctrlr, qpair, &cmd, buf, len, cb_fn, cb_arg);
 }
 
 uint32_t ns_get_sector_size(struct spdk_nvme_ns* ns)
@@ -1343,9 +1292,9 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
                  qid, log_table->tail_index);
   for (int i=0; i<dump_count; i++)
   {
-    char tmbuf[64];
-    struct timeval tv;
+    struct timeval tv = (struct timeval){0};
     struct tm* time;
+    char tmbuf[64];
 
     //cmd part
     tv = log_table->table[i].time_cmd;
@@ -1355,7 +1304,8 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
     nvme_qpair_print_command(qpair, &log_table->table[i].cmd);
 
     //cpl part
-    tv = log_table->table[i].time_cpl;
+    tv.tv_usec = log_table->table[i].cpl_latency_us;
+    timeradd(&log_table->table[i].time_cmd, &tv, &tv);
     time = localtime(&tv.tv_sec);
     strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
     SPDK_NOTICELOG("index %d, %s.%06ld\n", i, tmbuf, tv.tv_usec);
@@ -1623,10 +1573,13 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
                                  cmd[12], cmd[13], cmd[14], cmd[15]);
     }
 
-    // print cpl cdws
-    struct timeval time_cpl = table[index].time_cpl;
-    if (timercmp(&time_cpl, &(struct timeval){0}, !=))
+    if (table[index].cpl_latency_us != 0)
     {
+      // a completed command, display its cpl cdws
+      struct timeval time_cpl = (struct timeval){0};
+      time_cpl.tv_usec = table[index].cpl_latency_us;
+      timeradd(&time_cmd, &time_cpl, &time_cpl);
+      
       uint32_t* cpl = (uint32_t*)&table[index].cpl;
       spdk_json_write_string_fmt(w, "%ld.%06ld: [cpl] <<<<<<<<<<\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n", 

@@ -411,7 +411,8 @@ cdef struct _cpl:
     # cdw2 is changed to latency of the command, in micro-seconds
     unsigned int cdw0
     unsigned int rsvd1
-    unsigned int latency
+    unsigned short sqhead
+    unsigned short sqid
     unsigned short cid
     unsigned short status1  #this word actully inculdes some other bites
 
