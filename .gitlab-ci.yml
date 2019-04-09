@@ -12,12 +12,7 @@ driver_test:
     - date
     - pwd
   script:
-    - cd spdk/dpdk; git checkout spdk-18.08; cd ../..
-    - sudo ./spdk/scripts/pkgdep.sh
-    - sudo pip3 install -r requirements.txt
-    - cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
-    - make spdk                                    # compile SPDK
-    - make                                         # compile pynvme
+    - ./install.sh
     - make setup
     - make $MAKE_TARGET
     - make reset

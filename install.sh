@@ -13,8 +13,9 @@ else
 fi
 
 # get source code
-git checkout tags/v19.03.29
+#git checkout tags/v19.03.29
 git submodule update --init --recursive
+cd spdk; git checkout cmdlog_internal; cd ..
 cd spdk/dpdk; git checkout spdk-18.08; cd ../..
 
 # get dependencies
