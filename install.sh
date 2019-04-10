@@ -13,9 +13,11 @@ else
 fi
 
 # get source code
-#git checkout tags/v19.03.29
+latesttag=$(git describe --abbrev=0 --tags)
+echo checking out pynvme ${latesttag}
+git checkout ${latesttag}
 git submodule update --init --recursive
-cd spdk; git checkout cmdlog_internal; cd ..
+cd spdk; git checkout pynvme; cd ..
 cd spdk/dpdk; git checkout spdk-18.08; cd ../..
 
 # get dependencies

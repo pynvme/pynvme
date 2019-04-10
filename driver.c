@@ -418,7 +418,9 @@ void cmdlog_add_cmd(uint16_t qid, struct nvme_request* req)
   assert(qid < CMD_LOG_MAX_Q);
   assert(log_table != NULL);
   assert(tail_index < CMD_LOG_DEPTH);
-
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog: add cmd %s\n", \
+                               cmd_name(req->cmd.opc, qid==0?0:1));
+  
   log_entry->buf = req->payload.contig_or_cb_arg;
   log_entry->cb_fn = req->cb_fn;
   log_entry->cb_arg = req->cb_arg;
