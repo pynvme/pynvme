@@ -1754,5 +1754,3 @@ def test_ioworker_longtime2(nvme0n1, verify):
 
     for a in l:
         r = a.close()
-
-        
