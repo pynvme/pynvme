@@ -12,15 +12,8 @@ else
   exit 1
 fi
 
-# get source code
-latesttag=$(git describe --abbrev=0 --tags)
-echo checking out pynvme ${latesttag}
-git checkout ${latesttag}
+# get depended source code and software
 git submodule update --init --recursive
-cd spdk; git checkout pynvme; cd ..
-cd spdk/dpdk; git checkout spdk-18.08; cd ../..
-
-# get dependencies
 sudo ./spdk/scripts/pkgdep.sh
 sudo pip3 install -r requirements.txt
 
