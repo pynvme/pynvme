@@ -110,7 +110,7 @@ def test_get_identify(nvme0, nvme0n1):
     assert nvme0n1.id_data(7, 0) == nvme0n1.id_data(15, 8)
     assert nvme0n1.id_data(23, 16) == nvme0n1.id_data(15, 8)
 
-    logging.info("common namespace data")    
+    logging.info("common namespace data")
     id_buf = d.Buffer(4096, 'identify buffer')
     assert id_buf[0] == 0
     nvme0.identify(id_buf, 0xffffffff, 0)
@@ -227,7 +227,7 @@ def test_enable_and_disable_hmb(nvme0):
     logging.info(f"hmb status: {buf[0:16]}")
     assert hmb_status == 0
 
-    # enable 
+    # enable
     nvme0.enable_hmb()
 
     # getfeatures of hmb to check
@@ -1025,7 +1025,7 @@ def test_ioworker_output_io_per_second(nvme0n1, nvme0):
     nvme0n1.ioworker(io_size=8, lba_align=16,
                      lba_random=True, qdepth=16,
                      read_percentage=0, time=7,
-                     iops=12345, 
+                     iops=12345,
                      output_io_per_second=output_io_per_second).start().close()
     logging.info(output_io_per_second)
     assert len(output_io_per_second) == 7
@@ -1437,11 +1437,11 @@ def test_ioworkers_with_many_huge_io(nvme0n1, nvme0):
 
 def test_ioworkers_read_and_write_conflict(nvme0n1, nvme0, verify):
     # """read write confliction will cause data mismatch.
-    # 
+    #
     # When the same LBA the read and write commands are operating on, NVMe
-    # spec does not garentee the order of read and write operation, so the 
+    # spec does not garentee the order of read and write operation, so the
     # data of read command got could be old data or the new data of the write
-    # command just written. 
+    # command just written.
     # """
     
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
@@ -1463,9 +1463,9 @@ def test_ioworkers_read_and_write_conflict(nvme0n1, nvme0, verify):
 
 def test_ioworkers_read_and_write(nvme0n1, nvme0):
     # """read write confliction will cause data mismatch.
-    # 
+    #
     # One mitigation solution is separate read and write to differnt IOWorkers
-    # and operate different LBA regions to avoid read-write confliction. 
+    # and operate different LBA regions to avoid read-write confliction.
     # """
 
     with nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
@@ -1734,7 +1734,7 @@ def test_ioworker_stress(nvme0n1, repeat):
 def test_ioworker_longtime(nvme0n1, verify):
     l = []
     for i in range(15):
-        a = nvme0n1.ioworker(io_size=8, lba_align=8, 
+        a = nvme0n1.ioworker(io_size=8, lba_align=8,
                              lba_random=True, qdepth=512,
                              read_percentage=100, time=30*60).start()
         l.append(a)
@@ -1747,7 +1747,7 @@ def test_ioworker_longtime(nvme0n1, verify):
 def test_ioworker_longtime2(nvme0n1, verify):
     l = []
     for i in range(15):
-        a = nvme0n1.ioworker(io_size=8, lba_align=8, 
+        a = nvme0n1.ioworker(io_size=8, lba_align=8,
                              lba_random=True, qdepth=1022, # deep queue made test not stop
                              read_percentage=100, time=30*60).start()
         l.append(a)
