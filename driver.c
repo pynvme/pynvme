@@ -269,7 +269,7 @@ void buffer_fini(void* buf)
 // queue_table traces cmd log tables by queue pairs
 // CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
 #define CMD_LOG_DEPTH (2048-1)  // reserved one slot space for tail value
-#define CMD_LOG_MAX_Q (16)
+#define CMD_LOG_QPAIR_COUNT (16)
 
 struct cmd_log_entry_t {
   // cmd and cpl
@@ -290,7 +290,8 @@ static_assert(sizeof(struct cmd_log_entry_t) == 128, "cacheline aligned");
 struct cmd_log_table_t {
   struct cmd_log_entry_t table[CMD_LOG_DEPTH];
   uint32_t tail_index;
-  uint32_t dummy[31];
+  uint32_t msix_data;
+  uint32_t dummy[30];
 };
 static_assert(sizeof(struct cmd_log_table_t) == sizeof(struct cmd_log_entry_t)*(CMD_LOG_DEPTH+1), "cacheline aligned");
 
@@ -306,7 +307,7 @@ static unsigned int timeval_to_us(struct timeval* t)
 
 static void cmd_log_qpair_init(uint16_t qid)
 {
-  assert(qid < CMD_LOG_MAX_Q);
+  assert(qid < CMD_LOG_QPAIR_COUNT);
 
   // set tail to invalid value, means the qpair is empty
   cmd_log_queue_table[qid].tail_index = 0;
@@ -315,7 +316,7 @@ static void cmd_log_qpair_init(uint16_t qid)
 
 static void cmd_log_qpair_clear(uint16_t qid)
 {
-  assert(qid < CMD_LOG_MAX_Q);
+  assert(qid < CMD_LOG_QPAIR_COUNT);
 
   // set tail to invalid value, means the qpair is empty
   cmd_log_queue_table[qid].tail_index = CMD_LOG_DEPTH;
@@ -327,11 +328,11 @@ static int cmd_log_init(void)
   if (spdk_process_is_primary())
   {
     cmd_log_queue_table = spdk_memzone_reserve(DRIVER_CMDLOG_TABLE_NAME,
-                                               sizeof(struct cmd_log_table_t)*CMD_LOG_MAX_Q, 
+                                               sizeof(struct cmd_log_table_t)*CMD_LOG_QPAIR_COUNT, 
                                                0, SPDK_MEMZONE_NO_IOVA_CONTIG);
 
     // clear all qpair's cmd log
-    for (int i=0; i<CMD_LOG_MAX_Q; i++)
+    for (int i=0; i<CMD_LOG_QPAIR_COUNT; i++)
     {
       cmd_log_qpair_clear(i);
     }
@@ -415,7 +416,7 @@ void cmdlog_add_cmd(uint16_t qid, struct nvme_request* req)
   uint32_t tail_index = log_table->tail_index;
   struct cmd_log_entry_t* log_entry = &log_table->table[tail_index];
 
-  assert(qid < CMD_LOG_MAX_Q);
+  assert(qid < CMD_LOG_QPAIR_COUNT);
   assert(log_table != NULL);
   assert(tail_index < CMD_LOG_DEPTH);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog: add cmd %s\n", \
@@ -439,6 +440,80 @@ void cmdlog_add_cmd(uint16_t qid, struct nvme_request* req)
     tail_index = 0;
   }
   log_table->tail_index = tail_index;
+}
+
+
+//// software MSIx INTC
+///////////////////////////////
+
+static uint8_t intc_find_msix(struct spdk_pci_device* pci)
+{
+  uint8_t cid = 0;
+  uint8_t next_offset = 0;
+  
+  spdk_pci_device_cfg_read8(pci, &next_offset, 0x34);
+  while (next_offset != 0)
+  {
+    spdk_pci_device_cfg_read8(pci, &cid, next_offset);
+    if (cid == 0x11)
+    {
+      // find the msix capability
+      break;
+    }
+
+    spdk_pci_device_cfg_read8(pci, &next_offset, next_offset+1);
+  }
+
+  assert(next_offset != 0);
+  return next_offset;
+}
+
+
+static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
+{
+  uint8_t msix_base;
+  uint16_t control;
+  uint32_t table_offset;
+  struct spdk_pci_device* pci = spdk_nvme_ctrlr_get_pci_device(ctrlr);
+  
+  // find msix capability
+  msix_base = intc_find_msix(pci);
+  spdk_pci_device_cfg_read16(pci, &control, msix_base+2);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "control: 0x%x\n", control);
+
+  // msix is disabled 
+  assert((control&8000) == 0);
+
+  // the controller has enough verctors for all qpairs
+  assert((control&0x7ff) > CMD_LOG_QPAIR_COUNT);
+  
+  // find address of msix table, should in BAR0
+  spdk_pci_device_cfg_read32(pci, &table_offset, msix_base+4);
+  assert((table_offset&0x7) == 0);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "vector table address: 0x%x\n", table_offset);
+
+  // fill msix_data address in msix table, one entry for one qpair, disable
+  for (uint32_t i=0; i<CMD_LOG_QPAIR_COUNT; i++)
+  {
+    uint32_t data;
+    uint32_t offset = table_offset + 16*i;
+    uint64_t addr = spdk_vtophys(&cmd_log_queue_table[i].msix_data, NULL);
+    
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "vector %d data addr 0x%lx\n", i, addr);
+    
+    data = (uint32_t)addr;
+    nvme_pcie_ctrlr_set_reg_4(ctrlr, offset, data);
+    data = (uint32_t)(addr>>32);
+    nvme_pcie_ctrlr_set_reg_4(ctrlr, offset+4, data);
+    data = 1;
+    nvme_pcie_ctrlr_set_reg_4(ctrlr, offset+8, data);
+    data = 0;
+    nvme_pcie_ctrlr_set_reg_4(ctrlr, offset+12, data);
+  }
+  
+  // enable msix
+  control |= 0x8000;
+  spdk_pci_device_cfg_write16(pci, control, msix_base+2);
 }
 
 
@@ -579,6 +654,12 @@ struct spdk_nvme_ctrlr* nvme_init(char * traddr)
     return NULL;
   }
 
+  if (spdk_process_is_primary())
+  {
+    // enable msix interrupt
+    intc_init(ctrlr);
+  }
+  
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "found device: %s\n", ctrlr->trid.traddr);
   return ctrlr;
 }
@@ -724,7 +805,7 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
   }
 
   // limited qpair count
-  if (qpair->id >= CMD_LOG_MAX_Q)
+  if (qpair->id >= CMD_LOG_QPAIR_COUNT)
   {
     SPDK_ERRLOG("not support so many queue pairs\n");
     spdk_nvme_ctrlr_free_io_qpair(qpair);
@@ -1281,7 +1362,7 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
   uint16_t qid = qpair->id;
   struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];
 
-  assert(qid < CMD_LOG_MAX_Q);
+  assert(qid < CMD_LOG_QPAIR_COUNT);
   assert(log_table != NULL);
 
   if (count == 0 || count > CMD_LOG_DEPTH)
@@ -1484,7 +1565,7 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
   }
 
   spdk_json_write_array_begin(w);
-  for (int i=0; i<CMD_LOG_MAX_Q; i++)
+  for (int i=0; i<CMD_LOG_QPAIR_COUNT; i++)
   {
     // only send valid qpair
     if (cmd_log_queue_table[i].tail_index < CMD_LOG_DEPTH)

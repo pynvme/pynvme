@@ -56,10 +56,10 @@ all: cython_lib
 .PHONY: all spdk doc debug
 
 spdk:
-	cd spdk; ./configure --disable-debug --disable-asan --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
+	cd spdk; ./configure --disable-debug --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
 
 debug: clean
-	cd spdk; ./configure --enable-debug --enable-asan --enable-tests --without-isal; make; cd ..
+	cd spdk; ./configure --enable-debug --enable-tests --without-vhost --without-virtio --without-isal; make; cd ..
 	./spdk/test/unit/unittest.sh
 
 doc: cython_lib
