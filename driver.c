@@ -291,7 +291,8 @@ struct cmd_log_table_t {
   struct cmd_log_entry_t table[CMD_LOG_DEPTH];
   uint32_t tail_index;
   uint32_t msix_data;
-  uint32_t dummy[30];
+  uint32_t mask_offset;
+  uint32_t dummy[29];
 };
 static_assert(sizeof(struct cmd_log_table_t) == sizeof(struct cmd_log_entry_t)*(CMD_LOG_DEPTH+1), "cacheline aligned");
 
@@ -510,6 +511,8 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
     nvme_pcie_ctrlr_set_reg_4(ctrlr, offset+8, data);
     data = 0;
     nvme_pcie_ctrlr_set_reg_4(ctrlr, offset+12, data);
+
+    cmd_log_queue_table[i].mask_offset = offset+12;
   }
   
   // enable msix
@@ -701,18 +704,26 @@ int nvme_get_reg32(struct spdk_nvme_ctrlr* ctrlr,
 
 int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
 {
+  int32_t rc;
+  
   // check msix interrupt
-  while (cmd_log_queue_table[0].msix_data == 0)
+  if (cmd_log_queue_table[0].msix_data == 0)
   {
     // to check it again later
-    usleep(10);
+    return 0;
   }
 
-  // clear the interrupt
-  cmd_log_queue_table[0].msix_data = 0;
+  // mask the interrupt
+  nvme_pcie_ctrlr_set_reg_4(ctrlr, cmd_log_queue_table[0].mask_offset, 1);
 
-  // process the completions
-  return spdk_nvme_ctrlr_process_admin_completions(ctrlr);
+  // process all the completions
+  rc = spdk_nvme_ctrlr_process_admin_completions(ctrlr);
+
+  // clear and un-mask the interrupt
+  cmd_log_queue_table[0].msix_data = 0;
+  nvme_pcie_ctrlr_set_reg_4(ctrlr, cmd_log_queue_table[0].mask_offset, 0);
+  
+  return rc;
 }
 
 void nvme_deallocate_ranges(struct spdk_nvme_ctrlr* ctrlr, 
