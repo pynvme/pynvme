@@ -50,18 +50,23 @@ setup(
 
             # spdk static libraries
             extra_objects=[
+                # spdk
                 './spdk/build/lib/libspdk_pynvme.a',
                 './spdk/build/lib/libspdk_nvme.a',
                 './spdk/build/lib/libspdk_env_dpdk.a',
                 './spdk/build/lib/libspdk_util.a',
                 './spdk/build/lib/libspdk_sock.a',
-                '-Wl,--whole-archive',  # force link symbols in these libraries
+                './spdk/build/lib/libspdk_rpc.a',
+                './spdk/build/lib/libspdk_log.a',
+
+                # force link symbols in these libraries
+                '-Wl,--whole-archive',  
                 './spdk/build/lib/libspdk_json.a',
                 './spdk/build/lib/libspdk_jsonrpc.a',
                 './spdk/build/lib/libspdk_sock_posix.a',
                 '-Wl,--no-whole-archive',
-                './spdk/build/lib/libspdk_rpc.a',
-                './spdk/build/lib/libspdk_log.a',
+
+                # dpdk
                 './spdk/dpdk/build/lib/librte_eal.a',
                 './spdk/dpdk/build/lib/librte_mbuf.a',
                 './spdk/dpdk/build/lib/librte_ring.a',
@@ -69,6 +74,7 @@ setup(
                 './spdk/dpdk/build/lib/librte_bus_pci.a',
                 './spdk/dpdk/build/lib/librte_pci.a',
                 './spdk/dpdk/build/lib/librte_kvargs.a',
+
             ],
         )]
     )

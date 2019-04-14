@@ -479,10 +479,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
   // find msix capability
   msix_base = intc_find_msix(pci);
   spdk_pci_device_cfg_read16(pci, &control, msix_base+2);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "control: 0x%x\n", control);
-
-  // msix is disabled 
-  assert((control&8000) == 0);
+  SPDK_INFOLOG(SPDK_LOG_NVME, "msix control: 0x%x\n", control);
 
   // the controller has enough verctors for all qpairs
   assert((control&0x7ff) > CMD_LOG_QPAIR_COUNT);
@@ -490,7 +487,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
   // find address of msix table, should in BAR0
   spdk_pci_device_cfg_read32(pci, &table_offset, msix_base+4);
   assert((table_offset&0x7) == 0);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "vector table address: 0x%x\n", table_offset);
+  SPDK_INFOLOG(SPDK_LOG_NVME, "msix vector table address: 0x%x\n", table_offset);
 
   // fill msix_data address in msix table, one entry for one qpair, disable
   for (uint32_t i=0; i<CMD_LOG_QPAIR_COUNT; i++)
@@ -500,7 +497,11 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
     uint64_t addr = spdk_vtophys(&cmd_log_queue_table[i].msix_data, NULL);
     
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "vector %d data addr 0x%lx\n", i, addr);
-    
+
+    // clear the interrupt
+    cmd_log_queue_table[i].msix_data = 0;
+
+    // fill the vector table
     data = (uint32_t)addr;
     nvme_pcie_ctrlr_set_reg_4(ctrlr, offset, data);
     data = (uint32_t)(addr>>32);
@@ -700,6 +701,17 @@ int nvme_get_reg32(struct spdk_nvme_ctrlr* ctrlr,
 
 int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
 {
+  // check msix interrupt
+  while (cmd_log_queue_table[0].msix_data == 0)
+  {
+    // to check it again later
+    usleep(10);
+  }
+
+  // clear the interrupt
+  cmd_log_queue_table[0].msix_data = 0;
+
+  // process the completions
   return spdk_nvme_ctrlr_process_admin_completions(ctrlr);
 }
 
