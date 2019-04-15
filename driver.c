@@ -750,7 +750,26 @@ int nvme_get_reg32(struct spdk_nvme_ctrlr* ctrlr,
 
 int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
 {
-  return spdk_nvme_ctrlr_process_admin_completions(ctrlr);
+  int32_t rc;
+  
+  // check msix interrupt
+  if (cmd_log_queue_table[0].msix_data == 0)
+  {
+    // to check it again later
+    return 0;
+  }
+
+  // mask the interrupt
+  nvme_pcie_ctrlr_set_reg_4(ctrlr, cmd_log_queue_table[0].mask_offset, 1);
+
+  // process all the completions
+  rc = spdk_nvme_ctrlr_process_admin_completions(ctrlr);
+
+  // clear and un-mask the interrupt
+  cmd_log_queue_table[0].msix_data = 0;
+  nvme_pcie_ctrlr_set_reg_4(ctrlr, cmd_log_queue_table[0].mask_offset, 0);
+  
+  return rc;
 }
 
 void nvme_deallocate_ranges(struct spdk_nvme_ctrlr* ctrlr, 
