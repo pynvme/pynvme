@@ -291,8 +291,9 @@ struct cmd_log_table_t {
   struct cmd_log_entry_t table[CMD_LOG_DEPTH];
   uint32_t tail_index;
   uint32_t msix_data;
+  uint32_t msix_enabled;
   uint32_t mask_offset;
-  uint32_t dummy[29];
+  uint32_t dummy[28];
 };
 static_assert(sizeof(struct cmd_log_table_t) == sizeof(struct cmd_log_entry_t)*(CMD_LOG_DEPTH+1), "cacheline aligned");
 
@@ -501,6 +502,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
 
     // clear the interrupt
     cmd_log_queue_table[i].msix_data = 0;
+    cmd_log_queue_table[i].msix_enabled = true;
 
     // fill the vector table
     data = (uint32_t)addr;
@@ -753,12 +755,15 @@ int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
   int32_t rc;
   
   // check msix interrupt
-  if (cmd_log_queue_table[0].msix_data == 0)
+  if (cmd_log_queue_table[0].msix_enabled)
   {
-    // to check it again later
-    return 0;
+    if (cmd_log_queue_table[0].msix_data == 0)
+    {
+      // to check it again later
+      return 0;
+    }
   }
-
+  
   // mask the interrupt
   nvme_pcie_ctrlr_set_reg_4(ctrlr, cmd_log_queue_table[0].mask_offset, 1);
 

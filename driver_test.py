@@ -431,7 +431,8 @@ def test_format_basic(nvme0, nvme0n1, lbaf):
     q = d.Qpair(nvme0, 8)
 
     logging.info("format all namespace")
-    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
+    with pytest.warns(UserWarning, match="drive timeout:"):
+        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     nvme0n1.read(q, buf, 0, 1).waitdone()
 
     logging.info("crypto secure erase one namespace")
@@ -1759,6 +1760,7 @@ def test_reset_admin_io_mixed(nvme0, nvme0n1):
 
     
 def test_reap_without_command(nvme0, nvme0n1):
+    # pynvme driver timeout
     with pytest.raises(TimeoutError):
         nvme0.waitdone()
 
