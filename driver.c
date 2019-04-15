@@ -521,6 +521,46 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
 }
 
 
+static void intc_fini(struct spdk_nvme_ctrlr* ctrlr)
+{
+  uint8_t msix_base;
+  uint16_t control;
+  struct spdk_pci_device* pci = spdk_nvme_ctrlr_get_pci_device(ctrlr);
+  
+  // find msix capability
+  msix_base = intc_find_msix(pci);
+  spdk_pci_device_cfg_read16(pci, &control, msix_base+2);
+
+  // disable msix
+  control &= (~0x8000);
+  spdk_pci_device_cfg_write16(pci, control, msix_base+2);
+}
+
+
+void intc_clear(struct spdk_nvme_qpair* q)
+{
+  cmd_log_queue_table[q->id].msix_data = 0;
+}
+
+
+bool intc_isset(struct spdk_nvme_qpair* q)
+{
+  return cmd_log_queue_table[q->id].msix_data != 0;
+}
+
+
+void intc_mask(struct spdk_nvme_qpair* q)
+{
+  nvme_pcie_ctrlr_set_reg_4(q->ctrlr, cmd_log_queue_table[q->id].mask_offset, 1);
+}
+
+
+void intc_unmask(struct spdk_nvme_qpair* q)
+{
+  nvme_pcie_ctrlr_set_reg_4(q->ctrlr, cmd_log_queue_table[q->id].mask_offset, 0);
+}
+
+
 //// probe callbacks
 ///////////////////////////////
 
@@ -682,6 +722,12 @@ int nvme_fini(struct spdk_nvme_ctrlr* ctrlr)
       false == TAILQ_EMPTY(&ctrlr->active_io_qpairs))
   {
     return -1;
+  }
+
+  if (spdk_process_is_primary())
+  {
+    // disable msix interrupt
+    intc_fini(ctrlr);
   }
   
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "close device: %s\n", ctrlr->trid.traddr);

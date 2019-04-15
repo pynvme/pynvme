@@ -155,3 +155,9 @@ extern void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count);
 extern void log_cmd_dump_admin(struct spdk_nvme_ctrlr* ctrlr, size_t count);
 
 extern const char* cmd_name(uint8_t opc, int set);
+
+extern void intc_clear(struct spdk_nvme_qpair* q);
+extern bool intc_isset(struct spdk_nvme_qpair* q);
+extern void intc_mask(struct spdk_nvme_qpair* q);
+extern void intc_unmask(struct spdk_nvme_qpair* q);
+

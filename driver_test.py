@@ -762,6 +762,110 @@ def test_subsystem_reset(nvme0, subsystem):
     assert powercycle == get_power_cycles(nvme0)
 
 
+def test_io_qpair_msix_interrupt_all(nvme0, nvme0n1):
+    buf = d.Buffer(4096)
+    ql = []
+    for i in range(15):
+        q = d.Qpair(nvme0, 8)
+        ql.append(q)
+        logging.info("qpair %d" % q.sqid)
+
+        q.msix_clear()
+        assert not q.msix_isset()
+        nvme0n1.read(q, buf, 0, 8)
+        assert not q.msix_isset()
+        time.sleep(0.1)
+        assert q.msix_isset()
+        q.waitdone()
+        
+
+def test_io_qpair_msix_interrupt_mask(nvme0, nvme0n1):
+    buf = d.Buffer(4096)
+    q = d.Qpair(nvme0, 8)
+
+    q.msix_clear()
+    assert not q.msix_isset()
+    nvme0n1.read(q, buf, 0, 8)
+    assert not q.msix_isset()
+    time.sleep(0.1)
+    assert q.msix_isset()
+    q.waitdone()
+
+    q.msix_clear()
+    assert not q.msix_isset()
+    nvme0n1.read(q, buf, 0, 8)
+    assert not q.msix_isset()
+    time.sleep(0.1)
+    assert q.msix_isset()
+    q.waitdone()
+
+    q.msix_clear()
+    q.msix_mask()
+    assert not q.msix_isset()
+    nvme0n1.read(q, buf, 0, 8)
+    assert not q.msix_isset()
+    time.sleep(1)
+    assert not q.msix_isset()
+    q.msix_unmask()
+    time.sleep(0.1)
+    assert q.msix_isset()
+    q.waitdone()
+
+    q2 = d.Qpair(nvme0, 8)
+
+    q.msix_clear()
+    q2.msix_clear()
+    assert not q.msix_isset()
+    assert not q2.msix_isset()
+    nvme0n1.read(q2, buf, 0, 8)
+    assert not q2.msix_isset()
+    time.sleep(0.1)
+    assert not q.msix_isset()
+    assert q2.msix_isset()
+    q2.waitdone()
+
+
+def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
+    buf = d.Buffer(4096)
+    q = d.Qpair(nvme0, 8)
+    q.msix_clear()
+    assert not q.msix_isset()
+
+    # aggregation time: 100*100us=0.01s, aggregation threshold: 2
+    nvme0.setfeatures(8, (200<<8)+10)
+
+    # 1 cmd, check interrupt latency 
+    nvme0n1.read(q, buf, 0, 8)
+    start = time.time()
+    while not q.msix_isset(): pass
+    latency1 = time.time()-start
+    logging.info("interrupt latency %dus" % (latency1*1000_000))
+    q.waitdone()
+    q.msix_clear()
+
+    # 2 cmd, check interrupt latency 
+    nvme0n1.read(q, buf, 0, 8)
+    nvme0n1.read(q, buf, 0, 8)
+    start = time.time()
+    while not q.msix_isset(): pass
+    latency2 = time.time()-start
+    logging.info("interrupt latency %dus" % (latency2*1000_000))
+    q.waitdone(2)
+    q.msix_clear()
+
+    # 1 cmd, check interrupt latency 
+    nvme0n1.read(q, buf, 0, 8)
+    start = time.time()
+    while not q.msix_isset(): pass
+    latency1 = time.time()-start
+    logging.info("interrupt latency %dus" % (latency1*1000_000))
+    q.waitdone()
+    q.msix_clear()
+
+    #assert latency1 > 0.01
+    #assert latency2 < 0.01
+
+    
 def test_power_cycle_with_ioworker_clean(nvme0n1, nvme0, subsystem):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)

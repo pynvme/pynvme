@@ -1438,6 +1438,18 @@ cdef class Qpair(object):
 
         d.log_cmd_dump(self._qpair, count)
 
+    def msix_clear(self):
+        d.intc_clear(self._qpair)
+        
+    def msix_isset(self):
+        return d.intc_isset(self._qpair)
+        
+    def msix_mask(self):
+        d.intc_mask(self._qpair)
+        
+    def msix_unmask(self):
+        d.intc_unmask(self._qpair)
+        
     def waitdone(self, expected=1):
         """sync until expected commands completion
 

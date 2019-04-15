@@ -151,3 +151,8 @@ cdef extern from "driver.h":
     void log_cmd_dump_admin(ctrlr * ctrlr, size_t count)
 
     const char* cmd_name(unsigned char opc, int set)
+
+    void intc_clear(qpair * q)
+    bint intc_isset(qpair * q)
+    void intc_mask(qpair * q)
+    void intc_unmask(qpair * q)
