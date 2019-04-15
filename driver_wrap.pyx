@@ -61,22 +61,24 @@
   * [Namespace](#namespace)
   * [Qpair](#qpair)
   * [Buffer](#buffer)
+  * [IOWorker](#ioworker)
   * [Subsystem](#subsystem)
 
 
 The pynvme is a python extension module. Users can operate NVMe SSD intuitively in Python scripts. It is designed for NVMe SSD testing with performance considered. Integrated with third-party tools, vscode and pytest, pynvme provides a convenient and professional NVMe device test solution.
 
-Pynvme can test multiple NVMe DUT devices, operate most of the NVMe commands, support callback functions, and manage reset/power of NVMe devices. User needs root privilege to use pynvme. It provides classes to access and test NVMe devices:
-1. Subsystem: controls the power and reset of NVMe subsystem
-2. Pcie: accesses PCIe device's config space
-3. Controller: accesses NVMe registers and operates admin commands
-4. Namespace: abstracts NVMe namespace and operates NVM commands
-5. Qpair: manages NVMe IO SQ/CQ. Admin SQ/CQ are managed by Controller
-6. Buffer: allocates and manipulates the data buffer on host memory
-7. IOWorker: reads and/or writes NVMe Namespace in separated processors
-Please use python "help()" to find more details of these classes.
+The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes, e.g. Controller, Namespace, Qpair, Buffer, and IOWorker. With pynvme, we can send any NVMe command in Python scripts, with a list of other capabilites:
+1. access PCI configuration space
+2. access NVMe registers in BAR space
+3. send any NVMe admin/IO commands
+4. callback functions are supported
+5. MSIx interrupt is supported
+6. transparent checksum verification
+7. IOWorker generates high-performance IO 
+8. integrated with pytest
+9. integrated with VSCode
 
-Before moving forward, check and backup your data in NVMe SSD. It is always recommended to put ONLY one piece of NVMe SSD in your system. Pynvme is going to work soon! 
+Before moving forward, check and backup your data in the NVMe SSD to be tested. It is always recommended to attach just one piece of NVMe SSD in your system to avoid mistakes. 
 
 
 Install
@@ -92,6 +94,7 @@ System Requirement
 4. SATA: install OS and pynvme in a SATA drive.
 5. NVMe: NVMe SSD is the device to be tested. Backup your data! 
 6. Python3. Python2 is not supported. 
+7. sudo privilege is required. 
 
 Source Code
 -----------
@@ -289,10 +292,6 @@ Example:
 The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. Similarly, after writing of multiple IOWorkers in the same LBA region, the subsequent read does not know the latest data content. As a mitigation solution, we suggest to separate read and write operations to different IOWorkers and different LBA regions in test scripts, so it can be avoid to read and write same LBA at simultaneously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other. Test scripts can disable or enable inline verification of read by function config(). By default, it is disabled.  
 
 Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explicit code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair. 
-
-IOWorker
---------
-Please refer to "nvme0n1.ioworker" examples in driver_test.py.
 
 
 Files
