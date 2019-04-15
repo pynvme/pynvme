@@ -433,6 +433,8 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
         warnings.warn("ERROR status: %02x/%02x" % (sct, sc))
 
 cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
+    arg = <_cpl*>cpl  # no qa
+    logging.warning("AER triggered, dword0: 0x%x" % arg.cdw0)
     warnings.warn("AER notification is triggered")
     cmd_cb(f, cpl)
 
