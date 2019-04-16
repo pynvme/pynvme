@@ -774,7 +774,6 @@ def test_io_qpair_msix_interrupt_all(nvme0, nvme0n1):
         q.msix_clear()
         assert not q.msix_isset()
         nvme0n1.read(q, buf, 0, 8)
-        assert not q.msix_isset()
         time.sleep(0.1)
         assert q.msix_isset()
         q.waitdone()
