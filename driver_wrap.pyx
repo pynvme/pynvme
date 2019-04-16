@@ -1000,12 +1000,12 @@ cdef class Controller(object):
                             cb_arg=<void*>cb)
         return self
 
-    def identify(self, buf, nsid=1, cns=1, cb=None):
+    def identify(self, buf, nsid=0, cns=1, cb=None):
         """identify admin command
 
         # Attributes
             buf (Buffer): the buffer to hold the identify data
-            nsid (int): nsid field in the command. Default: 1
+            nsid (int): nsid field in the command. Default: 0
             cns (int): cns field in the command. Default: 1
             cb (function): callback function called at completion. Default: None
 

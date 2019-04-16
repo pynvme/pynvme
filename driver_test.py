@@ -248,6 +248,7 @@ def test_write_identify_and_verify(nvme0, nvme0n1):
     id_buf = d.Buffer(4096)
     nvme0.identify(id_buf)
     nvme0.waitdone()
+    assert id_buf[0] != 0
 
     # explict allocate resource when not using fixture
     q = d.Qpair(nvme0, 20)
@@ -431,8 +432,7 @@ def test_format_basic(nvme0, nvme0n1, lbaf):
     q = d.Qpair(nvme0, 8)
 
     logging.info("format all namespace")
-    with pytest.warns(UserWarning, match="drive timeout:"):
-        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
+    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     nvme0n1.read(q, buf, 0, 1).waitdone()
 
     logging.info("crypto secure erase one namespace")
