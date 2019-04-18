@@ -1740,13 +1740,15 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
     if (timercmp(&time_cmd, &(struct timeval){0}, !=))
     {
       // get the string of the op name
+      const char* cmdname = cmd_name(table[index].cmd.opc, qid==0?0:1);
       uint32_t* cmd = (uint32_t*)&table[index].cmd;
-      spdk_json_write_string_fmt(w, "%ld.%06ld: [cmd] >>>>>>>>>>\n"
+      spdk_json_write_string_fmt(w, "%ld.%06ld: [cmd: %s] \n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x", 
                                  time_cmd.tv_sec, time_cmd.tv_usec,
+                                 cmdname, 
                                  cmd[0], cmd[1], cmd[2], cmd[3],
                                  cmd[4], cmd[5], cmd[6], cmd[7],
                                  cmd[8], cmd[9], cmd[10], cmd[11],
@@ -1766,6 +1768,11 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
                                  time_cpl.tv_sec, time_cpl.tv_usec, 
                                  cpl[0], cpl[1], cpl[2], cpl[3]);
     }
+    else
+    {
+      spdk_json_write_string_fmt(w, "not completed ...\n");
+    }
+    
   } while (seq++ < 100);
   
   spdk_json_write_array_end(w);
