@@ -20,4 +20,4 @@ driver_test:
   after_script:
     - ls
     - date
-    - shutdown -r +1
+    - sudo shutdown -r +1
