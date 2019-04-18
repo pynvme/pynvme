@@ -16,6 +16,7 @@ driver_test:
     - make setup
     - make $MAKE_TARGET
     - make reset
-  after_script:
-    - sudo ./spdk/scripts/setup.sh status
     - make clean
+  after_script:
+    - ls
+    - date
