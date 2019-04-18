@@ -1,7 +1,7 @@
 {
     "python.unitTest.pyTestArgs": [
         //"-s", "--log-cli-level=DEBUG", // uncomment for more debug logging in pytest
-        "--pciaddr=bb:dd.f"              // BDF address of the DUT. >>> Backup your data! <<<
+        "--pciaddr=01:00.0"              // BDF address of the DUT. >>> Backup your data! <<<
     ],
     "python.unitTest.unittestEnabled": false,
     "python.unitTest.nosetestsEnabled": false,
