@@ -54,6 +54,7 @@ System Requirement
 5. NVMe: NVMe SSD is the device to be tested. Backup your data!
 6. Python3. Python2 is not supported.
 7. sudo privilege is required.
+8. RAID mode in BIOS (Intel® RST) should be disabled.
 
 Source Code
 -----------
@@ -644,7 +645,7 @@ identify admin command
 __Attributes__
 
 - `buf (Buffer)`: the buffer to hold the identify data
-- `nsid (int)`: nsid field in the command. Default: 1
+- `nsid (int)`: nsid field in the command. Default: 0
 - `cns (int)`: cns field in the command. Default: 1
 - `cb (function)`: callback function called at completion. Default: None
 
