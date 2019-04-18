@@ -158,7 +158,7 @@ sudo visudo
 
 3. In order to monitor qpairs status and cmdlog along the progress of testing, user can install vscode extension pynvme-console. The extension provides DUT status and cmdlogs in VSCode UI. 
 ```shell
-code --install-extension pynvme-console-0.0.1.vsix
+code --install-extension pynvme-console-0.1.2.vsix
 ```
 
 4. Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device. 

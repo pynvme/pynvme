@@ -1753,26 +1753,25 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
                                  cmd[4], cmd[5], cmd[6], cmd[7],
                                  cmd[8], cmd[9], cmd[10], cmd[11],
                                  cmd[12], cmd[13], cmd[14], cmd[15]);
-    }
-
-    if (table[index].cpl_latency_us != 0)
-    {
-      // a completed command, display its cpl cdws
-      struct timeval time_cpl = (struct timeval){0};
-      time_cpl.tv_usec = table[index].cpl_latency_us;
-      timeradd(&time_cmd, &time_cpl, &time_cpl);
       
-      uint32_t* cpl = (uint32_t*)&table[index].cpl;
-      spdk_json_write_string_fmt(w, "%ld.%06ld: [cpl] <<<<<<<<<<\n"
-                                 "0x%08x, 0x%08x, 0x%08x, 0x%08x\n", 
-                                 time_cpl.tv_sec, time_cpl.tv_usec, 
-                                 cpl[0], cpl[1], cpl[2], cpl[3]);
+      if (table[index].cpl_latency_us != 0)
+      {
+        // a completed command, display its cpl cdws
+        struct timeval time_cpl = (struct timeval){0};
+        time_cpl.tv_usec = table[index].cpl_latency_us;
+        timeradd(&time_cmd, &time_cpl, &time_cpl);
+      
+        uint32_t* cpl = (uint32_t*)&table[index].cpl;
+        spdk_json_write_string_fmt(w, "%ld.%06ld: [cpl] <<<<<<<<<<\n"
+                                   "0x%08x, 0x%08x, 0x%08x, 0x%08x\n", 
+                                   time_cpl.tv_sec, time_cpl.tv_usec, 
+                                   cpl[0], cpl[1], cpl[2], cpl[3]);
+      }
+      else
+      {
+        spdk_json_write_string_fmt(w, "not completed ...\n");
+      }
     }
-    else
-    {
-      spdk_json_write_string_fmt(w, "not completed ...\n");
-    }
-    
   } while (seq++ < 100);
   
   spdk_json_write_array_end(w);
