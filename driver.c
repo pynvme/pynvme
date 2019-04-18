@@ -293,7 +293,8 @@ struct cmd_log_table_t {
   uint32_t msix_data;
   uint32_t msix_enabled;
   uint32_t mask_offset;
-  uint32_t dummy[28];
+  struct spdk_nvme_qpair* qpair;
+  uint32_t dummy[26];
 };
 static_assert(sizeof(struct cmd_log_table_t) == sizeof(struct cmd_log_entry_t)*(CMD_LOG_DEPTH+1), "cacheline aligned");
 
@@ -307,12 +308,19 @@ static unsigned int timeval_to_us(struct timeval* t)
 }
 
 
-static void cmd_log_qpair_init(uint16_t qid)
+static void cmd_log_qpair_init(struct spdk_nvme_qpair* q)
 {
+  uint16_t qid = 0;
+
+  if (q)
+  {
+    qid = q->id;
+  }
   assert(qid < CMD_LOG_QPAIR_COUNT);
 
   // set tail to invalid value, means the qpair is empty
   cmd_log_queue_table[qid].tail_index = 0;
+  cmd_log_queue_table[qid].qpair = q;
 }
 
 
@@ -886,7 +894,7 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
     return NULL;
   }
 
-  cmd_log_qpair_init(qpair->id);
+  cmd_log_qpair_init(qpair);
   return qpair;
 }
 
@@ -1644,8 +1652,23 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
     // only send valid qpair
     if (cmd_log_queue_table[i].tail_index < CMD_LOG_DEPTH)
     {
+      extern uint32_t nvme_pcie_qpair_outstanding_count(struct spdk_nvme_qpair* qpair);
+      uint32_t outstanding = 0;
+      struct spdk_nvme_qpair* qpair = cmd_log_queue_table[i].qpair;
+
+      if (qpair != NULL)
+      {
+        outstanding = nvme_pcie_qpair_outstanding_count(qpair);
+      }
+
+      // limit 20 blocks in UI
+      if (outstanding > 20)
+      {
+        outstanding = 20;
+      }
+      
       //json: leading 0 means octal, so +1 to avoid it
-      spdk_json_write_uint32(w, i+1);
+      spdk_json_write_uint32(w, i+1 + (outstanding<<16));
     }
   }
   spdk_json_write_array_end(w);
@@ -1799,7 +1822,7 @@ int driver_init(void)
     return ret;
   }
 
-  cmd_log_qpair_init(0);
+  cmd_log_qpair_init(NULL);
 
   return ret;
 }
@@ -1829,5 +1852,4 @@ void driver_config(uint64_t cfg_word)
     SPDK_INFOLOG(SPDK_LOG_NVME, "no enough memory, not to enable data verification feature.\n");
   }
 }
-
 
