@@ -2,7 +2,6 @@
 
 if [ -s /etc/redhat-release ]; then
   # fedora
-  sudo dnf update -y
   sudo dnf install -y make redhat-rpm-config python3-devel python3-pip 
 elif [ -f /etc/debian_version ]; then
   # ubuntu
@@ -24,6 +23,7 @@ cd spdk; git checkout pynvme; ./configure --without-isal; cd ..
 make spdk                                    # compile SPDK
 make                                         # compile pynvme
 
-echo "Congratulations, pynvme is installed successfully! "
+echo ""
+echo "Congratulations, pynvme is installed successfully!"
 echo "To continue with VSCode, please refer to https://github.com/cranechu/pynvme#vscode"
 
