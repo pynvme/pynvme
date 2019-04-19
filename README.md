@@ -131,7 +131,7 @@ lspci
 make setup; code .  # make sure to enable SPDK nvme driver before starting vscode
 ```
 
-6. Now, it is ready to create, debug and run test scripts on your NVMe SSD. In the beginning of each test file, import required python packages:
+6. Now, it is ready to create, debug and run test scripts on your NVMe SSD. Import following packages in new test script files.
 ```python
 import nvme
 import logging
