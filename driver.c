@@ -1403,12 +1403,12 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   while (gctx.io_count_sent != gctx.io_count_cplt ||
          gctx.flag_finish != true)
   {
-    //exceed 10 seconds more than the expected test time, abort ioworker
+    //exceed 30 seconds more than the expected test time, abort ioworker
     if (ioworker_get_duration(&test_start, &gctx) >
-        args->seconds*1000UL + 10*1000UL)
+        args->seconds*1000UL + 30*1000UL)
     {
-      //generic error
-      ret = -3;
+      //ioworker timeout
+      ret = -4;
       break;
     }
 
