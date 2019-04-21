@@ -56,7 +56,7 @@ all: cython_lib
 .PHONY: all spdk doc debug
 
 spdk:
-	cd spdk; ./configure --with-dpdk=../dpdk --enable-debug --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
+	cd spdk; ./configure --enable-debug --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
 
 doc: cython_lib
 	pydocmd simple nvme++ > README.md
@@ -78,7 +78,7 @@ tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=dpdk --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env 
 
 test: setup
-	sudo python3 -B -m pytest driver_test.py --pciaddr=${pciaddr} -x -v -r Efsx 2>&1 | tee -a test.log
+	sudo python3 -B -m pytest driver_test.py --pciaddr=${pciaddr} -v -r Efsx 2>&1 | tee -a test.log
 	cat test.log | grep "700 passed, 9 skipped, 1 xfailed, 1 warnings" || exit -1
 
 nvmt: setup      # create a NVMe/TCP target on 2 cores, based on memory bdev, for local test only
