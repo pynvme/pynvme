@@ -1760,11 +1760,14 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
         struct timeval time_cpl = (struct timeval){0};
         time_cpl.tv_usec = table[index].cpl_latency_us;
         timeradd(&time_cmd, &time_cpl, &time_cpl);
-      
+
+        extern const char* nvme_qpair_get_status_string(struct spdk_nvme_cpl *cpl);
         uint32_t* cpl = (uint32_t*)&table[index].cpl;
-        spdk_json_write_string_fmt(w, "%ld.%06ld: [cpl] <<<<<<<<<<\n"
+        const char* sts = nvme_qpair_get_status_string(&table[index].cpl);
+        spdk_json_write_string_fmt(w, "%ld.%06ld: [cpl: %s] \n"
                                    "0x%08x, 0x%08x, 0x%08x, 0x%08x\n", 
-                                   time_cpl.tv_sec, time_cpl.tv_usec, 
+                                   time_cpl.tv_sec, time_cpl.tv_usec,
+                                   sts, 
                                    cpl[0], cpl[1], cpl[2], cpl[3]);
       }
       else

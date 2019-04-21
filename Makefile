@@ -75,7 +75,7 @@ cython_lib:
 	@python3 setup.py build_ext -i --force
 
 tags: 
-	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=dpdk --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env 
+	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env 
 
 test: setup
 	sudo python3 -B -m pytest driver_test.py --pciaddr=${pciaddr} -v -r Efsx 2>&1 | tee -a test.log
