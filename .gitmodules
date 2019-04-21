@@ -1,3 +1,6 @@
 [submodule "spdk"]
 	path = spdk
 	url = https://github.com/cranechu/spdk.git
+[submodule "dpdk"]
+	path = dpdk
+	url = http://dpdk.org/git/dpdk-stable
