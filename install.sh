@@ -16,8 +16,9 @@ git submodule update --init --recursive
 sudo ./spdk/scripts/pkgdep.sh
 sudo pip3 install -r requirements.txt
 
-# config SPDK for first time
+# checkout pynvme code in SPDK/DPDK
 cd spdk; git checkout pynvme; ./configure --without-isal; cd ..
+cd spdk/dpdk; git checkout pynvme; cd ../..
 
 # compile
 make spdk                                    # compile SPDK
