@@ -1846,7 +1846,7 @@ int driver_fini(void)
 }
 
 
-void driver_config(uint64_t cfg_word)
+uint64_t driver_config(uint64_t cfg_word)
 {
   if (g_driver_csum_table_ptr != NULL)
   {
@@ -1856,5 +1856,7 @@ void driver_config(uint64_t cfg_word)
   {
     SPDK_INFOLOG(SPDK_LOG_NVME, "no enough memory, not to enable data verification feature.\n");
   }
+
+  return *g_driver_global_config_ptr;
 }
 

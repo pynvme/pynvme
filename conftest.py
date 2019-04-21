@@ -74,8 +74,9 @@ def aer(nvme0):
 
 @pytest.fixture(scope="function")
 def verify():
-    d.config(verify=True)
-    yield
+    a = d.config(verify=False)
+    b = d.config(verify=True)
+    yield a!=b  # return True if config success 
     d.config(verify=False)
 
     

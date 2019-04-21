@@ -2132,9 +2132,9 @@ def config(verify, fua_read=False, fua_write=False):
     """
 
     # TODO: implement FUA in driver.c
-    d.driver_config((verify << 0) |
-                    (fua_read << 1) |
-                    (fua_write << 2))
+    return d.driver_config((verify << 0) |
+                           (fua_read << 1) |
+                           (fua_write << 2))
     
     
 # module init, needs root privilege
