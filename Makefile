@@ -79,7 +79,7 @@ tags:
 
 test: setup
 	sudo python3 -B -m pytest driver_test.py --pciaddr=${pciaddr} -v -r Efsx 2>&1 | tee -a test.log
-	cat test.log | grep "700 passed, 9 skipped, 1 xfailed, 1 warnings" || exit -1
+	cat test.log | grep "702 passed, 9 skipped, 1 xfailed, 1 warnings" || exit -1
 
 nvmt: setup      # create a NVMe/TCP target on 2 cores, based on memory bdev, for local test only
 	sudo ./spdk/app/nvmf_tgt/nvmf_tgt -m 3 &

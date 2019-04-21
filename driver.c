@@ -1661,14 +1661,14 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
         outstanding = nvme_pcie_qpair_outstanding_count(qpair);
       }
 
-      // limit 20 blocks in UI
-      if (outstanding > 20)
+      // limit blocks in UI
+      if (outstanding > 64)
       {
-        outstanding = 20;
+        outstanding = 64;
       }
       
       //json: leading 0 means octal, so +1 to avoid it
-      spdk_json_write_uint32(w, i+1 + (outstanding<<16));
+      spdk_json_write_uint32(w, i+1 + ((outstanding/2)<<16));
     }
   }
   spdk_json_write_array_end(w);
