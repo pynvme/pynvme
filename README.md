@@ -133,7 +133,7 @@ make setup; code .  # make sure to enable SPDK nvme driver before starting vscod
 
 6. Now, it is ready to create, debug and run test scripts on your NVMe SSD. Import following packages in new test script files.
 ```python
-import nvme
+import pytest
 import logging
 
 import nvme as d    # import pynvme's python package
