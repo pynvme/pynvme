@@ -1299,6 +1299,9 @@ def test_ioworker_iops_confliction(verify, nvme0n1):
 
     
 def test_ioworker_activate_crc32(nvme0n1, verify, nvme0):
+    # verify should be enabled
+    assert verify
+    
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
     
     r1 = nvme0n1.ioworker(io_size=8, lba_align=8,
@@ -1846,13 +1849,13 @@ def test_ioworker_vscode_showcase(nvme0n1):
                           
             
 def test_ioworker_stress(nvme0n1):
-    for i in range(2000):
+    for i in range(100):
         with nvme0n1.ioworker(io_size=8, lba_align=8, lba_random=False,
                               qdepth=16, read_percentage=100, time=1):
             logging.info(i)
 
         
-@pytest.mark.parametrize("repeat", range(500))
+@pytest.mark.parametrize("repeat", range(100))
 def test_ioworker_stress_multiple(nvme0n1, repeat):
     l = []
     for i in range(15):
