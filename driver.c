@@ -282,7 +282,7 @@ struct cmd_log_entry_t {
   void* buf;
   
   // callback to user cb functions
-  spdk_nvme_cmd_cb cb_fn;
+  struct nvme_request* req;
   void* cb_arg;
 };
 static_assert(sizeof(struct cmd_log_entry_t) == 128, "cacheline aligned");
@@ -376,7 +376,7 @@ static void cmd_log_finish(void)
 }
 
 
-static void cmd_log_add_cpl_cb(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
+void cmdlog_cmd_cpl(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
 {
   struct timeval diff;
   struct timeval now;
@@ -384,7 +384,16 @@ static void cmd_log_add_cpl_cb(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
 
   assert(cpl != NULL);
   assert(log_entry != NULL);
+  assert(log_entry->req != NULL);
 
+  //check if the log entry is still for this completed cmd
+  if (log_entry->req->cb_arg != log_entry)
+  {
+    //it's a overlapped entry, just skip cmdlog cb
+    SPDK_NOTICELOG("cmdlog etnry is old, skip");
+    return;
+  }
+  
   //reuse dword2 of cpl as latency value
   gettimeofday(&now, NULL);
   memcpy(&log_entry->cpl, cpl, sizeof(struct spdk_nvme_cpl));
@@ -409,38 +418,46 @@ static void cmd_log_add_cpl_cb(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
       }
     }
   }
-  
-  //callback to cython layer
-  if (log_entry->cb_fn)
-  {
-    log_entry->cb_fn(log_entry->cb_arg, &log_entry->cpl);
-  }
+
+  //recover callback argument
+  log_entry->req->cb_arg = log_entry->cb_arg;
+  log_entry->req = NULL;
 }
 
 
 // for spdk internel ues: nvme_qpair_submit_request
-extern void cmdlog_add_cmd(uint16_t qid, struct nvme_request* req);
-void cmdlog_add_cmd(uint16_t qid, struct nvme_request* req)
+void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
 {
+  uint16_t qid = qpair->id;
   struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];  
   uint32_t tail_index = log_table->tail_index;
   struct cmd_log_entry_t* log_entry = &log_table->table[tail_index];
 
+  assert(req != NULL);
   assert(qid < CMD_LOG_QPAIR_COUNT);
   assert(log_table != NULL);
   assert(tail_index < CMD_LOG_DEPTH);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog: add cmd %s\n", \
                                cmd_name(req->cmd.opc, qid==0?0:1));
+
+  if (log_entry->req != NULL)
+  {
+    //this entry is overlapped before complete
+    SPDK_NOTICELOG("uncompleted cmd in cmdlog:\n");
+    nvme_qpair_print_command(qpair, &log_entry->cmd);
+
+    // discard the entry by revert cb arg, and skip cmdlog cb later
+    log_entry->req->cb_arg = log_entry->cb_arg;
+  }
   
   log_entry->buf = req->payload.contig_or_cb_arg;
-  log_entry->cb_fn = req->cb_fn;
-  log_entry->cb_arg = req->cb_arg;
   log_entry->cpl_latency_us = 0;
   memcpy(&log_entry->cmd, &req->cmd, sizeof(struct spdk_nvme_cmd));
   gettimeofday(&log_entry->time_cmd, NULL);
 
   // change callback to cmdlog cb, and cmdlog cb cals users cb
-  req->cb_fn = cmd_log_add_cpl_cb;
+  log_entry->req = req;
+  log_entry->cb_arg = req->cb_arg;
   req->cb_arg = log_entry;
   
   // add tail to commit the new cmd only when it is sent successfully
@@ -1652,7 +1669,6 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
     // only send valid qpair
     if (cmd_log_queue_table[i].tail_index < CMD_LOG_DEPTH)
     {
-      extern uint32_t nvme_pcie_qpair_outstanding_count(struct spdk_nvme_qpair* qpair);
       uint32_t outstanding = 0;
       struct spdk_nvme_qpair* qpair = cmd_log_queue_table[i].qpair;
 
@@ -1761,7 +1777,6 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
         time_cpl.tv_usec = table[index].cpl_latency_us;
         timeradd(&time_cmd, &time_cpl, &time_cpl);
 
-        extern const char* nvme_qpair_get_status_string(struct spdk_nvme_cpl *cpl);
         uint32_t* cpl = (uint32_t*)&table[index].cpl;
         const char* sts = nvme_qpair_get_status_string(&table[index].cpl);
         spdk_json_write_string_fmt(w, "%ld.%06ld: [cpl: %s] \n"
@@ -1811,7 +1826,7 @@ int driver_init(void)
   // distribute multiprocessing to different cores  
   // log level setup
   spdk_log_set_flag("nvme");
-  spdk_log_set_print_level(SPDK_LOG_INFO);
+  spdk_log_set_print_level(SPDK_LOG_DEBUG);
   
   // start rpc server in primary process only
   if (spdk_process_is_primary())
