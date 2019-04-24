@@ -386,6 +386,8 @@ void cmdlog_cmd_cpl(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
   assert(log_entry != NULL);
   assert(log_entry->req != NULL);
 
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
+
   //check if the log entry is still for this completed cmd
   if (log_entry->req->cb_arg != log_entry)
   {
@@ -399,7 +401,6 @@ void cmdlog_cmd_cpl(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
   memcpy(&log_entry->cpl, cpl, sizeof(struct spdk_nvme_cpl));
   timersub(&now, &log_entry->time_cmd, &diff);
   log_entry->cpl_latency_us = timeval_to_us(&diff);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
   
   //verify read data
   if (log_entry->cmd.opc == 2 && log_entry->buf != NULL)
@@ -420,6 +421,8 @@ void cmdlog_cmd_cpl(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
   }
 
   //recover callback argument
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "recover req %p cb arg, entry %p, old %p, new %p\n",
+                log_entry->req, log_entry, log_entry->req->cb_arg, log_entry->cb_arg);
   log_entry->req->cb_arg = log_entry->cb_arg;
   log_entry->req = NULL;
 }
@@ -456,6 +459,8 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
   gettimeofday(&log_entry->time_cmd, NULL);
 
   // change callback to cmdlog cb, and cmdlog cb cals users cb
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "save req %p cb arg to entry %p, new %p, old %p\n",
+                req, log_entry, req->cb_arg, log_entry->cb_arg);
   log_entry->req = req;
   log_entry->cb_arg = req->cb_arg;
   req->cb_arg = log_entry;
@@ -1293,7 +1298,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
                           ioworker_one_cb, ctx);
   if (ret != 0)
   {
-    SPDK_DEBUGLOG(SPDK_LOG_NVME, "ioworker error happen in cpl\n");
+    SPDK_NOTICELOG("ioworker error happen in cpl\n");
     gctx->flag_finish = true;
     return ret;
   }
@@ -1425,6 +1430,8 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
         args->seconds*1000UL + 30*1000UL)
     {
       //ioworker timeout
+      SPDK_INFOLOG(SPDK_LOG_NVME, "ioworker timeout, io sent %ld, io cplt %ld, finish %d\n",
+                   gctx.io_count_sent, gctx.io_count_cplt, gctx.flag_finish);
       ret = -4;
       break;
     }
@@ -1826,7 +1833,7 @@ int driver_init(void)
   // distribute multiprocessing to different cores  
   // log level setup
   spdk_log_set_flag("nvme");
-  spdk_log_set_print_level(SPDK_LOG_DEBUG);
+  spdk_log_set_print_level(SPDK_LOG_INFO);
   
   // start rpc server in primary process only
   if (spdk_process_is_primary())
