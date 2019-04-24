@@ -384,15 +384,15 @@ void cmdlog_cmd_cpl(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
 
   assert(cpl != NULL);
   assert(log_entry != NULL);
-  assert(log_entry->req != NULL);
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
 
   //check if the log entry is still for this completed cmd
-  if (log_entry->req->cb_arg != log_entry)
+  if (log_entry->req == NULL || 
+      log_entry->req->cb_arg != log_entry)
   {
     //it's a overlapped entry, just skip cmdlog cb
-    SPDK_NOTICELOG("cmdlog etnry is old, skip");
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "log entry %p is overlapped, skip it\n", log_entry);
     return;
   }
   
