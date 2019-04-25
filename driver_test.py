@@ -1013,6 +1013,10 @@ def test_aer_smart_temperature(nvme0, loading, aer):
         nvme0.getlogpage(0x02, smart_log, 512)
     aer(cb)
 
+    # overlap the cmdlog
+    for i in range(10000):
+        nvme0.getfeatures(0x07).waitdone()
+
     # fill with getfeatures cmd as noise for 10 seconds
     def getfeatures_cb(cdw0, status):
         if smart_log.data(2, 1) < 256 and \

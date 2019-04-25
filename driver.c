@@ -1868,8 +1868,9 @@ int driver_fini(void)
     cmd_log_qpair_clear(0);
     cmd_log_finish();
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
-  }  
-	return 0;
+  }
+  
+	return spdk_env_cleanup();
 }
 
 
