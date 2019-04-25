@@ -200,7 +200,10 @@ static void buffer_fill_data(void* buf,
     // write is supported, we still cannot tell that.
     if (g_driver_csum_table_ptr != NULL)
     {
-      g_driver_csum_table_ptr[lba] = buffer_calc_csum(ptr, lba_size);
+      uint32_t crc = buffer_calc_csum(ptr, lba_size);
+      g_driver_csum_table_ptr[lba] = crc;
+      SPDK_DEBUGLOG(SPDK_LOG_NVME, "lba 0x%lx, write crc 0x%x\n",
+                    lba, crc);
     }
   }
 }
@@ -376,7 +379,7 @@ static void cmd_log_finish(void)
 }
 
 
-void cmdlog_cmd_cpl(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
+void cmdlog_cmd_cpl(void* cb_ctx, struct spdk_nvme_cpl* cpl)
 {
   struct timeval diff;
   struct timeval now;
@@ -413,9 +416,11 @@ void cmdlog_cmd_cpl(void* cb_ctx, const struct spdk_nvme_cpl* cpl)
                                   
       if (0 != buffer_verify_data(log_entry->buf, lba, lba_count, 512))
       {
+        assert(log_entry->req);
+
         //Unrecovered Read Error: The read data could not be recovered from the media.
-        log_entry->cpl.status.sct = 0x02;
-        log_entry->cpl.status.sc = 0x81;
+        cpl->status.sct = 0x02;
+        cpl->status.sc = 0x81;
       }
     }
   }

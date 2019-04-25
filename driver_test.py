@@ -1324,14 +1324,15 @@ def test_ioworker_activate_crc32(nvme0n1, verify, nvme0):
     
 def test_ioworker_iops_confliction_read_write_mix(nvme0n1, verify):
     # rw mixed ioworkers cause verification fail
-    if verify:
-        with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-            w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
-                                 lba_random=False,
-                                 region_start=0, region_end=1000,
-                                 read_percentage=50,
-                                 iops=0, io_count=0, time=10,
-                                 qprio=0, qdepth=16).start().close()
+    assert verify
+    
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+        w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
+                             lba_random=False,
+                             region_start=0, region_end=1000,
+                             read_percentage=50,
+                             iops=0, io_count=0, time=1,
+                             qprio=0, qdepth=16).start().close()
 
         
 def test_ioworker_iops(nvme0n1):
