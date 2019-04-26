@@ -1,12 +1,12 @@
 {
-    "python.unitTest.pyTestArgs": [
+    "python.testing.pyTestArgs": [
         //"-s", "--log-cli-level=DEBUG", // uncomment for more debug logging in pytest
-        "--pciaddr=01:00.0"              // BDF address of the DUT. >>> Backup your data! <<<
+        "--pciaddr=BB:DD.F"              // BDF address of the DUT. >>> Backup your data! <<<
     ],
-    "python.unitTest.unittestEnabled": false,
-    "python.unitTest.nosetestsEnabled": false,
-    "python.unitTest.pyTestEnabled": true,
-    "python.unitTest.pyTestPath": "./.vscode/pytest.sudo.sh",
+    "python.testing.unittestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.pyTestEnabled": true,
+    "python.testing.pyTestPath": "./.vscode/pytest.sudo.sh",
     "workbench.panel.defaultLocation": "right",
     "python.linting.enabled": false,
     "files.watcherExclude": {
