@@ -579,6 +579,7 @@ cdef class Buffer(object):
             lba (int): the start lba of the range
             lba_count (int): the lba count of the range
         """
+        logging.debug(f"{index}, {lba_count}, {lba}")
         self[index*16:(index+1)*16] = struct.pack("<LLQ", 0, lba_count, lba)
 
 
