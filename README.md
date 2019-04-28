@@ -146,17 +146,42 @@ VSCode is convenient and powerful, but it consumes a lot of resources. So, for f
 Tutorial
 ========
 
-Pynvme is easy to use, from simple operations to deliberated designed test scripts. User can leverage well developed tools and knowledges in Python community. Here are some Pynvme script examples.
-
-Fetch the controller's identify data. Example:
+After installation, pynvme generates the binary extension which can be import-ed in python scripts. Example:
 ```python
-    >>> import nvme as d
-    >>> nvme0 = d.Controller(b"01:00.0")  # initialize NVMe controller with its PCIe BDF address
-    >>> id_buf = d.Buffer(4096)  # allocate the buffer
-    >>> nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  # read namespace identify data into buffer
-    >>> nvme0.waitdone()  # nvme commands are executed asynchronously, so we have to
-    >>> id_buf.dump()   # print the whole buffer
+import nvme as d
+
+nvme0 = d.Controller(b"01:00.0")  # initialize NVMe controller with its PCIe BDF address
+id_buf = d.Buffer(4096)  # allocate the buffer
+nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  # read namespace identify data into buffer
+nvme0.waitdone()  # nvme commands are executed asynchronously, so we have to wait the completion before access the id_buf. 
+id_buf.dump()   # print the whole buffer
 ```
+
+In order to write test scripts more efficently, pynvme provides pytest fixtures. We can write more in intuitive test scripts. Example
+```python
+import pytest
+import nvme as d
+
+def test_dump_namespace_identify_data(nvme0):
+    id_buf = d.Buffer()
+    nvme0.identify(id_buf, nsid=0xffff_ffff, cns=1).waitdone()
+    id_buf.dump()
+```
+
+The pytest can collect and execute these test scripts in both command line and IDE (e.g. VSCode). Example:
+```shell
+sudo python3 -m pytest test_file_name.py::test_function_name --pciaddr=BB:DD.FF  # find the BDF address by lspci
+```
+Please refer to pytest's documents[https://docs.pytest.org/en/latest/contents.html] for more instructions. 
+
+To make the simplisity a step further, pynvme provides more python facilities. Example: 
+```python
+import pytest
+
+def test_namespace_identify_size(nvme0n1):
+    assert nvme0n1.id_data(7, 0) != 0
+```
+
 
 Yet another hello world example of SPDK nvme driver. Example:
 ```python
