@@ -46,12 +46,11 @@
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=BvmEs0DE5Mk" target="_blank"><img align="right" src="http://img.youtube.com/vi/BvmEs0DE5Mk/0.jpg" alt="pynvme: test NVMe devices in Python" width="560" border="0" /></a>
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=1ydSc3UeEm8" target="_blank"><img align="right" src="http://img.youtube.com/vi/BvmEs0DE5Mk/0.jpg" alt="pynvme: test NVMe devices in Python" width="480" border="0" /></a>
 
 - [Install](#install)
 - [VSCode](#vscode)
 - [Tutorial](#tutorial)
-- [Features](#features)
 - [Files](#files)
 - [Fixtures](#fixtures)
 - [Debug](#debug)
