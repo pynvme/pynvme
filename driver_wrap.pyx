@@ -33,12 +33,9 @@
 
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-
-#cython: binding=True
-#cython: embedsignature=True
 #cython: language_level=3
-##//cython: linetrace=True
-##//distutils: define_macros=CYTHON_TRACE=1
+#cython: embedsignature=True
+##cython: binding=True  # for generating README.md
 
 
 """test NVMe devices in Python. [https://github.com/cranechu/pynvme]  
@@ -188,82 +185,92 @@ VSCode is convenient and powerful, but it consumes a lot of resources. So, for f
 Tutorial
 ========
 
-Pynvme is easy to use, from simple operations to deliberated designed test scripts. User can leverage well developed tools and knowledges in Python community. Here are some Pynvme script examples.
-
-Fetch the controller's identify data. Example:
+After installation, pynvme generates the binary extension which can be import-ed in python scripts. Example:
 ```python
-    >>> import nvme as d
-    >>> nvme0 = d.Controller(b"01:00.0")  # initialize NVMe controller with its PCIe BDF address
-    >>> id_buf = d.Buffer(4096)  # allocate the buffer
-    >>> nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  # read namespace identify data into buffer
-    >>> nvme0.waitdone()  # nvme commands are executed asynchronously, so we have to
-    >>> id_buf.dump()   # print the whole buffer
+import nvme as d
+
+nvme0 = d.Controller(b"01:00.0")  # initialize NVMe controller with its PCIe BDF address
+id_buf = d.Buffer(4096)  # allocate the buffer
+nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  # read namespace identify data into buffer
+nvme0.waitdone()  # nvme commands are executed asynchronously, so we have to wait the completion before access the id_buf. 
+id_buf.dump()   # print the whole buffer
 ```
 
-Yet another hello world example of SPDK nvme driver. Example:
+In order to write test scripts more efficently, pynvme provides pytest fixtures. We can write more in intuitive test scripts. Example
 ```python
-    >>> import nvme as d
-    >>> data_buf = d.Buffer(512)
-    >>> data_buf[100:] = b'hello world'
-    >>> nvme0 = d.Controller(b"01:00.0")
-    >>> nvme0n1 = d.Namespace(nvme0, 1)
-    >>> qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
-    >>> def write_cb(cdw0, status):  # command callback function
-    >>>     nvme0n1.read(qpair, data_buf, 0, 1).waitdone()
-    >>> nvme0n1.write(qpair, data_buf, 0, 1, cb=write_cb).waitdone()
-    >>> qpair.cmdlog()  # print recently issued commands
-    >>> assert data_buf[100:] = b'hello world'
+import pytest
+import nvme as d
+
+def test_dump_namespace_identify_data(nvme0):
+    id_buf = d.Buffer()
+    nvme0.identify(id_buf, nsid=0xffff_ffff, cns=1).waitdone()
+    id_buf.dump()
 ```
 
-Test invalid command. Example:
+The pytest can collect and execute these test scripts in both command line and IDE (e.g. VSCode). Example:
+```shell
+sudo python3 -m pytest test_file_name.py::test_function_name --pciaddr=BB:DD.FF  # find the BDF address by lspci
+```
+Please refer to pytest's documents[https://docs.pytest.org/en/latest/contents.html] for more instructions. 
+
+To make the simplisity a step further, pynvme provides more python facilities. If the optional type hint is given to the fixtures, VSCode can give you more help. Example: 
 ```python
-    >>> import nvme as d
-    >>> nvme0 = d.Controller(b"01:00.0")
-    >>> nvme0n1 = d.Namespace(nvme0, 1)
-    >>> qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
-    >>> logging.info("send an invalid command with opcode 0xff")
-    >>> with pytest.warns(UserWarning, match="ERROR status: 00/01"):
-    >>>     nvme0n1.send_cmd(0xff, qpair, nsid=1).waitdone()
+import pytest
+import nvme as d 
+
+def test_namespace_identify_size(nvme0n1: d.Namespace):
+    assert nvme0n1.id_data(7, 0) != 0
 ```
 
-Performance test, while monitoring the device temperature. Example:
+Callback functions are supported. If available, the callback function is called when the command completes. Example:
 ```python
-    >>> import nvme as d
-    >>> nvme0 = d.Controller(b"01:00.0")
-    >>> nvme0n1 = d.Namespace(nvme0, 1)
-    >>> with nvme0n1.ioworker(lba_start = 0, io_size = 256, lba_align = 8,
-                              lba_random = False,
-                              region_start = 0, region_end = 100000,
-                              read_percentage = 0,
-                              iops = 0, io_count = 1000000, time = 0,
-                              qprio = 0, qdepth = 16), \\
-             nvme0n1.ioworker(lba_start = 0, io_size = 7, lba_align = 11,
-                              lba_random = False,
-                              region_start = 0, region_end = 1000,
-                              read_percentage = 0,
-                              iops = 0, io_count = 100, time = 1000,
-                              qprio = 0, qdepth = 64), \\
-             nvme0n1.ioworker(lba_start = 0, io_size = 8, lba_align = 64,
-                              lba_random = False,
-                              region_start = 10000, region_end = 1000000,
-                              read_percentage = 67,
-                              iops = 10000, io_count = 1000000, time = 1000,
-                              qprio = 0, qdepth = 16), \\
-             nvme0n1.ioworker(lba_start = 0, io_size = 8, lba_align = 8,
-                              lba_random = True,
-                              region_start = 0, region_end = 0xffffffffffffffff,
-                              read_percentage = 0,
-                              iops = 10, io_count = 100, time = 0,
-                              qprio = 0, qdepth = 16):
-    >>>     import time
-    >>>     import logging
-    >>>     import pytemperature
-    >>>     # monitor device temperature on high loading operations
-    >>>     logpage_buf = d.Buffer(512)
-    >>>     nvme0.getlogpage(2, logpage_buf, 512).waitdone()
-    >>>     logging.info("current temperature: %d" % pytemperature.k2c(logpage_buf[50]&0xffff))
-    >>>     time.sleep(5)
+import pytest
+import nvme as d 
+
+def test_hello_world(nvme0, nvme0n1:d.Namespace):
+    read_buf = d.Buffer(512)
+    data_buf = d.Buffer(512)
+    data_buf[10:21] = b'hello world'
+    qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
+    assert read_buf[10:21] != b'hello world'
+
+    def write_cb(cdw0, status1):  # command callback function
+        nvme0n1.read(qpair, read_buf, 0, 1)
+    nvme0n1.write(qpair, data_buf, 0, 1, cb=write_cb)
+    qpair.waitdone(2)
+    assert read_buf[10:21] == b'hello world'
 ```
+
+The pynvme can send any kinds of commands, even invalid one. Example:
+```python
+import pytest
+
+def test_invalid_io_command_0xff(nvme0n1):
+    q = d.Qpair(nvme0, 8)
+    with pytest.warns(UserWarning, match="ERROR status: 00/01"):
+        nvme0n1.send_cmd(0xff, q, nsid=1).waitdone()
+```
+
+The performance is low to send read write IO one by one in python, so pynvme provides IOWorker. IOWorker sends IO in a separated process, so we can send other admin commands simultaneously. Example:
+```python
+import time
+import pytest
+from pytemperature import k2c
+
+def test_ioworker_with_temperature(nvme0, nvme0n1):
+    smart_log = d.Buffer(512, "smart log page")
+    with nvme0n1.ioworker(io_size=8, lba_align=16,
+                          lba_random=True, qdepth=16,
+                          read_percentage=0, time=30):
+        # run ioworker for 30 seconds, while monitoring temperature for 40 seconds
+        for i in range(40):
+            nvme0.getlogpage(0x02, smart_log, 512).waitdone()
+            ktemp = smart_log.data(2, 1)
+            logging.info("temperature: %0.2f degreeC" % k2c(ktemp))
+            time.sleep(1)
+```
+
+For more examples of pynvme test scripts, please refer to driver_test.py. 
 
 
 Features
@@ -372,7 +379,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "v19.04"
+__version__ = "v19.04.1"
 
 
 # nvme command timeout, it's a warning
@@ -484,7 +491,7 @@ cdef class Buffer(object):
     cdef size_t size
     cdef char* name
     cdef unsigned long phys_addr
-
+    
     def __cinit__(self, size=4096, name="buffer"):
         assert size > 0, "0 is not valid size"
 
@@ -512,7 +519,7 @@ cdef class Buffer(object):
     @property
     def phys_addr(self):
         return self.phys_addr
-    
+
     def dump(self, size=None):
         """print the buffer content
 
