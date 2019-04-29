@@ -35,6 +35,7 @@
 # -*- coding: utf-8 -*-
 
 #cython: binding=True
+#cython: embedsignature=True
 #cython: language_level=3
 ##//cython: linetrace=True
 ##//distutils: define_macros=CYTHON_TRACE=1
@@ -405,10 +406,8 @@ def _interrupt_handler(signal, frame):
     sys.exit(0)
 
 
-# handle cpl in callback from c
+# handle completion dwords in callback from c
 cdef struct _cpl:
-    # a revised completion structure returned to user,
-    # cdw2 is changed to latency of the command, in micro-seconds
     unsigned int cdw0
     unsigned int rsvd1
     unsigned short sqhead

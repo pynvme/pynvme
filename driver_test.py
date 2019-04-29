@@ -409,29 +409,23 @@ def test_write_and_compare(nvme0, nvme0n1):
 
 
 def test_dsm_trim_and_read(nvme0, nvme0n1):
-    empty_buf = d.Buffer(512)
-    buf = d.Buffer(512)
+    empty_buf = d.Buffer(4096)
+    buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
 
-    nvme0.format().waitdone()
-    nvme0n1.read(q, empty_buf, 0, 1).waitdone()
-    empty_buf.dump(32)
-    
     # write lba 0
     buf[10] = 1
-    nvme0n1.write(q, buf, 0, 1).waitdone()
+    nvme0n1.write(q, buf, 0, 8).waitdone()
 
     # trim lba 0
     logging.info("trim lba 0")
-    buf.set_dsm_range(0, 0, 1)
-    buf.dump(32)
+    buf.set_dsm_range(0, 0, 8)
     nvme0n1.dsm(q, buf, 1).waitdone()
+    time.sleep(1)  # device may need time to handle trim in background
 
     # verify data
-    logging.info("compare error")
-    nvme0n1.compare(q, empty_buf, 0, 1).waitdone()
-    nvme0n1.read(q, buf, 0, 1).waitdone()
-    buf.dump(32)
+    logging.info("compare")
+    nvme0n1.compare(q, empty_buf, 0, 8).waitdone()
     
 
 @pytest.mark.parametrize("lbaf", range(2))
