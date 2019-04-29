@@ -1,19 +1,20 @@
 {
-    "python.testing.pyTestArgs": [
-        //"-s", "--log-cli-level=DEBUG", // uncomment for more debug logging in pytest
-        "--pciaddr=01:00.0"              // BDF address of the DUT. >>> Backup your data! <<<
-    ],
-    "python.testing.unittestEnabled": false,
-    "python.testing.nosetestsEnabled": false,
-    "python.testing.pyTestEnabled": true,
-    "python.testing.pyTestPath": "./.vscode/pytest.sudo.sh",
-    "workbench.panel.defaultLocation": "right",
-    "python.linting.enabled": false,
     "files.watcherExclude": {
         "**/.git/objects/**": true,
         "**/.git/subtree-cache/**": true,
         "**/node_modules/*/**": true, 
         "**/spdk/*/**": true
     },
-    "terminal.integrated.fontFamily": "monospace"
+    "python.testing.pyTestArgs": [
+        //"-s", "--log-cli-level=DEBUG", // uncomment for more debug logging in pytest
+        "--pciaddr=BB:DD.F"              // BDF address of the DUT. >>> Backup your data! <<<
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.pyTestEnabled": true,
+    "python.testing.pyTestPath": "./.vscode/pytest.sudo.sh",
+    "python.linting.enabled": false,
+    "workbench.panel.defaultLocation": "right",
+    "terminal.integrated.fontFamily": "monospace",
+    "editor.minimap.enabled": false
 }

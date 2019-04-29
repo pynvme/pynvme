@@ -1852,7 +1852,11 @@ int driver_init(void)
     return ret;
   }
 
-  cmd_log_qpair_init(NULL);
+  // init admin cmd log
+  if (spdk_process_is_primary())
+  {
+    cmd_log_qpair_init(NULL);
+  }
 
   return ret;
 }
