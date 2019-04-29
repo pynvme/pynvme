@@ -35,7 +35,9 @@
 # -*- coding: utf-8 -*-
 #cython: language_level=3
 #cython: embedsignature=True
-##cython: binding=True  # for generating README.md
+
+# for generating README.md only
+##cython: binding=True
 
 
 """test NVMe devices in Python. [https://github.com/cranechu/pynvme]  
@@ -211,7 +213,7 @@ The pytest can collect and execute these test scripts in both command line and I
 ```shell
 sudo python3 -m pytest test_file_name.py::test_function_name --pciaddr=BB:DD.FF  # find the BDF address by lspci
 ```
-Please refer to pytest's documents[https://docs.pytest.org/en/latest/contents.html] for more instructions. 
+By default, pytest captures all outputs, and only test results are printed. By adding the option "-s" in the above command line, pytest will also print scripts and pynvme's messages.Please refer to [pytest documents](https://docs.pytest.org/en/latest/contents.html) for more instructions.
 
 To make the simplisity a step further, pynvme provides more python facilities. If the optional type hint is given to the fixtures, VSCode can give you more help. Example: 
 ```python
