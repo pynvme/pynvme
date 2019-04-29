@@ -579,6 +579,8 @@ cdef class Buffer(object):
             lba (int): the start lba of the range
             lba_count (int): the lba count of the range
         """
+        assert type(lba) is int, "parameter must be integer"
+        assert type(lba_count) is int, "parameter must be integer"
         logging.debug(f"{index}, {lba_count}, {lba}")
         self[index*16:(index+1)*16] = struct.pack("<LLQ", 0, lba_count, lba)
 
@@ -1653,7 +1655,7 @@ cdef class Namespace(object):
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the data buffer of the command, meta data is not supported.
             lba (int): the starting lba address, 64 bits
-            lba_count (int): the lba count of this command, 16 bits
+            lba_count (int): the lba count of this command, 16 bits. Default: 1
             io_flags (int): io flags defined in NVMe specification, 16 bits. Default: 0
             cb (function): callback function called at completion. Default: None
 
@@ -1710,7 +1712,7 @@ cdef class Namespace(object):
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the buffer of the lba ranges. Use buffer.set_dsm_range to prepare the buffer.
             range_count (int): the count of lba ranges in the buffer
-            attribute (int): attribute field of the command. Default: 0x4, as deallocation
+            attribute (int): attribute field of the command. Default: 0x4, as deallocation/trim
             cb (function): callback function called at completion. Default: None
 
         # Returns
@@ -1727,20 +1729,22 @@ cdef class Namespace(object):
 
         # update host-side table for the trimed data
         self.deallocate_ranges(buf, range_count)
+
+        # send the command
         self.send_io_raw(qpair, buf, 9, self._nsid,
                          range_count-1, attribute,
                          0, 0, 0, 0,
                          cmd_cb, <void*>cb)
         return qpair
 
-    def compare(self, qpair, buf, lba, lba_count, io_flags=0, cb=None):
+    def compare(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
         """compare IO command
 
         # Attributes
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the data buffer of the command, meta data is not supported.
             lba (int): the starting lba address, 64 bits
-            lba_count (int): the lba count of this command, 16 bits
+            lba_count (int): the lba count of this command, 16 bits. Default: 1
             io_flags (int): io flags defined in NVMe specification, 16 bits. Default: 0
             cb (function): callback function called at completion. Default: None
 
@@ -1782,13 +1786,13 @@ cdef class Namespace(object):
                          cmd_cb, <void*>cb)
         return qpair
 
-    def write_uncorrectable(self, qpair, lba, lba_count, cb=None):
+    def write_uncorrectable(self, qpair, lba, lba_count=1, cb=None):
         """write uncorrectable IO command
 
         # Attributes
             qpair (Qpair): use the qpair to send this command
             lba (int): the starting lba address, 64 bits
-            lba_count (int): the lba count of this command, 16 bits
+            lba_count (int): the lba count of this command, 16 bits. Default: 1
             cb (function): callback function called at completion. Default: None
 
         # Returns
@@ -1806,13 +1810,13 @@ cdef class Namespace(object):
                          cmd_cb, <void*>cb)
         return qpair
 
-    def write_zeroes(self, qpair, lba, lba_count, io_flags=0, cb=None):
+    def write_zeroes(self, qpair, lba, lba_count=1, io_flags=0, cb=None):
         """write zeroes IO command
 
         # Attributes
             qpair (Qpair): use the qpair to send this command
             lba (int): the starting lba address, 64 bits
-            lba_count (int): the lba count of this command, 16 bits
+            lba_count (int): the lba count of this command, 16 bits. Default: 1
             io_flags (int): io flags defined in NVMe specification, 16 bits. Default: 0
             cb (function): callback function called at completion. Default: None
 

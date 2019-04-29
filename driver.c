@@ -183,8 +183,7 @@ static void buffer_fill_data(void* buf,
                                       lba_count,
                                       __ATOMIC_SEQ_CST);
   
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "token: %ld\n", token);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "lba count: %d\n", lba_count);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "token: %ld, lba 0x%lx, lba count %d\n", token, lba, lba_count);
 
   for (uint32_t i=0; i<lba_count; i++, lba++)
   {
@@ -202,8 +201,6 @@ static void buffer_fill_data(void* buf,
     {
       uint32_t crc = buffer_calc_csum(ptr, lba_size);
       g_driver_csum_table_ptr[lba] = crc;
-      SPDK_DEBUGLOG(SPDK_LOG_NVME, "lba 0x%lx, write crc 0x%x\n",
-                    lba, crc);
     }
   }
 }
@@ -1250,7 +1247,7 @@ static uint64_t ioworker_send_one_lba_sequential(struct ioworker_args* args,
   uint64_t ret;
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "gctx lba: %ld, align:%d\n", gctx->sequential_lba, args->lba_align);
-  ret = gctx->sequential_lba + args->lba_align;
+  ret = gctx->sequential_lba;
   if (ret > args->region_end)
   {
     ret = args->region_start;
@@ -1293,7 +1290,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   uint64_t lba_starting = ioworker_send_one_lba(args, gctx);
   uint16_t lba_count = args->lba_size;
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "sending one io, ctx %p, lba %ld\n", ctx, lba_starting);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "sending one io, ctx %p, lba 0x%lx\n", ctx, lba_starting);
   assert(ctx->data_buf != NULL);
 
   ret = ns_cmd_read_write(is_read, ns, qpair,
@@ -1309,6 +1306,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   }
 
   //sent one io cmd successfully
+  gctx->sequential_lba += args->lba_align;  
   gctx->io_count_sent ++;
   ctx->is_read = is_read;
   gettimeofday(&ctx->time_sent, NULL);

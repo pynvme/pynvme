@@ -6,7 +6,7 @@ import nvme as d
 
 def test_trim_basic(nvme0, nvme0n1, verify):
     GB = 1024*1024*1024
-    databuf = d.Buffer(512)
+    databuf = d.Buffer(512)  # all-0 buffer
     trimbuf = d.Buffer(4096)
     q = d.Qpair(nvme0, 32)
 
@@ -14,9 +14,15 @@ def test_trim_basic(nvme0, nvme0n1, verify):
     logging.info("model number: %s" % nvme0.id_data(63, 24, str))
     logging.info("firmware revision: %s" % nvme0.id_data(71, 64, str))
 
-    logging.info("format disk, LBA size is 512 byte");
-    nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
+    # format
+    lbaf = nvme0n1.get_lba_format(512, 0)
+    logging.info("format disk, LBA size is 512 byte, lbaf: %d" % lbaf);
+    nvme0.format(lbaf).waitdone()
 
+    # verify data after format
+    nvme0n1.compare(q, databuf, 0).waitdone()
+
+    # write
     logging.info("write data in 10G ~ 20G")
     io_size = 128*1024//512
     start_lba = 10*GB//512
@@ -29,22 +35,16 @@ def test_trim_basic(nvme0, nvme0n1, verify):
                      io_count = lba_count//io_size,
                      qdepth = 128).start().close()
 
-    # verify
-    nvme0n1.read(q, databuf, start_lba).waitdone()
-    databuf.dump()
+    # verify data after write, data should be modified
+    with pytest.warns(UserWarning, match="ERROR status: 02/85"):
+        nvme0n1.compare(q, databuf, start_lba).waitdone()
     
     # trim
     logging.info("trim the 10G data from LBA %d" % start_lba)
     trimbuf.set_dsm_range(0, start_lba, lba_count)
-    trim_cmd = nvme0n1.dsm(q, trimbuf, 1)
-    start_time = time.time()
-    trim_cmd.waitdone()
-    trim_time = time.time()-start_time
-    logging.info("trim speed: %dGB/s" % (10/trim_time))
+    trim_cmd = nvme0n1.dsm(q, trimbuf, 1).waitdone()
+    #logging.info("trim speed: %dGB/s" % (10/trim_time))
 
-    # verify
-    nvme0n1.read(q, databuf, start_lba).waitdone()
-    databuf.dump()
-
-    time.sleep(2)
+    # verify after trim
+    nvme0n1.compare(q, databuf, start_lba).waitdone()
 
