@@ -271,7 +271,7 @@ def test_ioworker_with_temperature(nvme0, nvme0n1):
             time.sleep(1)
 ```
 
-For more examples of pynvme test scripts, please refer to driver_test.py. 
+For more examples of pynvme test scripts, please refer to [driver_test.py](https://github.com/cranechu/pynvme/blob/master/driver_test.py), [demo_test.py](https://github.com/cranechu/pynvme/blob/master/scripts/demo_test.py), and a [presentation](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/pynvme_introduction.pdf).
 
 
 Features
