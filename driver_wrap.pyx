@@ -531,7 +531,8 @@ cdef class Buffer(object):
             # 0 size means print the whole buffer
             if size is None or size > self.size:
                 size = self.size
-            d.log_buf_dump(self.name, self.ptr, size)
+            dbuf = d.log_buf_dump(self.name, self.ptr, size)
+            return dbuf.decode('ascii').split('\n')
 
     def data(self, byte_end, byte_begin=None, type=int):
         """get field in the buffer. Little endian for integers.

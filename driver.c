@@ -1460,9 +1460,46 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 ////module: log
 ///////////////////////////////
 
-void log_buf_dump(const char* header, const void* buf, size_t len)
+char* log_buf_dump(const char* header, const void* buf, size_t len)
 {
-  spdk_log_dump(stderr, header, buf, len);
+  size_t size;
+  FILE* fd = NULL;
+  char* tmpname = "/tmp/pynvme_buf_dump.tmp";
+  static char dump_buf[64*1024];
+
+  // dump buf is limited
+  assert(len <= 4096);
+  
+  errno = 0;
+  fd = fopen(tmpname, "w+");
+  if (fd == NULL)
+  {
+    SPDK_WARNLOG("fopen: %s\n", strerror(errno));
+    return NULL;
+  }
+
+  spdk_log_dump(fd, header, buf, len);
+  
+  // get file size
+  size = ftell(fd);
+  
+  errno = 0;
+  if (-1 == fseek(fd, 0, SEEK_SET))
+  {
+    SPDK_WARNLOG("lseek: %s\n", strerror(errno));
+    return NULL;
+  }
+  
+  // read the data from temporary file
+  errno=0;
+  if (fread(dump_buf, size, 1, fd) == 0)
+  {
+    SPDK_WARNLOG("read: %s\n", strerror(errno));
+    return NULL;
+  }
+
+  fclose(fd);
+  return dump_buf;
 }
 
 void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)

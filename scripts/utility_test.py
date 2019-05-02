@@ -11,10 +11,7 @@ def test_format(nvme0: d.Controller, nvme0n1):
 
 
 def test_download_firmware(nvme0):
-    layout = [[sg.Text('select the firmware binary file')],
-              [sg.In(), sg.FileBrowse()],
-              [sg.OK(), sg.Cancel()]]
-    _, (filename,) = sg.Window('pynvme', layout).Read()
+    filename = sg.PopupGetFile('select the firmware binary file', 'pynvme')
     if filename:        
         logging.info("To download firmware binary file: " + filename)
         nvme0.downfw(filename)
@@ -25,15 +22,23 @@ def test_powercycle_by_sleep(subsystem):
     subsystem.power_cycle()
 
 
-def test_controller_identify_data(nvme0: d.Controller):
+def test_controller_identify_data(nvme0):
     b = d.Buffer()
     nvme0.identify(b).waitdone()
-    b.dump()
+    sg.PopupScrolled(*b.dump(), title=b, size=(70, 30))
 
 
+def test_read_lba_data(nvme0, nvme0n1):
+    lba = sg.PopupGetText("Which LBA to read?", "pynvme")
+    lba = int(lba, 0)  # convert to number
+    q = d.Qpair(nvme0, 10)
+    b = d.Buffer(512, "LBA 0x%08x" % lba)
+    nvme0n1.read(q, b, lba).waitdone()
+    sg.PopupScrolled(*b.dump(), title=b, size=(70, 30))
+
+    
 def test_sanitize(nvme0, nvme0n1):
     buf = d.Buffer()
-
     nvme0.identify(buf).waitdone()
     if buf.data(331, 328) == 0:
         warnings.warn("sanitize operation is not supported")

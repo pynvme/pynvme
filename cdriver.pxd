@@ -146,7 +146,7 @@ cdef extern from "driver.h":
                        ioworker_args* args,
                        ioworker_rets* rets)
 
-    void log_buf_dump(const char * header, const void * buf, size_t len)
+    char* log_buf_dump(const char * header, const void * buf, size_t len)
     void log_cmd_dump(qpair * qpair, size_t count)
     void log_cmd_dump_admin(ctrlr * ctrlr, size_t count)
 

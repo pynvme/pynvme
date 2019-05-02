@@ -150,7 +150,7 @@ extern int ioworker_entry(struct spdk_nvme_ns* ns,
                           ioworker_args* args,
                           ioworker_rets* rets);
 
-extern void log_buf_dump(const char* header, const void* buf, size_t len);
+extern char* log_buf_dump(const char* header, const void* buf, size_t len);
 extern void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count);
 extern void log_cmd_dump_admin(struct spdk_nvme_ctrlr* ctrlr, size_t count);
 
