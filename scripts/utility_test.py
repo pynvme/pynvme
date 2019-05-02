@@ -4,6 +4,7 @@ import logging
 
 import nvme as d
 import PySimpleGUI as sg
+from pytemperature import k2c
 
 
 def test_format(nvme0: d.Controller, nvme0n1):
@@ -22,10 +23,31 @@ def test_powercycle_by_sleep(subsystem):
     subsystem.power_cycle()
 
 
+def test_get_current_temperature(nvme0):
+    smart_log = d.Buffer()
+    nvme0.getlogpage(0x02, smart_log, 512).waitdone()
+    ktemp = smart_log.data(2, 1)
+    logging.info("current temperature in SMART data: %0.2f degreeC" % k2c(ktemp))
+
+
+def sg_show_hex_buffer(buf):
+    layout=[[sg.OK(), sg.Cancel()],
+            [sg.Multiline(buf.dump(),
+                          enter_submits=True,
+                          size=(80, 25))]]
+    sg.Window(buf, layout, font=('monospace', 12)).Read()
+
+    
 def test_controller_identify_data(nvme0):
-    b = d.Buffer()
+    b = d.Buffer(4096, "controller identify data")
     nvme0.identify(b).waitdone()
-    sg.PopupScrolled(*b.dump(), title=b, size=(70, 30))
+    sg_show_hex_buffer(b)
+
+
+def test_namespace_identify_data(nvme0):
+    b = d.Buffer(4096, "namespace identify data")
+    nvme0.identify(b, 1, 0).waitdone()
+    sg_show_hex_buffer(b)
 
 
 def test_read_lba_data(nvme0, nvme0n1):
@@ -34,7 +56,7 @@ def test_read_lba_data(nvme0, nvme0n1):
     q = d.Qpair(nvme0, 10)
     b = d.Buffer(512, "LBA 0x%08x" % lba)
     nvme0n1.read(q, b, lba).waitdone()
-    sg.PopupScrolled(*b.dump(), title=b, size=(70, 30))
+    sg_show_hex_buffer(b)
 
     
 def test_sanitize(nvme0, nvme0n1):

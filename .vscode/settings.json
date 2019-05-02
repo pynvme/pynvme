@@ -16,5 +16,6 @@
     "python.linting.enabled": false,
     "workbench.panel.defaultLocation": "right",
     "terminal.integrated.fontFamily": "monospace",
-    "editor.minimap.enabled": false
+    "editor.minimap.enabled": false,
+    "editor.detectIndentation": false
 }
