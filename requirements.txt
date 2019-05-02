@@ -5,3 +5,4 @@ pytest
 pytest-cov
 pytemperature
 pydoc-markdown
+PySimpleGUI

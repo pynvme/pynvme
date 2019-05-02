@@ -70,6 +70,7 @@ reset:
 setup: reset
 	-sudo modprobe -r kvmgt  # rmmod vfio to speed up init
 	sudo HUGEMEM=${memsize} ./spdk/scripts/setup.sh
+	xhost +local:		# enable GUI with root/sudo
 
 cython_lib:
 	@python3 setup.py build_ext -i --force
