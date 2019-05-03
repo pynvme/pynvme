@@ -31,10 +31,12 @@ def test_get_current_temperature(nvme0):
 
 
 def sg_show_hex_buffer(buf):
-    layout=[[sg.OK(), sg.Cancel()],
-            [sg.Multiline(buf.dump(),
-                          enter_submits=True,
-                          size=(80, 25))]]
+    layout = [ [sg.OK(), sg.Cancel()],
+               [sg.Multiline(buf.dump(),
+                             enter_submits=True,
+                             disabled=True, 
+                             size=(80, 25))]
+             ]
     sg.Window(buf, layout, font=('monospace', 12)).Read()
 
     
@@ -78,4 +80,3 @@ def test_sanitize(nvme0, nvme0n1):
         nvme0.getlogpage(0x81, buf, 20).waitdone()
         time.sleep(1)
         
-
