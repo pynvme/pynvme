@@ -1877,9 +1877,9 @@ def test_ioworker_stress_multiple(nvme0n1, repeat):
         
 def test_ioworker_longtime(nvme0n1, verify):
     l = []
-    for i in range(15):
+    for i in range(2):
         a = nvme0n1.ioworker(io_size=8, lba_align=8, 
-                             lba_random=True, qdepth=512,
+                             lba_random=True, qdepth=6,
                              read_percentage=100, time=60*60).start()
         l.append(a)
 
@@ -1892,7 +1892,7 @@ def test_ioworker_longtime_deep(nvme0n1, verify):
     for i in range(2):
         a = nvme0n1.ioworker(io_size=8, lba_align=8, 
                              lba_random=True, qdepth=1022, # deep queue made test not stop
-                             read_percentage=100, time=20*60).start()
+                             read_percentage=100, time=30*60).start()
         l.append(a)
 
     for a in l:
