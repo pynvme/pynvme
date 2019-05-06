@@ -2103,33 +2103,23 @@ class _IOWorker(object):
             warnings.warn(e)
             error = -1
         finally:
-            import gc
-            
             # feed return to main process
             rqueue.put((error, rets, output_io_per_second, output_io_per_latency))
-            gc.collect()
             
             # close resources in right order
             nvme0n1.close()
-            gc.collect()
 
             # delete resources
             if 'qpair' in locals():
                 del qpair
-                gc.collect()
             del nvme0n1
-            gc.collect()
-            
             del nvme0
-            gc.collect()
 
             if args.io_counter_per_second:
                 PyMem_Free(args.io_counter_per_second)
-                gc.collect()
 
             if args.io_counter_per_latency:
                 PyMem_Free(args.io_counter_per_latency)
-                gc.collect()
 
 
 def config(verify, fua_read=False, fua_write=False):
