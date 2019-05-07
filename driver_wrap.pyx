@@ -1159,7 +1159,7 @@ cdef class Controller(object):
         assert ses < 8, "invalid format ses"
         assert lbaf < 16, "invalid format lbaf"
 
-        logging.info(f"format, ses {ses}, lbaf {lbaf}, nsid {nsid}")
+        logging.debug(f"format, ses {ses}, lbaf {lbaf}, nsid {nsid}")
         d.crc32_clear(0, 0, True, False)
         self.send_admin_raw(None, 0x80,
                             nsid=nsid,
