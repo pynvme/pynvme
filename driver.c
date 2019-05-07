@@ -1246,7 +1246,9 @@ static uint64_t ioworker_send_one_lba_sequential(struct ioworker_args* args,
 {
   uint64_t ret;
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "gctx lba: %ld, align:%d\n", gctx->sequential_lba, args->lba_align);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "gctx lba: 0x%lx, align:%d, end: 0x%lx\n",
+                gctx->sequential_lba, args->lba_align, args->region_end);
+  
   ret = gctx->sequential_lba;
   if (ret > args->region_end)
   {
@@ -1290,7 +1292,9 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   uint64_t lba_starting = ioworker_send_one_lba(args, gctx);
   uint16_t lba_count = args->lba_size;
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "sending one io, ctx %p, lba 0x%lx\n", ctx, lba_starting);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba 0x%lx, count %d\n",
+                ctx, lba_starting, lba_count);
+  
   assert(ctx->data_buf != NULL);
 
   ret = ns_cmd_read_write(is_read, ns, qpair,
@@ -1382,7 +1386,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   
   //adjust region to start_lba's region
   args->region_start = ALIGN_UP(args->region_start, args->lba_align);
-  args->region_end = args->region_end - args->lba_size - 1;
+  args->region_end = args->region_end-args->lba_size;
   args->region_end = ALIGN_DOWN(args->region_end, args->lba_align);
   if (args->lba_start < args->region_start)
   {

@@ -1854,13 +1854,44 @@ def test_ioworker_vscode_showcase(nvme0n1):
                           iops=10, time=10):
          pass
                           
-            
+
+@pytest.mark.parametrize("start", [1, 7, 8, 10, 16])     
+@pytest.mark.parametrize("length", [1, 7, 8, 10, 16])     
+def test_ioworker_address_region(nvme0, nvme0n1, start, length):
+    nvme0.format().waitdone()
+
+    q = d.Qpair(nvme0, 10)
+    b = d.Buffer(512)  # zero buffer
+    read_buf = d.Buffer(512)
+
+    with nvme0n1.ioworker(io_size=1, io_count=length, 
+                          lba_align=1, lba_random=False,
+                          region_start=start, region_end=start+length, 
+                          qdepth=16, read_percentage=0, time=1):
+        pass
+
+    # verify after ioworker write
+    nvme0n1.read(q, read_buf, 0).waitdone()
+    assert read_buf[:] == b[:]
+    nvme0n1.read(q, read_buf, start-1).waitdone()
+    assert read_buf[:] == b[:]
+    nvme0n1.read(q, read_buf, start).waitdone()
+    assert read_buf[:] != b[:]
+    nvme0n1.read(q, read_buf, start+length-1).waitdone()
+    assert read_buf[:] != b[:]
+    nvme0n1.read(q, read_buf, start+length).waitdone()
+    assert read_buf[:] == b[:]
+    nvme0n1.read(q, read_buf, start+length+1).waitdone()
+    assert read_buf[:] == b[:]
+
+    
 def test_ioworker_stress(nvme0n1):
     for i in range(100):
         logging.info(i)
         with nvme0n1.ioworker(io_size=8, lba_align=8, lba_random=False,
                               qdepth=16, read_percentage=100, time=1):
             pass
+
         
 @pytest.mark.parametrize("repeat", range(100))
 def test_ioworker_stress_multiple(nvme0n1, repeat):
