@@ -1857,10 +1857,10 @@ def test_ioworker_vscode_showcase(nvme0n1):
             
 def test_ioworker_stress(nvme0n1):
     for i in range(100):
+        logging.info(i)
         with nvme0n1.ioworker(io_size=8, lba_align=8, lba_random=False,
                               qdepth=16, read_percentage=100, time=1):
-            logging.info(i)
-
+            pass
         
 @pytest.mark.parametrize("repeat", range(100))
 def test_ioworker_stress_multiple(nvme0n1, repeat):

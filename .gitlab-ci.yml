@@ -15,10 +15,10 @@ driver_test:
     - ./install.sh
     - make setup
     - make $MAKE_TARGET
+    - make setup
     - make $MAKE_TARGET
     - make reset
     - make clean
   after_script:
     - ls
     - date
-    - sudo shutdown -r 1

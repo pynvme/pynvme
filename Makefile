@@ -64,7 +64,8 @@ doc: cython_lib
 
 reset:
 	sudo ./spdk/scripts/setup.sh reset
-	-sudo rm /var/tmp/pynvme.sock*
+	-sudo rm -f /var/tmp/pynvme.sock*
+	-sudo rm -rf /var/run/dpdk/spdk0
 	-sudo fuser -k 4420/tcp
 
 setup: reset
