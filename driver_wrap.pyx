@@ -358,6 +358,7 @@ Classes
 import os
 import sys
 import time
+import glob
 import atexit
 import signal
 import struct
@@ -1973,7 +1974,7 @@ class _IOWorker(object):
         """
 
         # get data from queue before joinging the subprocess, otherwise deadlock
-        error, rets, output_io_per_second, output_io_per_latency = self.q.get()
+        childpid, error, rets, output_io_per_second, output_io_per_latency = self.q.get()
         rets = DotDict(rets)
         self.p.join()
         logging.debug("ioworker closed")
@@ -2014,6 +2015,12 @@ class _IOWorker(object):
                 self.output_percentile_latency[k] = self.find_percentile_latency(k, output_io_per_latency)
 
         logging.debug(f"ioworker result: {rets}")
+        
+        # release child process resources
+        del self.q
+        for f in glob.glob(f"/var/run/dpdk/spdk0/fbarray_memseg*{childpid}"):
+            os.remove(f)
+            
         return rets
 
     def iops_consistency(self, slowest_percentage=99.9):
@@ -2105,7 +2112,11 @@ class _IOWorker(object):
             error = -1
         finally:
             # feed return to main process
-            rqueue.put((error, rets, output_io_per_second, output_io_per_latency))
+            rqueue.put((os.getpid(),
+                        error,
+                        rets,
+                        output_io_per_second,
+                        output_io_per_latency))
             
             # close resources in right order
             nvme0n1.close()

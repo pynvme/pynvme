@@ -1916,10 +1916,11 @@ def test_ioworker_address_region_4k(nvme0, nvme0n1, start, length):
     
     
 def test_ioworker_stress(nvme0n1):
-    for i in range(100):
+    for i in range(1000):
         logging.info(i)
-        with nvme0n1.ioworker(io_size=8, lba_align=8, lba_random=False,
-                              qdepth=16, read_percentage=100, time=1):
+        with nvme0n1.ioworker(io_size=8, lba_align=8,
+                              lba_random=False, io_count=1, 
+                              qdepth=16, read_percentage=100):
             pass
 
         
@@ -1953,7 +1954,7 @@ def test_ioworker_longtime_deep(nvme0n1, verify):
     for i in range(2):
         a = nvme0n1.ioworker(io_size=8, lba_align=8, 
                              lba_random=True, qdepth=1022, # deep queue made test not stop
-                             read_percentage=100, time=30*60).start()
+                             read_percentage=100, time=20*60).start()
         l.append(a)
 
     for a in l:
