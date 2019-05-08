@@ -276,8 +276,9 @@ struct cmd_log_entry_t {
   struct spdk_nvme_cmd cmd;
   struct timeval time_cmd;
   struct spdk_nvme_cpl cpl;
-  uint64_t cpl_latency_us;
-
+  uint32_t cpl_latency_us;
+  uint32_t dummy;
+  
   // for data verification after read
   void* buf;
 
@@ -302,7 +303,7 @@ static_assert(sizeof(struct cmd_log_table_t) == sizeof(struct cmd_log_entry_t)*(
 static struct cmd_log_table_t* cmd_log_queue_table;
 
 
-static unsigned int timeval_to_us(struct timeval* t)
+static uint32_t timeval_to_us(struct timeval* t)
 {
   return t->tv_sec*US_PER_S + t->tv_usec;
 }
@@ -411,7 +412,16 @@ void cmdlog_cmd_cpl(void* cb_ctx, struct spdk_nvme_cpl* cpl)
       uint64_t lba = cmd->cdw10 + ((uint64_t)(cmd->cdw11)<<32);
       uint16_t lba_count = (cmd->cdw12 & 0xffff);
 
-      if (0 != buffer_verify_data(log_entry->buf, lba, lba_count, 512))
+      // get ns and lba size of the data
+      struct spdk_nvme_ctrlr* ctrlr = log_entry->req->qpair->ctrlr;
+      struct spdk_nvme_ns* ns = spdk_nvme_ctrlr_get_ns(ctrlr, cmd->nsid);
+      uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
+
+      //verify data pattern and crc
+      if (0 != buffer_verify_data(log_entry->buf,
+                                  lba,
+                                  lba_count,
+                                  lba_size))
       {
         assert(log_entry->req);
 
@@ -986,7 +996,6 @@ int ns_cmd_read_write(int is_read,
 
   //validate data buffer
   assert(buf != NULL);
-  assert(lba_size == 512);
   assert(len >= lba_count*lba_size);
   assert((io_flags&0xffff) == 0);
 

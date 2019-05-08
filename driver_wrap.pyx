@@ -852,7 +852,7 @@ cdef class Controller(object):
         page_size = (1UL<<(12+((self[4]>>16)&0xf)))
         mdts_shift = self.id_data(77)
         if mdts_shift == 0:
-            return 512*(1UL<<16)
+            return sys.maxsize
         else:
             return page_size*(1UL<<mdts_shift)
 
@@ -1602,7 +1602,7 @@ cdef class Namespace(object):
         # Returns
             (int or None): the lba format has the specified data size and meta data size
         """
-        # find the lba format with 512B size
+
         for fid in range(16):
             format_support = self.id_data(128+fid*4+3, 128+fid*4)
             if data_size == (1<<((format_support>>16)&0xff)) and \

@@ -604,12 +604,10 @@ def test_different_io_size_and_count(nvme0, nvme0n1,
         bufs.append(d.Buffer(lba_count*512))
 
     for i in range(io_count):
-        # FIXME: to support 4K sector
         nvme0n1.write(io_qpair, bufs[i], lba_offset, lba_count)
     io_qpair.waitdone(io_count)
 
     for i in range(io_count):
-        # FIXME: to support 4K sector
         nvme0n1.read(io_qpair, bufs[i], lba_offset, lba_count)
     io_qpair.waitdone(io_count)
 
