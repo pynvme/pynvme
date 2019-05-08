@@ -35,7 +35,7 @@
 SPDK_ROOT_DIR := $(abspath $(CURDIR)/spdk)
 include $(SPDK_ROOT_DIR)/mk/spdk.common.mk
 
-C_SRCS = driver.c 
+C_SRCS = driver.c
 LIBNAME = pynvme
 
 include $(SPDK_ROOT_DIR)/mk/spdk.lib.mk
@@ -50,7 +50,7 @@ memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%4)/2}')
 #cython part
 clean: cython_clean
 cython_clean:
-	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* test.log scripts/__pycache__
+	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* *.log scripts/__pycache__
 
 all: cython_lib
 .PHONY: all spdk doc debug
@@ -75,8 +75,8 @@ setup: reset
 cython_lib:
 	@python3 setup.py build_ext -i --force
 
-tags: 
-	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env 
+tags:
+	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env
 
 test: setup
 	sudo python3 -B -m pytest driver_test.py --pciaddr=${pciaddr} -v -r Efsx 2>&1 | tee test.log
@@ -90,4 +90,3 @@ nvmt: setup      # create a NVMe/TCP target on 2 cores, based on memory bdev, fo
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_create nqn.2016-06.io.spdk:cnode1 -a -s SPDK00000000000001
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 Malloc0
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_listener nqn.2016-06.io.spdk:cnode1 -t tcp -a 127.0.0.1 -s 4420
-

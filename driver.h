@@ -63,10 +63,10 @@ typedef struct ioworker_rets
   unsigned long io_count_read;
   unsigned long io_count_write;
   unsigned int mseconds;
-  unsigned int latency_max_us;  
+  unsigned int latency_max_us;
   unsigned short error;
 } ioworker_rets;
-  
+
 extern int driver_init(void);
 extern int driver_fini(void);
 extern uint64_t driver_config(uint64_t cfg_word);
@@ -101,7 +101,7 @@ extern int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
                              struct spdk_nvme_qpair *qpair,
                              unsigned int opcode,
                              unsigned int nsid,
-                             void* buf, size_t len, 
+                             void* buf, size_t len,
                              unsigned int cdw10,
                              unsigned int cdw11,
                              unsigned int cdw12,
@@ -127,9 +127,9 @@ extern qpair* qpair_create(struct spdk_nvme_ctrlr *c,
 extern int qpair_wait_completion(struct spdk_nvme_qpair *q, uint32_t max_completions);
 extern int qpair_get_id(struct spdk_nvme_qpair* q);
 extern int qpair_free(struct spdk_nvme_qpair* q);
-    
+
 extern namespace* ns_init(ctrlr* c, unsigned int nsid);
-extern int ns_cmd_read_write(int is_read, 
+extern int ns_cmd_read_write(int is_read,
                              struct spdk_nvme_ns* ns,
                              struct spdk_nvme_qpair *qpair,
                              void *buf,
@@ -160,4 +160,3 @@ extern void intc_clear(struct spdk_nvme_qpair* q);
 extern bool intc_isset(struct spdk_nvme_qpair* q);
 extern void intc_mask(struct spdk_nvme_qpair* q);
 extern void intc_unmask(struct spdk_nvme_qpair* q);
-

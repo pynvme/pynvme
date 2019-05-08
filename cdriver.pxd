@@ -90,7 +90,7 @@ cdef extern from "driver.h":
     int nvme_get_reg32(ctrlr * c,
                        unsigned int offset,
                        unsigned int * value)
-    
+
     void nvme_deallocate_ranges(ctrlr *c,
                                 void * buf, unsigned int count)
     int nvme_wait_completion_admin(ctrlr * c)
@@ -139,7 +139,7 @@ cdef extern from "driver.h":
     unsigned int ns_get_sector_size(namespace * ns)
     unsigned long ns_get_num_sectors(namespace * ns)
     int ns_fini(namespace * ns)
-    
+
     void crc32_clear(unsigned long lba, unsigned long lba_count, bint sanitize, bint uncorr)
     int ioworker_entry(namespace* ns,
                        qpair* qpair,

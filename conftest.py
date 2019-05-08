@@ -39,21 +39,21 @@ def nvme0(pciaddr):
     yield ret
     del ret
 
-    
+
 @pytest.fixture(scope="session")
 def subsystem(nvme0):
     ret = d.Subsystem(nvme0)
     yield ret
     del ret
 
-    
+
 @pytest.fixture(scope="session")
 def pcie(nvme0):
     ret = d.Pcie(nvme0)
     yield ret
     del ret
 
-    
+
 @pytest.fixture(scope="session")
 def nvme0n1(nvme0):
     ret = d.Namespace(nvme0, 1)
@@ -61,7 +61,7 @@ def nvme0n1(nvme0):
     ret.close()
     del ret
 
-    
+
 @pytest.fixture(scope="function")
 def aer(nvme0):
     def register_cb(func):
@@ -76,10 +76,10 @@ def aer(nvme0):
 def verify():
     a = d.config(verify=False)
     b = d.config(verify=True)
-    yield a!=b  # return True if config success 
+    yield a!=b  # return True if config success
     d.config(verify=False)
 
-    
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     # execute all other hooks to obtain the report object

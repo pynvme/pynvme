@@ -40,7 +40,7 @@
 ##cython: binding=True
 
 
-"""test NVMe devices in Python. [https://github.com/cranechu/pynvme]  
+"""test NVMe devices in Python. [https://github.com/cranechu/pynvme]
 
 [![Status](https://gitlab.com/cranechu/pynvme/badges/master/pipeline.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
@@ -73,17 +73,17 @@ The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes
 4. callback functions are supported
 5. MSIx interrupt is supported
 6. transparent checksum verification
-7. IOWorker generates high-performance IO 
+7. IOWorker generates high-performance IO
 8. integrated with pytest
 9. integrated with VSCode
 
-Before moving forward, check and backup your data in the NVMe SSD to be tested. It is always recommended to attach just one piece of NVMe SSD in your system to avoid mistakes. 
+Before moving forward, check and backup your data in the NVMe SSD to be tested. It is always recommended to attach just one piece of NVMe SSD in your system to avoid mistakes.
 
 
 Install
 =======
 
-Users can install and use pynvme in commodity computers. 
+Users can install and use pynvme in commodity computers.
 
 System Requirement
 ------------------
@@ -91,10 +91,10 @@ System Requirement
 2. OS: Linux, recommend Fedora 29, Ubuntu is also tested
 3. DRAM: 8GB or larger
 4. SATA: install OS and pynvme in a SATA drive.
-5. NVMe: NVMe SSD is the device to be tested. Backup your data! 
-6. Python3. Python2 is not supported. 
-7. sudo privilege is required. 
-8. RAID mode in BIOS (Intel® RST) should be disabled. 
+5. NVMe: NVMe SSD is the device to be tested. Backup your data!
+6. Python3. Python2 is not supported.
+7. sudo privilege is required.
+8. RAID mode in BIOS (Intel® RST) should be disabled.
 
 Source Code
 -----------
@@ -104,11 +104,11 @@ git clone https://github.com/cranechu/pynvme
 cd pynvme
 ./install.sh
 ```
-Now, it is ready to [start vscode](#vscode). Or, you can continue to refer to detailed installation instructions below. 
+Now, it is ready to [start vscode](#vscode). Or, you can continue to refer to detailed installation instructions below.
 
 Prerequisites
 -------------
-First, to fetch all required dependencies source code and packages.  
+First, to fetch all required dependencies source code and packages.
 ```shell
 git submodule update --init --recursive
 sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip
@@ -116,13 +116,13 @@ sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip
 
 Build
 -----
-Compile the SPDK, and then pynvme. 
+Compile the SPDK, and then pynvme.
 ```shell
 cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
 make spdk                                    # compile SPDK
 make                                         # compile pynvme
 ```
-Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so 
+Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so
 
 Test
 ----
@@ -146,21 +146,21 @@ make reset
 
 VSCode
 ======
-The pynvme works with VSCode! And pytest too! 
+The pynvme works with VSCode! And pytest too!
 
 1. First of all, install vscode here: https://code.visualstudio.com/
 
-2. Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configurate the user account to run sudo without a password. 
+2. Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configurate the user account to run sudo without a password.
 ```shell
 sudo visudo
 ```
 
-3. In order to monitor qpairs status and cmdlog along the progress of testing, user can install vscode extension pynvme-console. The extension provides DUT status and cmdlogs in VSCode UI. 
+3. In order to monitor qpairs status and cmdlog along the progress of testing, user can install vscode extension pynvme-console. The extension provides DUT status and cmdlogs in VSCode UI.
 ```shell
 code --install-extension pynvme-console-1.0.0.vsix
 ```
 
-4. Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device. 
+4. Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device.
 ```shell
 lspci
 # 01:00.0 Non-Volatile memory controller: Lite-On Technology Corporation Device 2300 (rev 01)
@@ -176,11 +176,11 @@ make setup; code .  # make sure to enable SPDK nvme driver before starting vscod
 import pytest
 import logging
 
-import nvme as d    # import pynvme's python package 
+import nvme as d    # import pynvme's python package
 
 ```
 
-VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run test in shell or Emacs. 
+VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run test in shell or Emacs.
 
 
 Tutorial
@@ -193,7 +193,7 @@ import nvme as d
 nvme0 = d.Controller(b"01:00.0")  # initialize NVMe controller with its PCIe BDF address
 id_buf = d.Buffer(4096)  # allocate the buffer
 nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  # read namespace identify data into buffer
-nvme0.waitdone()  # nvme commands are executed asynchronously, so we have to wait the completion before access the id_buf. 
+nvme0.waitdone()  # nvme commands are executed asynchronously, so we have to wait the completion before access the id_buf.
 id_buf.dump()   # print the whole buffer
 ```
 
@@ -214,10 +214,10 @@ sudo python3 -m pytest test_file_name.py::test_function_name --pciaddr=BB:DD.FF 
 ```
 By default, pytest captures all outputs, and only test results are printed. By adding the option "-s" in the above command line, pytest will also print scripts and pynvme's messages.Please refer to [pytest documents](https://docs.pytest.org/en/latest/contents.html) for more instructions.
 
-To make the simplisity a step further, pynvme provides more python facilities. If the optional type hint is given to the fixtures, VSCode can give you more help. Example: 
+To make the simplisity a step further, pynvme provides more python facilities. If the optional type hint is given to the fixtures, VSCode can give you more help. Example:
 ```python
 import pytest
-import nvme as d 
+import nvme as d
 
 def test_namespace_identify_size(nvme0n1: d.Namespace):
     assert nvme0n1.id_data(7, 0) != 0
@@ -226,7 +226,7 @@ def test_namespace_identify_size(nvme0n1: d.Namespace):
 Callback functions are supported. If available, the callback function is called when the command completes. Example:
 ```python
 import pytest
-import nvme as d 
+import nvme as d
 
 def test_hello_world(nvme0, nvme0n1:d.Namespace):
     read_buf = d.Buffer(512)
@@ -281,11 +281,11 @@ Pynvme writes and reads data in buffer to NVMe device LBA space. In order to ver
 
 Buffer should be allocated for data commands, and held till that command is completed because the buffer is being used by NVMe device. Users need to pay more attention on the life scope of the buffer in Python test scripts.
 
-NVMe commands are all asynchronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in python scripts, the callback function is called when that command is completed in waitdone(). The command timeout limit of pynvme is 5 seconds. 
+NVMe commands are all asynchronous. Test scripts can sync through waitdone() method to make sure the command is completed. The method waitdone() polls command Completion Queues. When the optional callback function is provided in a command in python scripts, the callback function is called when that command is completed in waitdone(). The command timeout limit of pynvme is 5 seconds.
 
-Pynvme driver provides two arguments to python callback functions: cdw0 of the Completion Queue Entry, and the status. The argument status includes both Phase Tag and Status Field. 
+Pynvme driver provides two arguments to python callback functions: cdw0 of the Completion Queue Entry, and the status. The argument status includes both Phase Tag and Status Field.
 
-Pynvme traces recent thousands of commands in the cmdlog, as well as the completion entries. The cmdlog traces each qpair's commands and status. Pynvme supports up to 16 qpairs (including the admin qpair of the controller). Users can list cmdlog of each qpair to find the commands issued in different command queues. 
+Pynvme traces recent thousands of commands in the cmdlog, as well as the completion entries. The cmdlog traces each qpair's commands and status. Pynvme supports up to 16 qpairs (including the admin qpair of the controller). Users can list cmdlog of each qpair to find the commands issued in different command queues.
 
 The cost is high and inconvenient to send each read and write command in Python scripts. Pynvme provides the low-cost IOWorker to send IOs in different processes. IOWorker takes full use of multi-core to not only send read/write IO in high speed, but also verify the correctness of data on the fly. User can get IOWorker's test statistics through its close() method. Here is an example of reading 4K data randomly with the IOWorker.
 
@@ -299,16 +299,16 @@ Example:
     >>> print("IOPS: %dK/s\\n", r.io_count_read/r.mseconds)
 ```
 
-The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. Similarly, after writing of multiple IOWorkers in the same LBA region, the subsequent read does not know the latest data content. As a mitigation solution, we suggest to separate read and write operations to different IOWorkers and different LBA regions in test scripts, so it can be avoid to read and write same LBA at simultaneously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other. Test scripts can disable or enable inline verification of read by function config(). By default, it is disabled.  
+The controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). It means conflicted read write operations on NVMe devices cannot predict the final data result, and thus hard to verify data correctness. Similarly, after writing of multiple IOWorkers in the same LBA region, the subsequent read does not know the latest data content. As a mitigation solution, we suggest to separate read and write operations to different IOWorkers and different LBA regions in test scripts, so it can be avoid to read and write same LBA at simultaneously. For those read and write operations on same LBA region, scripts have to complete one before submitting the other. Test scripts can disable or enable inline verification of read by function config(). By default, it is disabled.
 
-Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explicit code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair. 
+Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explicit code, Python may not do the job in right order. One of the mitigation solution is pytest fixture scope. User can define Controller fixture as session scope and Qpair as function. In the situation, qpair is always deleted before the controller. Admin qpair is managed by controller, so users do not need to create the admin qpair.
 
 
 Files
 =====
-Here is a brief introduction on source code files. 
+Here is a brief introduction on source code files.
 
-| files        | notes        | 
+| files        | notes        |
 | ------------- |-------------|
 | spdk   | pynvme is built on SPDK  |
 | driver_wrap.pyx  | pynvme uses cython to bind python and C. All python classes are defined here.  |
@@ -325,9 +325,9 @@ Here is a brief introduction on source code files.
 
 Fixtures
 ========
-Pynvme uses pytest to test it self. Users can also use pytest as the test framework to test their NVMe devices. Pytest's fixture is a powerful way to create and free resources in the test. 
+Pynvme uses pytest to test it self. Users can also use pytest as the test framework to test their NVMe devices. Pytest's fixture is a powerful way to create and free resources in the test.
 
-| fixture    | scope    | notes        | 
+| fixture    | scope    | notes        |
 | ------------- |-----|--------|
 | pciaddr | session | PCIe BDF address of the DUT, pass in by argument --pciaddr |
 | pcie | session | the object of the PCIe device. |
@@ -338,16 +338,16 @@ Pynvme uses pytest to test it self. Users can also use pytest as the test framew
 
 Debug
 =====
-1. assert: it is recommended to compile SPDK with --enable-debug.  
-1. log: users can change log levels for driver and scripts. All logs are captured/hidden by pytest in default. Please use argument "-s" to print logs in test time.   
+1. assert: it is recommended to compile SPDK with --enable-debug.
+1. log: users can change log levels for driver and scripts. All logs are captured/hidden by pytest in default. Please use argument "-s" to print logs in test time.
     1. driver: spdk_log_set_print_level in driver.c, for SPDK related logs
     2. scripts: log_cli_level in pytest.ini, for python/pytest scripts
-2. gdb: when driver crashes or misbehaviours, use can collect debug information through gdb.  
+2. gdb: when driver crashes or misbehaviours, use can collect debug information through gdb.
     1. core dump: sudo coredumpctl debug
     2. generate core dump in dead loop: CTRL-\\
     3. test within gdb: sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
 
-If you meet any issue, or have any suggestions, please report them to [Issues](https://github.com/cranechu/pynvme/issues). They are warmly welcome. 
+If you meet any issue, or have any suggestions, please report them to [Issues](https://github.com/cranechu/pynvme/issues). They are warmly welcome.
 
 
 Classes
@@ -493,7 +493,7 @@ cdef class Buffer(object):
     cdef size_t size
     cdef char* name
     cdef unsigned long phys_addr
-    
+
     def __cinit__(self, size=4096, name="buffer"):
         assert size > 0, "0 is not valid size"
 
@@ -726,7 +726,7 @@ cdef class Pcie(object):
             next_offset = value>>8
             if cid == cap_id:
                 return cap_offset
-    
+
     def reset(self):
         """reset this pcie device"""
 
@@ -766,7 +766,7 @@ cdef class Controller(object):
     """Controller class. Prefer to use fixture "nvme0" in test scripts.
 
     # Attributes
-        addr (bytes): the bus/device/function address of the DUT, for example: 
+        addr (bytes): the bus/device/function address of the DUT, for example:
                       b'01:00.0' (PCIe BDF address);
                       b'127.0.0.1' (TCP IP address).
 
@@ -807,7 +807,7 @@ cdef class Controller(object):
     cdef d.ctrlr * _ctrlr
     cdef char _bdf[20]
     cdef Buffer hmb_buf
-    
+
     def __cinit__(self, addr):
         strncpy(self._bdf, addr, strlen(addr)+1)
         self._create()
@@ -855,7 +855,7 @@ cdef class Controller(object):
             return 512*(1UL<<16)
         else:
             return page_size*(1UL<<mdts_shift)
-    
+
     def _close(self):
         if self._ctrlr is not NULL:
             ret = d.nvme_fini(self._ctrlr)
@@ -1343,7 +1343,7 @@ cdef class Controller(object):
                  cb=None):
         """send generic admin commands.
 
-        This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands. 
+        This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands.
 
         # Attributes
             opcode (int): operate code of the command
@@ -1366,7 +1366,7 @@ cdef class Controller(object):
                             cb_func=cmd_cb,
                             cb_arg=<void*>cb)
         return self
-    
+
     cdef int send_admin_raw(self,
                             Buffer buf,
                             unsigned int opcode,
@@ -1422,7 +1422,7 @@ cdef class Qpair(object):
         # create CQ and SQ
         if depth < 2:
             raise QpairCreationError("depth should >= 2")
-            
+
         self._qpair = d.qpair_create(nvme._ctrlr, prio, depth)
         # print("created qpair: %x" % <unsigned long>self._qpair); sys.stdout.flush()
         if self._qpair is NULL:
@@ -1453,16 +1453,16 @@ cdef class Qpair(object):
 
     def msix_clear(self):
         d.intc_clear(self._qpair)
-        
+
     def msix_isset(self):
         return d.intc_isset(self._qpair)
-        
+
     def msix_mask(self):
         d.intc_mask(self._qpair)
-        
+
     def msix_unmask(self):
         d.intc_unmask(self._qpair)
-        
+
     def waitdone(self, expected=1):
         """sync until expected commands completion
 
@@ -1533,7 +1533,7 @@ cdef class Namespace(object):
             Release resources explictly, del is not garentee to call __dealloc__.
             Fixture nvme0n1 uses this function, and prefer to use fixture in scripts, instead of calling this function directly.
         """
-        
+
         logging.debug("close namespace")
         # print("dealloc namespace: %x" % <unsigned long>self._ns); sys.stdout.flush()
         if self._ns is not NULL:
@@ -1608,7 +1608,7 @@ cdef class Namespace(object):
             if data_size == (1<<((format_support>>16)&0xff)) and \
                meta_size == (format_support&0xffff):
                 return fid
-    
+
     def ioworker(self, io_size, lba_align, lba_random,
                  read_percentage, time=0, qdepth=64,
                  region_start=0, region_end=0xffff_ffff_ffff_ffff,
@@ -1648,9 +1648,9 @@ cdef class Namespace(object):
 
         assert not (time==0 and io_count==0), "when to stop the ioworker?"
         assert qdepth>0 and qdepth<=1022, "support qdepth upto 1022"
-        assert qdepth <= (self._nvme[0]&0xffff) + 1, "qdepth is larger than specification"  
+        assert qdepth <= (self._nvme[0]&0xffff) + 1, "qdepth is larger than specification"
         assert region_start < region_end, "region end is not included"
-        
+
         pciaddr = self._bdf
         nsid = self._nsid
         return _IOWorker(pciaddr, nsid, lba_start, io_size, lba_align,
@@ -1867,7 +1867,7 @@ cdef class Namespace(object):
                  cb=None):
         """send generic IO commands.
 
-        This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands. 
+        This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands.
 
         # Attributes
             opcode (int): operate code of the command
@@ -2015,12 +2015,12 @@ class _IOWorker(object):
                 self.output_percentile_latency[k] = self.find_percentile_latency(k, output_io_per_latency)
 
         logging.debug(f"ioworker result: {rets}")
-        
+
         # release child process resources
         del self.q
         for f in glob.glob(f"/var/run/dpdk/spdk0/fbarray_memseg*{childpid}"):
             os.remove(f)
-            
+
         return rets
 
     def iops_consistency(self, slowest_percentage=99.9):
@@ -2110,6 +2110,7 @@ class _IOWorker(object):
             logging.warning(e)
             warnings.warn(e)
             error = -1
+            
         finally:
             # feed return to main process
             rqueue.put((os.getpid(),
@@ -2117,7 +2118,7 @@ class _IOWorker(object):
                         rets,
                         output_io_per_second,
                         output_io_per_latency))
-            
+
             # close resources in right order
             nvme0n1.close()
 
@@ -2150,8 +2151,8 @@ def config(verify, fua_read=False, fua_write=False):
     return d.driver_config((verify << 0) |
                            (fua_read << 1) |
                            (fua_write << 2))
-    
-    
+
+
 # module init, needs root privilege
 if os.geteuid() == 0:
     # CTRL-c to exit

@@ -104,7 +104,7 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
     SPDK_NOTICELOG("memory is not large enough to keep CRC32 table.\n");
     SPDK_NOTICELOG("Data verification is disabled!\n");
   }
-  
+
   if (g_driver_io_token_ptr == NULL)
   {
     SPDK_ERRLOG("fail to find memzone space\n");
@@ -118,7 +118,7 @@ void crc32_clear(uint64_t lba, uint64_t lba_count, int sanitize, int uncorr)
 {
   int c = uncorr ? 0xff : 0;
   size_t len = lba_count*sizeof(uint32_t);
-  
+
   if (sanitize == true)
   {
     assert(lba == 0);
@@ -169,7 +169,7 @@ static inline uint32_t buffer_calc_csum(uint64_t* ptr, int len)
   //reserve 0xffffffff: uncorrectable
   if (crc == 0) crc = 1;
   if (crc == 0xffffffff) crc = 0xfffffffe;
-  
+
   return crc;
 }
 
@@ -182,7 +182,7 @@ static void buffer_fill_data(void* buf,
   uint64_t token = __atomic_fetch_add(g_driver_io_token_ptr,
                                       lba_count,
                                       __ATOMIC_SEQ_CST);
-  
+
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "token: %ld, lba 0x%lx, lba count %d\n", token, lba, lba_count);
 
   for (uint32_t i=0; i<lba_count; i++, lba++)
@@ -230,7 +230,7 @@ static int buffer_verify_data(const void* buf,
       //no mapping, nothing to verify
       continue;
     }
-    
+
     if (expected_crc == 0xffffffff)
     {
       SPDK_WARNLOG("lba uncorrectable: lba 0x%lx\n", lba);
@@ -242,7 +242,7 @@ static int buffer_verify_data(const void* buf,
       SPDK_WARNLOG("lba mismatch: lba 0x%lx, but got: 0x%lx\n", lba, ptr[0]);
       return -2;
     }
-    
+
     if (computed_crc != expected_crc)
     {
       SPDK_WARNLOG("crc mismatch: lba 0x%lx, expected crc 0x%x, but got: 0x%x\n",
@@ -250,7 +250,7 @@ static int buffer_verify_data(const void* buf,
       return -3;
     }
   }
-  
+
   return 0;
 }
 
@@ -280,7 +280,7 @@ struct cmd_log_entry_t {
 
   // for data verification after read
   void* buf;
-  
+
   // callback to user cb functions
   struct nvme_request* req;
   void* cb_arg;
@@ -338,7 +338,7 @@ static int cmd_log_init(void)
   if (spdk_process_is_primary())
   {
     cmd_log_queue_table = spdk_memzone_reserve(DRIVER_CMDLOG_TABLE_NAME,
-                                               sizeof(struct cmd_log_table_t)*CMD_LOG_QPAIR_COUNT, 
+                                               sizeof(struct cmd_log_table_t)*CMD_LOG_QPAIR_COUNT,
                                                0, SPDK_MEMZONE_NO_IOVA_CONTIG);
 
     // clear all qpair's cmd log
@@ -388,20 +388,20 @@ void cmdlog_cmd_cpl(void* cb_ctx, struct spdk_nvme_cpl* cpl)
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
 
   //check if the log entry is still for this completed cmd
-  if (log_entry->req == NULL || 
+  if (log_entry->req == NULL ||
       log_entry->req->cb_arg != log_entry)
   {
     //it's a overlapped entry, just skip cmdlog cb
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "log entry %p is overlapped, skip it\n", log_entry);
     return;
   }
-  
+
   //reuse dword2 of cpl as latency value
   gettimeofday(&now, NULL);
   memcpy(&log_entry->cpl, cpl, sizeof(struct spdk_nvme_cpl));
   timersub(&now, &log_entry->time_cmd, &diff);
   log_entry->cpl_latency_us = timeval_to_us(&diff);
-  
+
   //verify read data
   if (log_entry->cmd.opc == 2 && log_entry->buf != NULL)
   {
@@ -410,7 +410,7 @@ void cmdlog_cmd_cpl(void* cb_ctx, struct spdk_nvme_cpl* cpl)
       struct spdk_nvme_cmd* cmd = &log_entry->cmd;
       uint64_t lba = cmd->cdw10 + ((uint64_t)(cmd->cdw11)<<32);
       uint16_t lba_count = (cmd->cdw12 & 0xffff);
-                                  
+
       if (0 != buffer_verify_data(log_entry->buf, lba, lba_count, 512))
       {
         assert(log_entry->req);
@@ -434,7 +434,7 @@ void cmdlog_cmd_cpl(void* cb_ctx, struct spdk_nvme_cpl* cpl)
 void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
 {
   uint16_t qid = qpair->id;
-  struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];  
+  struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];
   uint32_t tail_index = log_table->tail_index;
   struct cmd_log_entry_t* log_entry = &log_table->table[tail_index];
 
@@ -454,7 +454,7 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
     // discard the entry by revert cb arg, and skip cmdlog cb later
     log_entry->req->cb_arg = log_entry->cb_arg;
   }
-  
+
   log_entry->buf = req->payload.contig_or_cb_arg;
   log_entry->cpl_latency_us = 0;
   memcpy(&log_entry->cmd, &req->cmd, sizeof(struct spdk_nvme_cmd));
@@ -466,7 +466,7 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
   log_entry->req = req;
   log_entry->cb_arg = req->cb_arg;
   req->cb_arg = log_entry;
-  
+
   // add tail to commit the new cmd only when it is sent successfully
   tail_index += 1;
   if (tail_index == CMD_LOG_DEPTH)
@@ -484,7 +484,7 @@ static uint8_t intc_find_msix(struct spdk_pci_device* pci)
 {
   uint8_t cid = 0;
   uint8_t next_offset = 0;
-  
+
   spdk_pci_device_cfg_read8(pci, &next_offset, 0x34);
   while (next_offset != 0)
   {
@@ -509,7 +509,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
   uint16_t control;
   uint32_t table_offset;
   struct spdk_pci_device* pci = spdk_nvme_ctrlr_get_pci_device(ctrlr);
-  
+
   // find msix capability
   msix_base = intc_find_msix(pci);
   spdk_pci_device_cfg_read16(pci, &control, msix_base+2);
@@ -517,7 +517,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
 
   // the controller has enough verctors for all qpairs
   assert((control&0x7ff) > CMD_LOG_QPAIR_COUNT);
-  
+
   // find address of msix table, should in BAR0
   spdk_pci_device_cfg_read32(pci, &table_offset, msix_base+4);
   assert((table_offset&0x7) == 0);
@@ -529,7 +529,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
     uint32_t data;
     uint32_t offset = table_offset + 16*i;
     uint64_t addr = spdk_vtophys(&cmd_log_queue_table[i].msix_data, NULL);
-    
+
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "vector %d data addr 0x%lx\n", i, addr);
 
     // clear the interrupt
@@ -548,7 +548,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
 
     cmd_log_queue_table[i].mask_offset = offset+12;
   }
-  
+
   // enable msix
   control |= 0x8000;
   spdk_pci_device_cfg_write16(pci, control, msix_base+2);
@@ -560,7 +560,7 @@ static void intc_fini(struct spdk_nvme_ctrlr* ctrlr)
   uint8_t msix_base;
   uint16_t control;
   struct spdk_pci_device* pci = spdk_nvme_ctrlr_get_pci_device(ctrlr);
-  
+
   // find msix capability
   msix_base = intc_find_msix(pci);
   spdk_pci_device_cfg_read16(pci, &control, msix_base+2);
@@ -717,7 +717,7 @@ struct spdk_nvme_ctrlr* nvme_probe(char* traddr)
                 trid.traddr, rc, cb_ctx.ctrlr);
     return NULL;
   }
-  
+
   return cb_ctx.ctrlr;
 }
 
@@ -737,7 +737,7 @@ struct spdk_nvme_ctrlr* nvme_init(char * traddr)
     // enable msix interrupt
     intc_init(ctrlr);
   }
-  
+
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "found device: %s\n", ctrlr->trid.traddr);
   return ctrlr;
 }
@@ -751,7 +751,7 @@ int nvme_fini(struct spdk_nvme_ctrlr* ctrlr)
     return 0;
   }
 
-  // io qpairs should all be deleted before closing master controller 
+  // io qpairs should all be deleted before closing master controller
   if (true == spdk_process_is_primary() &&
       false == TAILQ_EMPTY(&ctrlr->active_io_qpairs))
   {
@@ -763,7 +763,7 @@ int nvme_fini(struct spdk_nvme_ctrlr* ctrlr)
     // disable msix interrupt
     intc_fini(ctrlr);
   }
-  
+
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "close device: %s\n", ctrlr->trid.traddr);
   return spdk_nvme_detach(ctrlr);
 }
@@ -785,7 +785,7 @@ int nvme_get_reg32(struct spdk_nvme_ctrlr* ctrlr,
 int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
 {
   int32_t rc;
-  
+
   // check msix interrupt
   if (cmd_log_queue_table[0].msix_enabled)
   {
@@ -795,7 +795,7 @@ int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
       return 0;
     }
   }
-  
+
   // mask the interrupt
   nvme_pcie_ctrlr_set_reg_4(ctrlr, cmd_log_queue_table[0].mask_offset, 1);
 
@@ -805,15 +805,15 @@ int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
   // clear and un-mask the interrupt
   cmd_log_queue_table[0].msix_data = 0;
   nvme_pcie_ctrlr_set_reg_4(ctrlr, cmd_log_queue_table[0].mask_offset, 0);
-  
+
   return rc;
 }
 
-void nvme_deallocate_ranges(struct spdk_nvme_ctrlr* ctrlr, 
+void nvme_deallocate_ranges(struct spdk_nvme_ctrlr* ctrlr,
                             void* buf, unsigned int count)
 {
   struct spdk_nvme_dsm_range *ranges = (struct spdk_nvme_dsm_range*)buf;
-  
+
   for (unsigned int i=0; i<count; i++)
   {
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "deallocate lba 0x%lx, count %d\n",
@@ -939,7 +939,7 @@ int qpair_free(struct spdk_nvme_qpair* q)
   {
     return 0;
   }
-  
+
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "free qpair: %d\n", q->id);
   cmd_log_qpair_clear(q->id);
 
@@ -983,13 +983,13 @@ int ns_cmd_read_write(int is_read,
 
   //only support 1 namespace now
   assert(ns->id == 1);
-  
+
   //validate data buffer
   assert(buf != NULL);
   assert(lba_size == 512);
   assert(len >= lba_count*lba_size);
   assert((io_flags&0xffff) == 0);
-  
+
   //setup cmd structure
   memset(&cmd, 0, sizeof(struct spdk_nvme_cmd));
   cmd.opc = is_read ? 2 : 1;
@@ -1123,7 +1123,7 @@ static uint32_t ioworker_get_duration(struct timeval* start,
   struct timeval now;
   struct timeval diff;
   uint32_t msec;
-  
+
   gettimeofday(&now, NULL);
   timersub(&now, start, &diff);
   msec = diff.tv_sec * 1000UL;
@@ -1157,12 +1157,12 @@ static uint32_t ioworker_update_rets(struct ioworker_io_ctx* ctx,
 }
 
 static inline void ioworker_update_io_count_per_second(
-    struct ioworker_global_ctx* gctx, 
+    struct ioworker_global_ctx* gctx,
     struct ioworker_args* args,
     struct ioworker_rets* rets)
 {
   uint64_t current_io_count = rets->io_count_read + rets->io_count_write;
-  
+
   // update to next second
   timeradd_second(&gctx->time_next_sec, 1, &gctx->time_next_sec);
   args->io_counter_per_second[gctx->last_sec ++] = current_io_count - gctx->io_count_till_last_sec;
@@ -1180,7 +1180,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io completed, ctx %p, io delay time: %ld\n",
                ctx, gctx->io_delay_time.tv_usec);
-  
+
   gctx->io_count_cplt ++;
 
   // update statistics in ret structure
@@ -1193,7 +1193,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
   {
     args->io_counter_per_latency[MIN(US_PER_S-1, latency_us)] ++;
   }
-  
+
   // throttle IOPS by delay
   if (gctx->io_delay_time.tv_usec != 0)
   {
@@ -1248,7 +1248,7 @@ static uint64_t ioworker_send_one_lba_sequential(struct ioworker_args* args,
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "gctx lba: 0x%lx, align:%d, end: 0x%lx\n",
                 gctx->sequential_lba, args->lba_align, args->region_end);
-  
+
   ret = gctx->sequential_lba;
   if (ret > args->region_end)
   {
@@ -1294,7 +1294,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba 0x%lx, count %d\n",
                 ctx, lba_starting, lba_count);
-  
+
   assert(ctx->data_buf != NULL);
 
   ret = ns_cmd_read_write(is_read, ns, qpair,
@@ -1310,7 +1310,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   }
 
   //sent one io cmd successfully
-  gctx->sequential_lba += args->lba_align;  
+  gctx->sequential_lba += args->lba_align;
   gctx->io_count_sent ++;
   ctx->is_read = is_read;
   gettimeofday(&ctx->time_sent, NULL);
@@ -1383,7 +1383,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   {
     args->region_end = nsze;
   }
-  
+
   //adjust region to start_lba's region
   args->region_start = ALIGN_UP(args->region_start, args->lba_align);
   args->region_end = args->region_end-args->lba_size;
@@ -1473,7 +1473,7 @@ char* log_buf_dump(const char* header, const void* buf, size_t len)
 
   // dump buf is limited
   assert(len <= 4096);
-  
+
   errno = 0;
   fd = fopen(tmpname, "w+");
   if (fd == NULL)
@@ -1483,17 +1483,17 @@ char* log_buf_dump(const char* header, const void* buf, size_t len)
   }
 
   spdk_log_dump(fd, header, buf, len);
-  
+
   // get file size
   size = ftell(fd);
-  
+
   errno = 0;
   if (-1 == fseek(fd, 0, SEEK_SET))
   {
     SPDK_WARNLOG("lseek: %s\n", strerror(errno));
     return NULL;
   }
-  
+
   // read the data from temporary file
   errno=0;
   if (fread(dump_buf, size, 1, fd) == 0)
@@ -1678,7 +1678,7 @@ static void* rpc_server(void* args)
   int rc = 0;
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "starting rpc server ...\n");
-  
+
   // start the rpc
   rc = spdk_rpc_listen("/var/tmp/pynvme.sock");
   if (rc != 0)
@@ -1689,7 +1689,7 @@ static void* rpc_server(void* args)
 
   // pynvme run as root, but rpc client no need
   chmod("/var/tmp/pynvme.sock", 0777);
-  
+
   spdk_rpc_set_state(SPDK_RPC_STARTUP);
 
   while(1)
@@ -1733,7 +1733,7 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
       {
         outstanding = 100;
       }
-      
+
       //json: leading 0 means octal, so +1 to avoid it
       spdk_json_write_uint32(w, i+1 + ((outstanding/4)<<16));
     }
@@ -1759,7 +1759,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
                                      "Invalid parameters");
     return;
   }
-  
+
   if (spdk_json_decode_array(params, spdk_json_decode_uint32,
                              &qid, 1, &count, sizeof(uint32_t)))
   {
@@ -1778,7 +1778,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
   }
 
   qid = qid-1;  //avoid 0 in json
-  
+
   w = spdk_jsonrpc_begin_result(request);
   if (w == NULL)
   {
@@ -1792,7 +1792,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
   // list the cmdlog in reversed order
   spdk_json_write_array_begin(w);
 
-  // only send the most recent part of cmdlog    
+  // only send the most recent part of cmdlog
   do
   {
     // get the next index to read log
@@ -1813,14 +1813,14 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
-                                 "0x%08x, 0x%08x, 0x%08x, 0x%08x", 
+                                 "0x%08x, 0x%08x, 0x%08x, 0x%08x",
                                  time_cmd.tv_sec, time_cmd.tv_usec,
-                                 cmdname, 
+                                 cmdname,
                                  cmd[0], cmd[1], cmd[2], cmd[3],
                                  cmd[4], cmd[5], cmd[6], cmd[7],
                                  cmd[8], cmd[9], cmd[10], cmd[11],
                                  cmd[12], cmd[13], cmd[14], cmd[15]);
-      
+
       if (table[index].cpl_latency_us != 0)
       {
         // a completed command, display its cpl cdws
@@ -1831,9 +1831,9 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
         uint32_t* cpl = (uint32_t*)&table[index].cpl;
         const char* sts = nvme_qpair_get_status_string(&table[index].cpl);
         spdk_json_write_string_fmt(w, "%ld.%06ld: [cpl: %s] \n"
-                                   "0x%08x, 0x%08x, 0x%08x, 0x%08x\n", 
+                                   "0x%08x, 0x%08x, 0x%08x, 0x%08x\n",
                                    time_cpl.tv_sec, time_cpl.tv_usec,
-                                   sts, 
+                                   sts,
                                    cpl[0], cpl[1], cpl[2], cpl[3]);
       }
       else
@@ -1842,7 +1842,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
       }
     }
   } while (seq++ < 100);
-  
+
   spdk_json_write_array_end(w);
   spdk_jsonrpc_end_result(request, w);
 }
@@ -1860,7 +1860,7 @@ int driver_init(void)
 
   //init random sequence reproducible
   srandom(1);
-  
+
   // distribute multiprocessing to different cores
   spdk_env_opts_init(&opts);
   sprintf(buf, "0x%x", 1<<(getpid()%get_nprocs()));
@@ -1874,11 +1874,11 @@ int driver_init(void)
     return -1;
   }
 
-  // distribute multiprocessing to different cores  
+  // distribute multiprocessing to different cores
   // log level setup
   spdk_log_set_flag("nvme");
   spdk_log_set_print_level(SPDK_LOG_INFO);
-  
+
   // start rpc server in primary process only
   if (spdk_process_is_primary())
   {
@@ -1912,7 +1912,7 @@ int driver_fini(void)
     cmd_log_finish();
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
   }
-  
+
 	return spdk_env_cleanup();
 }
 
@@ -1930,4 +1930,3 @@ uint64_t driver_config(uint64_t cfg_word)
 
   return *g_driver_global_config_ptr;
 }
-
