@@ -550,8 +550,8 @@ format admin command
 
 __Attributes__
 
-- `lbaf (int)`: lbaf (lba format) field in the command. Default: None, to find the 512B LBA format
-- `ses (int)`: ses field in the command
+- `lbaf (int)`: lbaf (lba format) field in the command. Default: 0
+- `ses (int)`: ses field in the command. Default: 0, no secure erase
 - `nsid (int)`: nsid field in the command. Default: 1
 - `cb (function)`: callback function called at completion. Default: None
 
