@@ -48,7 +48,7 @@ System Requirement
 ------------------
 1. CPU: x86_64
 2. OS: Linux, recommend Fedora 29, Ubuntu is also tested
-3. DRAM: 8GB or larger
+3. Memory: 8GB or larger, 2MB hugepage size.
 4. SATA: install OS and pynvme in a SATA drive.
 5. NVMe: NVMe SSD is the device to be tested. Backup your data!
 6. Python3. Python2 is not supported.

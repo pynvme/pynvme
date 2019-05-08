@@ -63,6 +63,7 @@ doc: cython_lib
 	sed -i "1s/.*/# pynvme/" README.md
 
 reset:
+	sudo ./spdk/scripts/setup.sh cleanup
 	sudo ./spdk/scripts/setup.sh reset
 	-sudo rm -f /var/tmp/pynvme.sock*
 	-sudo fuser -k 4420/tcp
@@ -70,7 +71,8 @@ reset:
 setup: reset
 	-xhost +local:		# enable GUI with root/sudo
 	-sudo modprobe -r kvmgt  # rmmod vfio to speed up init
-	sudo HUGEMEM=${memsize} ./spdk/scripts/setup.sh
+	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh
+	sudo ./spdk/scripts/setup.sh status
 
 cython_lib:
 	@python3 setup.py build_ext -i --force
