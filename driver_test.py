@@ -877,13 +877,13 @@ def test_power_cycle_with_ioworker_clean(nvme0n1, nvme0, subsystem):
     start_time = time.time()
     powercycle = get_power_cycles(nvme0)
 
-    subsystem.power_cycle(3)
+    subsystem.power_cycle(15)
     with nvme0n1.ioworker(io_size=256, lba_align=256,
                           lba_random=False, qdepth=64,
                           read_percentage=0, time=3):
         pass
 
-    subsystem.power_cycle(3)
+    subsystem.power_cycle(15)
     with nvme0n1.ioworker(io_size=256, lba_align=256,
                           lba_random=False, qdepth=64,
                           read_percentage=0, time=3):
@@ -904,7 +904,7 @@ def test_subsystem_power_cycle(nvme0, subsystem):
     start_time = time.time()
     powercycle = get_power_cycles(nvme0)
 
-    subsystem.power_cycle(5)
+    subsystem.power_cycle(15)
     assert get_power_cycles(nvme0) == powercycle+1
     assert time.time()-start_time >= 5
 
@@ -927,7 +927,7 @@ def test_subsystem_sudden_power_cycle_with_write_ioworker(nvme0, nvme0n1, subsys
                           lba_random=False, qdepth=64,
                           read_percentage=0, time=10):
         time.sleep(3)
-        subsystem.power_cycle(3)
+        subsystem.power_cycle(15)
 
     assert powercycle+1 == get_power_cycles(nvme0)
 
@@ -945,10 +945,10 @@ def test_subsystem_power_cycle_without_notify(nvme0, nvme0n1, subsystem):
 
     with nvme0n1.ioworker(io_size=256, lba_align=256,
                           lba_random=False, qdepth=64,
-                          read_percentage=0, time=10):
+                          read_percentage=0, time=15):
         pass
 
-    subsystem.power_cycle(3)
+    subsystem.power_cycle(15)
 
     assert powercycle+1 == get_power_cycles(nvme0)
 
@@ -972,7 +972,7 @@ def test_subsystem_power_cycle_with_notify(nvme0, nvme0n1, subsystem, abrupt):
         pass
 
     subsystem.shutdown_notify(abrupt)
-    subsystem.power_cycle(3)
+    subsystem.power_cycle(15)
 
     assert powercycle+1 == get_power_cycles(nvme0)
 
@@ -1144,6 +1144,7 @@ def test_ioworker_output_io_per_second(nvme0n1, nvme0):
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
                          lba_random=True, qdepth=16,
                          read_percentage=100, time=10,
+                         iops=12345,
                          output_io_per_second=output_io_per_second).start().close()
     logging.info(output_io_per_second)
     logging.info(r)
