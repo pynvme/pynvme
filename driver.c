@@ -1517,12 +1517,14 @@ char* log_buf_dump(const char* header, const void* buf, size_t len)
 
 void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
 {
-  int dump_count = count;
+  uint32_t dump_count = count;
   uint16_t qid = qpair->id;
-  struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];
+  struct cmd_log_table_t* table = &cmd_log_queue_table[qid];
+  uint32_t index = cmd_log_queue_table[qid].tail_index;
+  uint32_t seq = 0;
 
   assert(qid < CMD_LOG_QPAIR_COUNT);
-  assert(log_table != NULL);
+  assert(table != NULL);
 
   if (count == 0 || count > CMD_LOG_DEPTH)
   {
@@ -1531,28 +1533,41 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
 
   // cmdlog is NOT SQ/CQ. cmdlog keeps CMD/CPL for script test debug purpose
   SPDK_NOTICELOG("dump qpair %d, latest tail in cmdlog: %d\n",
-                 qid, log_table->tail_index);
-  for (int i=0; i<dump_count; i++)
+                 qid, table->tail_index);
+
+  // only send the most recent part of cmdlog
+  while (seq++ < dump_count)
   {
-    struct timeval tv = (struct timeval){0};
-    struct tm* time;
-    char tmbuf[64];
+    // get the next index to read log
+    if (index == 0)
+    {
+      index = CMD_LOG_DEPTH;
+    }
+    index -= 1;
 
-    //cmd part
-    tv = log_table->table[i].time_cmd;
-    time = localtime(&tv.tv_sec);
-    strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
-    SPDK_NOTICELOG("index %d, %s.%06ld\n", i, tmbuf, tv.tv_usec);
-    nvme_qpair_print_command(qpair, &log_table->table[i].cmd);
+    // no timeval, empty slot, not print
+    struct timeval tv = table->table[index].time_cmd;
+    if (timercmp(&tv, &(struct timeval){0}, !=))
+    {
+      struct tm* time;
+      char tmbuf[64];
 
-    //cpl part
-    tv.tv_usec = log_table->table[i].cpl_latency_us;
-    timeradd(&log_table->table[i].time_cmd, &tv, &tv);
-    time = localtime(&tv.tv_sec);
-    strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
-    SPDK_NOTICELOG("index %d, %s.%06ld\n", i, tmbuf, tv.tv_usec);
-    nvme_qpair_print_completion(qpair, &log_table->table[i].cpl);
-  }
+      //cmd part
+      tv = table->table[index].time_cmd;
+      time = localtime(&tv.tv_sec);
+      strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
+      SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, tv.tv_usec);
+      nvme_qpair_print_command(qpair, &table->table[index].cmd);
+
+      //cpl part
+      tv.tv_usec = table->table[index].cpl_latency_us;
+      timeradd(&table->table[index].time_cmd, &tv, &tv);
+      time = localtime(&tv.tv_sec);
+      strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
+      SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, tv.tv_usec);
+      nvme_qpair_print_completion(qpair, &table->table[index].cpl);
+    }
+  } 
 }
 
 void log_cmd_dump_admin(struct spdk_nvme_ctrlr* ctrlr, size_t count)

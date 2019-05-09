@@ -1608,7 +1608,7 @@ def test_single_large_ioworker(nvme0n1):
 
 def test_admin_cmd_log(nvme0):
     nvme0.getfeatures(7).waitdone()
-    nvme0.cmdlog()
+    nvme0.cmdlog(5)
 
 
 @pytest.mark.skip(reason="cause spdk assert")
@@ -1928,7 +1928,7 @@ def test_ioworker_stress_multiple(nvme0n1, repeat):
     l = []
     for i in range(15):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             lba_random=True, qdepth=512,
+                             lba_random=True, qdepth=2,
                              read_percentage=100, time=1).start()
         l.append(a)
 

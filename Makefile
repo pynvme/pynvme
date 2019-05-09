@@ -68,18 +68,24 @@ reset:
 	-sudo rm -f /var/tmp/pynvme.sock*
 	-sudo fuser -k 4420/tcp
 
-setup: reset
-	-xhost +local:		# enable GUI with root/sudo
-	-sudo modprobe -r kvmgt  # rmmod vfio to speed up init
-	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh
+info:
 	sudo ./spdk/scripts/setup.sh status
 	sudo cat /sys/power/mem_sleep
 	sudo cat /proc/meminfo
 	sudo cat /proc/cpuinfo
 	sudo cat /etc/*release
+	sudo lspci -s ${pciaddr} -vv
 	df
 	whoami
 	groups
+	lspci
+	date
+	pwd
+
+setup: reset
+	-xhost +local:		# enable GUI with root/sudo
+	-sudo modprobe -r kvmgt  # rmmod vfio to speed up init
+	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh
 
 cython_lib:
 	@python3 setup.py build_ext -i --force
@@ -87,8 +93,12 @@ cython_lib:
 tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env
 
-test: setup
-	sudo python3 -B -m pytest driver_test.py --pciaddr=${pciaddr} -s -v -r Efsx 2>&1 | tee test.log
+pytest: setup info
+	sudo python3 -B -m pytest driver_test.py --pciaddr=${pciaddr} -s -v -r Efsx
+
+test:
+	-rm test.log
+	make pytest 2>test.log | tee -a test.log
 	cat test.log | grep "332 passed, 8 skipped, 1 xfailed, 2 warnings" || exit -1
 
 nvmt: setup      # create a NVMe/TCP target on 2 cores, based on memory bdev, for local test only

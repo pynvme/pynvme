@@ -6,11 +6,6 @@ driver_test:
     - echo $MAKE_TARGET
     - echo $SCRIPT_PATH
     - echo $DUT_PCIADDR
-    - whoami
-    - lspci
-    - sudo lspci -s $DUT_PCIADDR -vv
-    - date
-    - pwd
   script:
     - ./install.sh
     - make setup
@@ -19,5 +14,4 @@ driver_test:
     - make reset
     - make clean
   after_script:
-    - ls
     - date
