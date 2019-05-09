@@ -909,7 +909,7 @@ int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl)
 ///////////////////////////////
 
 struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
-                                      int prio, int depth)
+                                     int prio, int depth)
 {
   struct spdk_nvme_qpair* qpair;
   struct spdk_nvme_io_qpair_opts opts;
@@ -926,10 +926,11 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
     return NULL;
   }
 
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "created qpair %d\n", qpair->id);
+
   // limited qpair count
   if (qpair->id >= CMD_LOG_QPAIR_COUNT)
   {
-    SPDK_ERRLOG("not support so many queue pairs\n");
     spdk_nvme_ctrlr_free_io_qpair(qpair);
     return NULL;
   }
@@ -1350,6 +1351,11 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   struct ioworker_global_ctx gctx;
   struct ioworker_io_ctx* io_ctx = malloc(sizeof(struct ioworker_io_ctx)*args->qdepth);
 
+  assert(ns != NULL);
+  assert(qpair != NULL);
+  assert(args != NULL);
+  assert(rets != NULL);
+
   //init rets
   rets->io_count_read = 0;
   rets->io_count_write = 0;
@@ -1370,7 +1376,6 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.qdepth = %d\n", args->qdepth);
 
   //check args
-  assert(ns != NULL);
   assert(args->read_percentage <= 100);
   assert(args->io_count != 0 || args->seconds != 0);
   assert(args->seconds < 24*3600ULL);

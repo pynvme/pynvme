@@ -1425,7 +1425,6 @@ cdef class Qpair(object):
             raise QpairCreationError("depth should >= 2")
 
         self._qpair = d.qpair_create(nvme._ctrlr, prio, depth)
-        # print("created qpair: %x" % <unsigned long>self._qpair); sys.stdout.flush()
         if self._qpair is NULL:
             raise QpairCreationError("qpair create fail")
 
