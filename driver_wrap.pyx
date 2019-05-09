@@ -387,8 +387,10 @@ __version__ = "v19.05"
 # nvme command timeout, it's a warning
 # driver times out earlier than driver wrap
 _cTIMEOUT = 5
+_timeout_happened = False
 cdef void timeout_driver_cb(void* cb_arg, d.ctrlr* ctrlr,
                             d.qpair * qpair, unsigned short cid):
+    _timeout_happened = True
     error_string = "drive timeout: %d sec, qpair: %d, cid: %d" % \
         (_cTIMEOUT, d.qpair_get_id(qpair), cid)
     warnings.warn(error_string)
@@ -2111,6 +2113,10 @@ class _IOWorker(object):
             error = -1
             
         finally:
+            # checkout timeout event
+            if _timeout_happened:
+                error = -10
+                
             # feed return to main process
             rqueue.put((os.getpid(),
                         error,

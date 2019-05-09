@@ -8,10 +8,7 @@ driver_test:
     - echo $DUT_PCIADDR
   script:
     - ./install.sh
-    - make setup
     - make $MAKE_TARGET
     - make $MAKE_TARGET
-    - make reset
-    - make clean
   after_script:
-    - date
+    - make clean
