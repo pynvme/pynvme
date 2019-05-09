@@ -111,6 +111,9 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
     return -1;
   }
 
+  // avoid token 0
+  *g_driver_io_token_ptr = 1;
+  
   return 0;
 }
 
@@ -523,7 +526,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
   // find msix capability
   msix_base = intc_find_msix(pci);
   spdk_pci_device_cfg_read16(pci, &control, msix_base+2);
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix control: 0x%x\n", control);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix control: 0x%x\n", control);
 
   // the controller has enough verctors for all qpairs
   assert((control&0x7ff) > CMD_LOG_QPAIR_COUNT);
@@ -531,7 +534,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
   // find address of msix table, should in BAR0
   spdk_pci_device_cfg_read32(pci, &table_offset, msix_base+4);
   assert((table_offset&0x7) == 0);
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix vector table address: 0x%x\n", table_offset);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix vector table address: 0x%x\n", table_offset);
 
   // fill msix_data address in msix table, one entry for one qpair, disable
   for (uint32_t i=0; i<CMD_LOG_QPAIR_COUNT; i++)
@@ -972,6 +975,11 @@ struct spdk_nvme_ns* ns_init(struct spdk_nvme_ctrlr* ctrlr, uint32_t nsid)
   }
 
   return ns;
+}
+
+int ns_refresh(struct spdk_nvme_ns *ns, uint32_t id, struct spdk_nvme_ctrlr *ctrlr)
+{
+  return nvme_ns_construct(ns, id, ctrlr);
 }
 
 int ns_cmd_read_write(int is_read,

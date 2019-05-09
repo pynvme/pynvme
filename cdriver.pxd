@@ -126,6 +126,7 @@ cdef extern from "driver.h":
     int qpair_free(qpair * q)
 
     namespace * ns_init(ctrlr * c, unsigned int nsid)
+    int ns_refresh(namespace * ns, unsigned int nsid, ctrlr * c)
     int ns_cmd_read_write(bint is_read,
                           namespace * ns,
                           qpair * qpair,
@@ -139,7 +140,7 @@ cdef extern from "driver.h":
     unsigned int ns_get_sector_size(namespace * ns)
     unsigned long ns_get_num_sectors(namespace * ns)
     int ns_fini(namespace * ns)
-
+    
     void crc32_clear(unsigned long lba, unsigned long lba_count, bint sanitize, bint uncorr)
     int ioworker_entry(namespace* ns,
                        qpair* qpair,

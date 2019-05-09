@@ -129,6 +129,7 @@ extern int qpair_get_id(struct spdk_nvme_qpair* q);
 extern int qpair_free(struct spdk_nvme_qpair* q);
 
 extern namespace* ns_init(ctrlr* c, unsigned int nsid);
+extern int ns_refresh(struct spdk_nvme_ns *ns, uint32_t id, struct spdk_nvme_ctrlr *ctrlr);
 extern int ns_cmd_read_write(int is_read,
                              struct spdk_nvme_ns* ns,
                              struct spdk_nvme_qpair *qpair,

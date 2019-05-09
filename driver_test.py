@@ -1884,14 +1884,44 @@ def test_ioworker_address_region_512(nvme0, nvme0n1, start, length):
     assert read_buf[:] == b[:]
 
 
+@pytest.mark.parametrize("lba_size", [512, 4096])
+@pytest.mark.parametrize("repeat", range(2))
+def test_write_4k_lba(nvme0, nvme0n1, lba_size, repeat):
+    nvme0n1.format(lba_size)
+
+    q = d.Qpair(nvme0, 10)
+    zb = d.Buffer()  # zero buffer
+    buf = d.Buffer()
+    lba_start = 8
+
+    # no data 
+    nvme0n1.read(q, buf, lba_start).waitdone()
+    assert buf[:] == zb[:]
+    
+    # write
+    nvme0n1.write(q, buf, lba_start, 4096//lba_size).waitdone()
+    
+    # verify
+    nvme0n1.read(q, buf, lba_start).waitdone()
+    assert buf[:] != zb[:]
+    
+    # compare
+    nvme0n1.compare(q, buf, lba_start).waitdone()
+    with pytest.warns(UserWarning, match="ERROR status: 02/85"):
+        nvme0n1.compare(q, zb, lba_start).waitdone()
+
+    assert buf[0] == lba_start
+    print(buf.dump())
+
+
 @pytest.mark.parametrize("start", [8, 16])
 @pytest.mark.parametrize("length", [8, 16])
 def test_ioworker_address_region_4k(nvme0, nvme0n1, start, length):
     nvme0.format().waitdone()
 
     q = d.Qpair(nvme0, 10)
-    b = d.Buffer(512)  # zero buffer
-    read_buf = d.Buffer(512)
+    b = d.Buffer()  # zero buffer
+    read_buf = d.Buffer()
 
     with nvme0n1.ioworker(io_size=8, io_count=length,
                           lba_align=8, lba_random=False,

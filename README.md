@@ -153,7 +153,7 @@ nvme0 = d.Controller(b"01:00.0")  # initialize NVMe controller with its PCIe BDF
 id_buf = d.Buffer(4096)  # allocate the buffer
 nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  # read namespace identify data into buffer
 nvme0.waitdone()  # nvme commands are executed asynchronously, so we have to wait the completion before access the id_buf.
-id_buf.dump()   # print the whole buffer
+print(id_buf.dump())   # print the whole buffer
 ```
 
 In order to write test scripts more efficently, pynvme provides pytest fixtures. We can write more in intuitive test scripts. Example
@@ -164,7 +164,7 @@ import nvme as d
 def test_dump_namespace_identify_data(nvme0):
     id_buf = d.Buffer()
     nvme0.identify(id_buf, nsid=0xffff_ffff, cns=1).waitdone()
-    id_buf.dump()
+    print(id_buf.dump())
 ```
 
 The pytest can collect and execute these test scripts in both command line and IDE (e.g. VSCode). Example:
@@ -376,7 +376,7 @@ __Returns__
 ```python
 Buffer.dump(self, size)
 ```
-print the buffer content
+get the buffer content
 
 __Attributes__
 
@@ -882,6 +882,26 @@ __Returns__
 __Raises__
 
 - `SystemError`: the command fails
+
+### format
+```python
+Namespace.format(self, data_size, meta_size, ses)
+```
+change the format of this namespace
+
+__Attributes__
+
+- `data_size (int)`: data size. Default: 512
+- `meta_size (int)`: meta data size. Default: 0
+- `ses (int)`: ses field in the command. Default: 0, no secure erase
+
+__Returns__
+
+`(int or None)`: the lba format has the specified data size and meta data size
+
+__Notices__
+
+    this facility not only sends format admin command, but also updates driver to activate new format immediately
 
 ### get_lba_format
 ```python
