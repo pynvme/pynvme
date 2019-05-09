@@ -56,7 +56,7 @@ all: cython_lib
 .PHONY: all spdk doc debug
 
 spdk:
-	cd spdk; ./configure --enable-debug --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
+	cd spdk; make clean; ./configure --enable-debug --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
 
 doc: cython_lib
 	pydocmd simple nvme++ > README.md

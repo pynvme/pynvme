@@ -111,8 +111,11 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
     return -1;
   }
 
-  // avoid token 0
-  *g_driver_io_token_ptr = 1;
+  if (spdk_process_is_primary())
+  {
+    // avoid token 0
+    *g_driver_io_token_ptr = 1;
+  }
   
   return 0;
 }
