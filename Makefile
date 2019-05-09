@@ -94,7 +94,7 @@ tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env
 
 pytest: setup info
-	sudo python3 -B -m pytest driver_test.py --pciaddr=${pciaddr} -s -v -r Efsx
+	sudo python3 -B -m pytest driver_test.py --pciaddr=${pciaddr} -s -x -v -r Efsx
 
 test:
 	-rm test.log

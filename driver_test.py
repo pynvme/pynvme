@@ -1884,7 +1884,7 @@ def test_ioworker_address_region_512(nvme0, nvme0n1, start, length):
     assert read_buf[:] == b[:]
 
 
-@pytest.mark.parametrize("lba_size", [512, 4096])
+@pytest.mark.parametrize("lba_size", [4096, 512])
 @pytest.mark.parametrize("repeat", range(2))
 def test_write_4k_lba(nvme0, nvme0n1, lba_size, repeat):
     nvme0n1.format(lba_size)

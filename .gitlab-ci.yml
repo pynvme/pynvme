@@ -11,4 +11,5 @@ driver_test:
     - make $MAKE_TARGET
     - make $MAKE_TARGET
   after_script:
+    - mv test.log ../
     - make clean
