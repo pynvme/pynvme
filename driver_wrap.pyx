@@ -89,7 +89,7 @@ System Requirement
 ------------------
 1. CPU: x86_64
 2. OS: Linux, recommend Fedora 29, Ubuntu is also tested
-3. Memory: 8GB or larger, 2MB hugepage size. 
+3. Memory: 8GB or larger, 2MB hugepage size.
 4. SATA: install OS and pynvme in a SATA drive.
 5. NVMe: NVMe SSD is the device to be tested. Backup your data!
 6. Python3. Python2 is not supported.
@@ -1610,7 +1610,7 @@ cdef class Namespace(object):
         lbaf = self.get_lba_format(data_size, meta_size)
         self._nvme.format(lbaf, ses, self._nsid).waitdone()
         d.ns_refresh(self._ns, self._nsid, self._nvme._ctrlr)
-    
+
     def get_lba_format(self, data_size=512, meta_size=0):
         """find the lba format by its data size and meta data size
 
@@ -2129,12 +2129,12 @@ class _IOWorker(object):
             logging.warning(e)
             warnings.warn(e)
             error = -1
-            
+
         finally:
             # checkout timeout event
             if _timeout_happened:
                 error = -10
-                
+
             # feed return to main process
             rqueue.put((os.getpid(),
                         error,
@@ -2143,13 +2143,13 @@ class _IOWorker(object):
                         output_io_per_latency))
 
             # close resources in right order
-            nvme0n1.close()
+            if 'nvme0n1' in locals():
+                nvme0n1.close()
 
             # delete resources
             if 'qpair' in locals():
                 del qpair
-            del nvme0n1
-            del nvme0
+                import gc; gc.collect()
 
             if args.io_counter_per_second:
                 PyMem_Free(args.io_counter_per_second)
