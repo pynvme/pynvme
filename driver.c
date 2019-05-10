@@ -663,11 +663,11 @@ static void attach_cb(void *cb_ctx,
 {
 	const struct spdk_nvme_ctrlr_data *cdata = spdk_nvme_ctrlr_get_data(ctrlr);
 
-  SPDK_INFOLOG(SPDK_LOG_NVME,
-               "attached device %s: %s, %d namespaces, pid %d\n",
-               trid->traddr, cdata->mn,
-               spdk_nvme_ctrlr_get_num_ns(ctrlr),
-               getpid());
+  SPDK_DEBUGLOG(SPDK_LOG_NVME,
+                "attached device %s: %s, %d namespaces, pid %d\n",
+                trid->traddr, cdata->mn,
+                spdk_nvme_ctrlr_get_num_ns(ctrlr),
+                getpid());
 
   ((struct cb_ctx*)cb_ctx)->ctrlr = ctrlr;
 }

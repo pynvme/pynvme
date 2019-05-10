@@ -1959,7 +1959,7 @@ def test_ioworker_stress_multiple(nvme0n1, repeat):
     for i in range(15):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
                              lba_random=True, qdepth=2,
-                             read_percentage=100, time=1).start()
+                             read_percentage=100, time=2).start()
         l.append(a)
 
     for a in l:

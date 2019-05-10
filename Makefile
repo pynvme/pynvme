@@ -84,8 +84,7 @@ info:
 
 setup: reset
 	-xhost +local:		# enable GUI with root/sudo
-	-sudo modprobe -r kvmgt  # rmmod vfio to speed up init
-	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh
+	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh  	# use UIO only
 
 cython_lib:
 	@python3 setup.py build_ext -i --force
