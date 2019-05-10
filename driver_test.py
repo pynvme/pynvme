@@ -1170,7 +1170,7 @@ def test_ioworker_output_io_per_second_consistency(nvme0n1, nvme0):
         w.iops_consistency()
 
 
-@pytest.mark.parametrize('depth', [256, 512, 1022])
+@pytest.mark.parametrize('depth', [256, 512, 1023])
 def test_ioworker_huge_qdepth(nvme0, nvme0n1, depth):
     # """test huge queue in ioworker"""
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
@@ -1189,7 +1189,7 @@ def test_ioworker_fill_driver(nvme0, nvme0n1):
 
 def test_ioworker_deepest_qdepth(nvme0n1):
     nvme0n1.ioworker(io_size=8, lba_align=64,
-                     lba_random=False, qdepth=1022,
+                     lba_random=False, qdepth=1023,
                      read_percentage=100, time=2).start().close()
 
 
@@ -1953,13 +1953,26 @@ def test_ioworker_stress(nvme0n1):
             pass
 
 
+@pytest.mark.parametrize("repeat", range(10))
+def test_ioworker_stress_multiple_small(nvme0n1, repeat):
+    l = []
+    for i in range(15):
+        a = nvme0n1.ioworker(io_size=8, lba_align=8,
+                             lba_random=True, qdepth=3,
+                             read_percentage=100, time=1).start()
+        l.append(a)
+
+    for a in l:
+        r = a.close()
+
+
 @pytest.mark.parametrize("repeat", range(100))
 def test_ioworker_stress_multiple(nvme0n1, repeat):
     l = []
     for i in range(15):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             lba_random=True, qdepth=2,
-                             read_percentage=100, time=2).start()
+                             lba_random=True, qdepth=30,
+                             read_percentage=100, time=1).start()
         l.append(a)
 
     for a in l:
@@ -1970,7 +1983,7 @@ def test_ioworker_longtime(nvme0n1, verify):
     l = []
     for i in range(2):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             lba_random=True, qdepth=6,
+                             lba_random=True, qdepth=2,
                              read_percentage=100, time=60*60).start()
         l.append(a)
 
@@ -1978,12 +1991,15 @@ def test_ioworker_longtime(nvme0n1, verify):
         r = a.close()
 
 
-def test_ioworker_longtime_deep(nvme0n1, verify):
+@pytest.mark.parametrize("lba_size", [4096, 512])
+def test_ioworker_longtime_deep(nvme0, nvme0n1, lba_size, verify):
+    nvme0n1.format(lba_size)
+
     l = []
     for i in range(2):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             lba_random=True, qdepth=1022, # deep queue made test not stop
-                             read_percentage=100, time=20*60).start()
+                             lba_random=True, qdepth=1023, # deep queue made test not stop
+                             read_percentage=100, time=10*60).start()
         l.append(a)
 
     for a in l:

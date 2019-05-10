@@ -1666,7 +1666,7 @@ cdef class Namespace(object):
         """
 
         assert not (time==0 and io_count==0), "when to stop the ioworker?"
-        assert qdepth>0 and qdepth<=1022, "support qdepth upto 1022"
+        assert qdepth>0 and qdepth<=1023, "support qdepth upto 1023"
         assert qdepth <= (self._nvme[0]&0xffff) + 1, "qdepth is larger than specification"
         assert region_start < region_end, "region end is not included"
 
@@ -1674,7 +1674,7 @@ cdef class Namespace(object):
         nsid = self._nsid
         return _IOWorker(pciaddr, nsid, lba_start, io_size, lba_align,
                          lba_random, region_start, region_end,
-                         read_percentage, iops, io_count, time, qdepth+1, qprio,
+                         read_percentage, iops, io_count, time, qdepth, qprio,
                          output_io_per_second, output_percentile_latency)
 
     def read(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
