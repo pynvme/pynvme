@@ -1953,12 +1953,12 @@ def test_ioworker_stress(nvme0n1):
             pass
 
 
-@pytest.mark.parametrize("repeat", range(100))
+@pytest.mark.parametrize("repeat", range(200))
 def test_ioworker_stress_multiple_small(nvme0n1, repeat):
     l = []
-    for i in range(15):
+    for i in range(7):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             lba_random=True, qdepth=2,
+                             lba_random=True, qdepth=8,
                              read_percentage=100, time=1).start()
         l.append(a)
 
