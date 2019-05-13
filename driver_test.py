@@ -1894,17 +1894,17 @@ def test_write_4k_lba(nvme0, nvme0n1, lba_size, repeat):
     buf = d.Buffer()
     lba_start = 8
 
-    # no data
+    # no data 
     nvme0n1.read(q, buf, lba_start).waitdone()
     assert buf[:] == zb[:]
-
+    
     # write
     nvme0n1.write(q, buf, lba_start, 4096//lba_size).waitdone()
-
+    
     # verify
     nvme0n1.read(q, buf, lba_start).waitdone()
     assert buf[:] != zb[:]
-
+    
     # compare
     nvme0n1.compare(q, buf, lba_start).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
@@ -1948,9 +1948,10 @@ def test_ioworker_stress(nvme0n1):
     for i in range(1000):
         logging.info(i)
         with nvme0n1.ioworker(io_size=8, lba_align=8,
-                              lba_random=False, io_count=1,
+                              lba_random=False, io_count=1, 
                               qdepth=16, read_percentage=100):
             pass
+
 
 
 @pytest.mark.parametrize("repeat", range(200))
@@ -1970,7 +1971,7 @@ def test_ioworker_longtime(nvme0n1, verify):
     l = []
     for i in range(2):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             lba_random=True, qdepth=64,
+                             lba_random=True, qdepth=2,
                              read_percentage=100, time=60*60).start()
         l.append(a)
 
