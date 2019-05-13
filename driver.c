@@ -116,7 +116,7 @@ static int memzone_reserve_shared_memory(uint64_t table_size)
     // avoid token 0
     *g_driver_io_token_ptr = 1;
   }
-  
+
   return 0;
 }
 
@@ -284,7 +284,7 @@ struct cmd_log_entry_t {
   struct spdk_nvme_cpl cpl;
   uint32_t cpl_latency_us;
   uint32_t dummy;
-  
+
   // for data verification after read
   void* buf;
 
@@ -1583,7 +1583,7 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
       SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, tv.tv_usec);
       nvme_qpair_print_completion(qpair, &table->table[index].cpl);
     }
-  } 
+  }
 }
 
 void log_cmd_dump_admin(struct spdk_nvme_ctrlr* ctrlr, size_t count)

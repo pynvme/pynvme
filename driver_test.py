@@ -501,13 +501,16 @@ def test_sanitize_basic(nvme0, nvme0n1):
 
     logging.info("supported sanitize operation: %d" % buf.data(331, 328))
     nvme0.sanitize().waitdone()
-    # sanitize status log page
-    nvme0.getlogpage(0x81, buf, 20).waitdone()
-    while buf.data(3, 2) & 0x7 != 1:  # sanitize is not completed
-        logging.info("sanitize progress %d%%" % (buf.data(1, 0)*100//0xffff))
-        nvme0.getlogpage(0x81, buf, 20).waitdone()
-        time.sleep(1)
 
+    # aer should happen after sanitize done
+    with pytest.warns(UserWarning, match="AER notification is triggered"):
+        # sanitize status log page
+        nvme0.getlogpage(0x81, buf, 20).waitdone()
+        while buf.data(3, 2) & 0x7 != 1:  # sanitize is not completed
+            logging.info("sanitize progress %d%%" % (buf.data(1, 0)*100//0xffff))
+            nvme0.getlogpage(0x81, buf, 20).waitdone()
+            time.sleep(1)
+    
     logging.info("verify data after sanitize")
     q = d.Qpair(nvme0, 8)
     nvme0n1.read(q, buf, 11, 1).waitdone()
@@ -1333,7 +1336,7 @@ def test_ioworker_iops_confliction_read_write_mix(nvme0n1, verify):
 
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
         w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
-                             lba_random=False,
+                             lba_random=True,
                              region_start=0, region_end=1000,
                              read_percentage=50,
                              iops=0, io_count=0, time=1,
@@ -1894,17 +1897,17 @@ def test_write_4k_lba(nvme0, nvme0n1, lba_size, repeat):
     buf = d.Buffer()
     lba_start = 8
 
-    # no data 
+    # no data
     nvme0n1.read(q, buf, lba_start).waitdone()
     assert buf[:] == zb[:]
-    
+
     # write
     nvme0n1.write(q, buf, lba_start, 4096//lba_size).waitdone()
-    
+
     # verify
     nvme0n1.read(q, buf, lba_start).waitdone()
     assert buf[:] != zb[:]
-    
+
     # compare
     nvme0n1.compare(q, buf, lba_start).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
@@ -1948,14 +1951,13 @@ def test_ioworker_stress(nvme0n1):
     for i in range(1000):
         logging.info(i)
         with nvme0n1.ioworker(io_size=8, lba_align=8,
-                              lba_random=False, io_count=1, 
+                              lba_random=False, io_count=1,
                               qdepth=16, read_percentage=100):
             pass
 
 
-
 @pytest.mark.parametrize("repeat", range(200))
-def test_ioworker_stress_multiple_small(nvme0n1, repeat):
+def _test_ioworker_stress_multiple_small(nvme0n1, repeat):
     l = []
     for i in range(7):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
@@ -1971,7 +1973,7 @@ def test_ioworker_longtime(nvme0n1, verify):
     l = []
     for i in range(2):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             lba_random=True, qdepth=2,
+                             lba_random=True, qdepth=64,
                              read_percentage=100, time=60*60).start()
         l.append(a)
 
