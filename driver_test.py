@@ -1957,7 +1957,7 @@ def test_ioworker_stress(nvme0n1):
 
 
 @pytest.mark.parametrize("repeat", range(200))
-def _test_ioworker_stress_multiple_small(nvme0n1, repeat):
+def test_ioworker_stress_multiple_small(nvme0n1, repeat):
     l = []
     for i in range(7):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
