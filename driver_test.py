@@ -417,6 +417,11 @@ def test_dsm_trim_and_read(nvme0, nvme0n1):
     buf[10] = 1
     nvme0n1.write(q, buf, 0, 8).waitdone()
 
+    # verify data, non empty
+    logging.info("compare")
+    with pytest.warns(UserWarning, match="ERROR status: 02/85"):
+        nvme0n1.compare(q, empty_buf, 0, 8).waitdone()
+
     # trim lba 0
     logging.info("trim lba 0")
     buf.set_dsm_range(0, 0, 8)
