@@ -2065,7 +2065,7 @@ class _IOWorker(object):
 
     def _ioworker(self, rqueue, locker, pciaddr, nsid, lba_start, lba_size,
                   lba_align, lba_random, region_start, region_end,
-                  read_percentage, iops, io_count, time, qdepth, qprio,
+                  read_percentage, iops, io_count, seconds, qdepth, qprio,
                   output_io_per_second, output_percentile_latency):
         cdef d.ioworker_args args
         cdef d.ioworker_rets rets
@@ -2087,9 +2087,9 @@ class _IOWorker(object):
 
             # create array for output data: io counter per second
             if output_io_per_second is not None:
-                assert time != 0, "need time duration to collect io counter per second data"
-                args.io_counter_per_second = <unsigned int*>PyMem_Malloc(time*sizeof(unsigned int))
-                memset(args.io_counter_per_second, 0, time*sizeof(unsigned int))
+                assert seconds != 0, "need time duration to collect io counter per second data"
+                args.io_counter_per_second = <unsigned int*>PyMem_Malloc(seconds*sizeof(unsigned int))
+                memset(args.io_counter_per_second, 0, seconds*sizeof(unsigned int))
 
             # create array for output data: io counter per latency
             if output_percentile_latency is not None:
@@ -2106,21 +2106,24 @@ class _IOWorker(object):
             args.read_percentage = read_percentage
             args.iops = iops
             args.io_count = io_count
-            args.seconds = time
+            args.seconds = seconds
             args.qdepth = qdepth
 
-            # runtime in subprocess
+            # ready
             with locker:
                 nvme0 = Controller(pciaddr)
                 nvme0n1 = Namespace(nvme0, nsid)
                 qpair = Qpair(nvme0, max(2, qdepth), qprio)
 
-            # ioworker main roution
+            # set
+            time.sleep(1)
+            
+            # go
             error = d.ioworker_entry(nvme0n1._ns, qpair._qpair, &args, &rets)
 
             # transfer back iops counter per second: c => cython
             if output_io_per_second is not None:
-                for i in range(time):
+                for i in range(seconds):
                     output_io_per_second.append(args.io_counter_per_second[i])
 
             # transfer back percentile latency: c => cython
