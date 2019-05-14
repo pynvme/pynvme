@@ -692,9 +692,11 @@ def test_subsystem_shutdown_notify(nvme0, subsystem, repeat):
     logging.info("power cycles: %d" % powercycle)
 
     subsystem.shutdown_notify()
+    nvme0.reset()
     assert powercycle == get_power_cycles(nvme0)
 
     subsystem.shutdown_notify(True)
+    nvme0.reset()
     assert powercycle == get_power_cycles(nvme0)
 
 
