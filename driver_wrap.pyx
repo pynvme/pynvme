@@ -914,6 +914,7 @@ cdef class Controller(object):
             logging.debug("wait csts.rdy, 0x%x" % self[0x1c])
 
         logging.debug("cc.en 0=>1")
+        cc = self[0x14]
         self[0x14] = cc | 1
         while (self[0x1c] & 1) == 0:
             logging.debug("wait csts.rdy, 0x%x" % self[0x1c])
