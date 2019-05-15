@@ -276,7 +276,7 @@ void buffer_fini(void* buf)
 // CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
 // reserved one slot space for tail value
 #define CMD_LOG_DEPTH              (2048-1)  
-#define CMD_LOG_QPAIR_COUNT        (8)
+#define CMD_LOG_QPAIR_COUNT        (16)
 
 struct cmd_log_entry_t {
   // cmd and cpl

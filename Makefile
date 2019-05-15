@@ -81,6 +81,8 @@ info:
 	lspci
 	date
 	pwd
+	git status -sb
+	git --no-pager log -1
 
 setup: reset
 	-xhost +local:		# enable GUI with root/sudo

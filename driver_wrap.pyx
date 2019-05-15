@@ -632,6 +632,11 @@ cdef class Subsystem(object):
             abrupt (bool): it will be an abrupt shutdown (return immediately) or clean shutdown (wait shutdown completely)
         """
 
+        # refer to spec 7.6.2, host delay is recommended
+        rtd3e = self._nvme.id_data(91, 88)
+        if rtd3e == 0:
+            rtd3e = 1000_000
+
         # cc.chn
         cc = self._nvme[0x14]
         if abrupt:
@@ -640,13 +645,8 @@ cdef class Subsystem(object):
             cc = cc | 0x4000
         self._nvme[0x14] = cc
 
-        # refer to spec 7.6.2, host delay is recommended
-        rtd3e = self._nvme.id_data(91, 88)
-        if rtd3e == 0:
-            rtd3e = 1000_000
-        time.sleep(rtd3e/1000_000)
-
         # csts.shst: wait shutdown processing is complete
+        time.sleep(rtd3e/1000_000)
         while (self._nvme[0x1c] & 0xc) != 0x8: pass
         logging.debug("shutdown completed")
 
@@ -1671,7 +1671,7 @@ cdef class Namespace(object):
         """
 
         assert not (time==0 and io_count==0), "when to stop the ioworker?"
-        assert qdepth>0 and qdepth<=1023, "support qdepth upto 1023"
+        assert qdepth>=2 and qdepth<=1023, "support qdepth upto 1023"
         assert qdepth <= (self._nvme[0]&0xffff) + 1, "qdepth is larger than specification"
         assert region_start < region_end, "region end is not included"
 
