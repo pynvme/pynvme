@@ -61,14 +61,12 @@ def test_read_lba_data(nvme0, nvme0n1):
     sg_show_hex_buffer(b)
 
     
-def test_sanitize(nvme0, nvme0n1):
-    buf = d.Buffer()
-    nvme0.identify(buf).waitdone()
-    if buf.data(331, 328) == 0:
+def test_sanitize(nvme0, nvme0n1, buf):
+    if nvme0.id_data(331, 328) == 0:
         warnings.warn("sanitize operation is not supported")
         return
 
-    logging.info("supported sanitize operation: %d" % buf.data(331, 328))
+    logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
     nvme0.sanitize().waitdone()
 
     # sanitize status log page
@@ -76,7 +74,7 @@ def test_sanitize(nvme0, nvme0n1):
     while buf.data(3, 2) & 0x7 != 1:  # sanitize is not completed
         progress = buf.data(1, 0)*100//0xffff
         sg.OneLineProgressMeter('sanitize progress', progress, 100,
-                                'key', orientation='h')
+                                'progress', orientation='h')
         nvme0.getlogpage(0x81, buf, 20).waitdone()
         time.sleep(1)
         

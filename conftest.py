@@ -61,6 +61,13 @@ def nvme0n1(nvme0):
     ret.close()
     del ret
 
+    
+@pytest.fixture(scope="session")
+def buf():
+    ret = d.Buffer(40967, "default buffer")
+    yield ret
+    del ret
+
 
 @pytest.fixture(scope="function")
 def aer(nvme0):
