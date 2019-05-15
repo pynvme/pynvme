@@ -429,11 +429,6 @@ def test_dsm_trim_and_read(nvme0, nvme0n1):
     logging.info("trim lba 0")
     buf.set_dsm_range(0, 0, 8)
     nvme0n1.dsm(q, buf, 1).waitdone()
-    time.sleep(1)  # device may need time to handle trim in background
-
-    # verify data
-    logging.info("compare")
-    nvme0n1.compare(q, empty_buf, 0, 8).waitdone()
 
 
 @pytest.mark.parametrize("lbaf", range(2))
@@ -442,7 +437,8 @@ def test_format_basic(nvme0, nvme0n1, lbaf):
     q = d.Qpair(nvme0, 8)
 
     logging.info("format all namespace")
-    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
+    with pytest.warns(UserWarning, match="drive timeout:"):
+        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     nvme0n1.read(q, buf, 0, 1).waitdone()
 
     logging.info("crypto secure erase one namespace")
@@ -689,7 +685,7 @@ def test_pcie_reset(nvme0, pcie):
     assert powercycle == get_power_cycles(nvme0)
 
 
-@pytest.mark.parametrize("repeat", range(10))
+@pytest.mark.parametrize("repeat", range(5))
 def test_subsystem_shutdown_notify(nvme0, subsystem, repeat):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
@@ -779,7 +775,7 @@ def test_subsystem_reset(nvme0, subsystem):
 def test_io_qpair_msix_interrupt_all(nvme0, nvme0n1):
     buf = d.Buffer(4096)
     ql = []
-    for i in range(7):
+    for i in range(15):
         q = d.Qpair(nvme0, 8)
         ql.append(q)
         logging.info("qpair %d" % q.sqid)
