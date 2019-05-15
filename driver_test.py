@@ -389,6 +389,11 @@ def test_write_and_compare(nvme0, nvme0n1):
     q = d.Qpair(nvme0, 8)
     buf = d.Buffer(4096)
 
+    #Check if support compare command
+    compare_support = nvme0.id_data(521, 520) & 0x1
+    if compare_support == 0:
+        pytest.skip("Not support compare command!")
+
     logging.info("write zeroes and then compare")
     nvme0n1.write_zeroes(q, 0, 8).waitdone()
     nvme0n1.compare(q, buf, 0, 8).waitdone()
@@ -412,6 +417,11 @@ def test_dsm_trim_and_read(nvme0, nvme0n1):
     empty_buf = d.Buffer(4096)
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
+
+    #Check if support compare command
+    compare_support = nvme0.id_data(521, 520) & 0x1
+    if compare_support == 0:
+        pytest.skip("Not support compare command!")
 
     # write lba 0
     buf[10] = 1
@@ -545,6 +555,11 @@ def test_dst_extended(nvme0):
 def test_write_uncorrectable(nvme0, nvme0n1):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
+
+    #Check if support write uncorrectable command
+    wuecc_support = nvme0.id_data(521, 520) & 0x2
+    if wuecc_support == 0:
+        pytest.skip("Not support write uncorrectable command!")
 
     logging.info("read uncorretable")
     nvme0n1.write_uncorrectable(q, 0, 8).waitdone()
