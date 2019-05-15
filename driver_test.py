@@ -110,13 +110,6 @@ def test_get_identify(nvme0, nvme0n1):
     assert nvme0n1.id_data(7, 0) == nvme0n1.id_data(15, 8)
     assert nvme0n1.id_data(23, 16) == nvme0n1.id_data(15, 8)
 
-    logging.info("common namespace data")
-    id_buf = d.Buffer(4096, 'identify buffer')
-    assert id_buf[0] == 0
-    nvme0.identify(id_buf, 0xffffffff, 0)
-    nvme0.waitdone()
-    assert id_buf[0] != 0
-
     logging.info("active namespace id data")
     id_buf = d.Buffer(4096, 'identify buffer')
     assert id_buf[0] == 0
@@ -137,6 +130,16 @@ def test_get_identify(nvme0, nvme0n1):
         nvme0.identify(id_buf, 0xffffff, 0).waitdone()
 
 
+@pytest.mark.skip("some may not support it")
+def test_get_identify_more(nvme0, nvme0n1):        
+    logging.info("common namespace data")
+    id_buf = d.Buffer(4096, 'identify buffer')
+    assert id_buf[0] == 0
+    nvme0.identify(id_buf, 0xffffffff, 0)
+    nvme0.waitdone()
+    assert id_buf[0] != 0
+
+        
 def test_get_pcie_config_class_code(nvme0):
     p = d.Pcie(nvme0)
     assert p[9:12] == [2, 8, 1]
@@ -717,6 +720,7 @@ def test_write_fua_latency(nvme0n1, nvme0):
 
     now = time.time()
     for i in range(100):
+        # write with FUA enabled
         nvme0n1.write(q, buf, 0, 8, 1<<30).waitdone()
     fua_time = time.time()-now
     logging.info("FUA write latency %fs" % fua_time)
@@ -759,7 +763,6 @@ def test_read_limited_retry(nvme0n1, nvme0):
     nvme0n1.read(q, buf, 0, 8, 1<<31).waitdone()
 
 
-# TODO: DUT-i pass, DUT-L hang, try more...
 @pytest.mark.skip(reason="limited support")
 def test_subsystem_reset(nvme0, subsystem):
     def get_power_cycles(nvme0):
@@ -776,7 +779,7 @@ def test_subsystem_reset(nvme0, subsystem):
 def test_io_qpair_msix_interrupt_all(nvme0, nvme0n1):
     buf = d.Buffer(4096)
     ql = []
-    for i in range(15):
+    for i in range(7):
         q = d.Qpair(nvme0, 8)
         ql.append(q)
         logging.info("qpair %d" % q.sqid)
@@ -1007,7 +1010,7 @@ def test_get_smart_data(nvme0):
     assert smart_buffer[2] == 0 or smart_buffer[2] == 1
 
 
-@pytest.mark.parametrize("loading", [0, 0])
+@pytest.mark.parametrize("loading", [0, 100])
 def test_aer_smart_temperature(nvme0, loading, aer):
     import time
     start_time = time.time()
@@ -1043,11 +1046,9 @@ def test_aer_smart_temperature(nvme0, loading, aer):
     assert smart_log.data(2, 1) != 0
     assert smart_log.data(2, 1) > 256
 
-    logging.info("it should be very fast (<5sec) to trigger aer: %ds" %
+    logging.info("it should be fast to trigger aer: %ds" %
                  (time.time()-start_time))
-    assert time.time()-start_time < 5.0
-
-    nvme0.reset()
+    assert time.time()-start_time < 15.0
 
 
 def test_abort_aer_commands(nvme0, aer):
@@ -1621,7 +1622,6 @@ def test_admin_cmd_log(nvme0):
     nvme0.cmdlog(5)
 
 
-@pytest.mark.skip(reason="cause spdk assert")
 def test_read_after_reset(nvme0, nvme0n1):
     b = d.Buffer()
     def read_cb(cdw0, status):
@@ -1765,7 +1765,6 @@ def test_command_supported_and_effect(nvme0, nvme0n1):
     assert not nvme0n1.supports(0xff)
 
 
-@pytest.mark.skip(reason="cause spdk assert")
 def test_reset_admin_io_mixed(nvme0, nvme0n1):
     test_ioworker_simplified(nvme0n1)
     test_read_after_reset(nvme0, nvme0n1)

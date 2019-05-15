@@ -33,6 +33,7 @@
 
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+#cython: linetrace=True
 #cython: language_level=3
 #cython: embedsignature=True
 
@@ -645,7 +646,7 @@ cdef class Subsystem(object):
             rtd3e = 1000_000
         time.sleep(rtd3e/1000_000)
 
-        # wait shutdown processing is complete
+        # csts.shst: wait shutdown processing is complete
         while (self._nvme[0x1c] & 0xc) != 0x8: pass
         logging.debug("shutdown completed")
 
@@ -655,6 +656,7 @@ cdef class Subsystem(object):
         # nssr.nssrc: nvme subsystem reset
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
         self._nvme[0x20] = 0x4E564D65  # "NVMe"
+        time.sleep(1)
         self._nvme._reinit()
 
 
@@ -908,7 +910,9 @@ cdef class Controller(object):
         cc = self[0x14]
         assert (cc & 1) == 1, "cc.en is not 1 before reset"
 
+        # clear cc.shn, and reset cc.en
         logging.debug("cc.en 1=>0")
+        cc = cc & (~0xc000)
         self[0x14] = cc & 0xfffffffe
         while (self[0x1c] & 1) == 1:
             logging.debug("wait csts.rdy, 0x%x" % self[0x1c])

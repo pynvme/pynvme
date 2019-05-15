@@ -274,8 +274,9 @@ void buffer_fini(void* buf)
 // log_table contains latest cmd and cpl and their timestamps
 // queue_table traces cmd log tables by queue pairs
 // CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
-#define CMD_LOG_DEPTH (2048-1)  // reserved one slot space for tail value
-#define CMD_LOG_QPAIR_COUNT (16)
+// reserved one slot space for tail value
+#define CMD_LOG_DEPTH              (2048-1)  
+#define CMD_LOG_QPAIR_COUNT        (8)
 
 struct cmd_log_entry_t {
   // cmd and cpl
