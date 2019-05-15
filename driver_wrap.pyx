@@ -623,7 +623,7 @@ cdef class Subsystem(object):
         logging.info("power is back")
 
         #reset driver
-        self._nvme._reinit()
+        self._nvme.reset()
 
     def shutdown_notify(self, abrupt=False):
         """notify nvme subsystem a shutdown event through register cc.chn

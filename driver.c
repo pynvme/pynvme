@@ -276,7 +276,7 @@ void buffer_fini(void* buf)
 // CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
 // reserved one slot space for tail value
 #define CMD_LOG_DEPTH              (2048-1)  
-#define CMD_LOG_QPAIR_COUNT        (16)
+#define CMD_LOG_QPAIR_COUNT        (32)
 
 struct cmd_log_entry_t {
   // cmd and cpl
@@ -531,9 +531,6 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
   msix_base = intc_find_msix(pci);
   spdk_pci_device_cfg_read16(pci, &control, msix_base+2);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix control: 0x%x\n", control);
-
-  // the controller has enough verctors for all qpairs
-  assert((control&0x7ff) > CMD_LOG_QPAIR_COUNT);
 
   // find address of msix table, should in BAR0
   spdk_pci_device_cfg_read32(pci, &table_offset, msix_base+4);
