@@ -85,21 +85,26 @@ Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-
 
 Test
 ----
-Setup SPDK runtime environment to remove kernel NVMe driver and enable SPDK NVMe driver. Now, we can try the tests of pynvme.
+Setup SPDK runtime environment to remove kernel NVMe driver and enable SPDK NVMe driver. Now, we can run tests!
 ```shell
 # backup your data in NVMe SSD before testing
 make setup
 make test
+make test TESTS=scripts
+make test TESTS=scripts/demo_test.py
+make test TESTS=scripts/utility_test.py::test_download_firmware
+```
+By default, it runs tests in driver_test.py. However, these are tests of pynvme itself, instead of SSD drives. Your DUT drive may fail in some test cases. Please add your tests in *scripts* directory.
+Test logs are saved in file *test.log*.
+
+After test, you may wish to bring kernel NVMe driver back like this:
+```shell
+make reset
 ```
 
 User can find pynvme documents in README.md, or use help() in python:
 ```shell
 sudo python3 -c "import nvme; help(nvme)"  # press q to quit
-```
-
-After test, you may wish to bring kernel NVMe driver back like this:
-```shell
-make reset
 ```
 
 
@@ -139,7 +144,7 @@ import nvme as d    # import pynvme's python package
 
 ```
 
-VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run test in shell or Emacs.
+VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run tests in command line, by *make test*.
 
 
 Tutorial
