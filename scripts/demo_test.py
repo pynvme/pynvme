@@ -33,7 +33,7 @@ def test_ioworker_with_temperature(nvme0, nvme0n1):
             
 def test_trim_basic(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
     GB = 1024*1024*1024
-    all_zeor_databuf = d.Buffer(512)
+    all_zero_databuf = d.Buffer(512)
     trimbuf = d.Buffer(4096)
     q = d.Qpair(nvme0, 32)
 
@@ -56,7 +56,7 @@ def test_trim_basic(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
 
     # verify data after write, data should be modified
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
-        nvme0n1.compare(q, all_zeor_databuf, start_lba).waitdone()
+        nvme0n1.compare(q, all_zero_databuf, start_lba).waitdone()
 
     # get the empty trim time
     trimbuf.set_dsm_range(0, 0, 0)
@@ -74,4 +74,4 @@ def test_trim_basic(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
     logging.info("trim bandwidth: %0.2fGB/s" % (10/trim_time))
 
     # verify after trim
-    nvme0n1.compare(q, all_zeor_databuf, start_lba).waitdone()
+    nvme0n1.compare(q, all_zero_databuf, start_lba).waitdone()

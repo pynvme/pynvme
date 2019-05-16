@@ -685,8 +685,7 @@ def test_pcie_reset(nvme0, pcie):
     assert powercycle == get_power_cycles(nvme0)
 
 
-@pytest.mark.parametrize("repeat", range(10))
-def test_subsystem_shutdown_notify(nvme0, subsystem, repeat):
+def test_subsystem_shutdown_notify(nvme0, subsystem):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
         nvme0.getlogpage(2, buf, 512).waitdone()
@@ -795,16 +794,14 @@ def test_io_qpair_msix_interrupt_mask(nvme0, nvme0n1):
     q.msix_clear()
     assert not q.msix_isset()
     nvme0n1.read(q, buf, 0, 8)
-    assert not q.msix_isset()
-    time.sleep(0.1)
+    time.sleep(1)
     assert q.msix_isset()
     q.waitdone()
 
     q.msix_clear()
     assert not q.msix_isset()
     nvme0n1.read(q, buf, 0, 8)
-    assert not q.msix_isset()
-    time.sleep(0.1)
+    time.sleep(1)
     assert q.msix_isset()
     q.waitdone()
 
@@ -827,8 +824,7 @@ def test_io_qpair_msix_interrupt_mask(nvme0, nvme0n1):
     assert not q.msix_isset()
     assert not q2.msix_isset()
     nvme0n1.read(q2, buf, 0, 8)
-    assert not q2.msix_isset()
-    time.sleep(0.1)
+    time.sleep(1)
     assert not q.msix_isset()
     assert q2.msix_isset()
     q2.waitdone()
@@ -1895,10 +1891,10 @@ def test_ioworker_stress(nvme0n1):
 @pytest.mark.parametrize("repeat", range(200))
 def test_ioworker_stress_multiple_small(nvme0n1, repeat):
     l = []
-    for i in range(15):
+    for i in range(16):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
                              lba_random=True, qdepth=8,
-                             read_percentage=100, time=1).start()
+                             read_percentage=100, time=2).start()
         l.append(a)
 
     for a in l:

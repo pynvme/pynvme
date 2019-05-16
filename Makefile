@@ -46,6 +46,8 @@ pciaddr=$(shell lspci | grep 'Non-Volatile memory' | grep -o '..:..\..' | head -
 #reserve memory for driver
 memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%4)/2}')
 
+#pytest test targets
+TESTS := driver_test.py
 
 #cython part
 clean: cython_clean
@@ -95,7 +97,7 @@ tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env
 
 pytest: setup info
-	sudo python3 -B -m pytest driver_test.py --pciaddr=${pciaddr} -s -x -v -r Efsx
+	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -x -v -r Efsx
 
 test:
 	-rm test.log
