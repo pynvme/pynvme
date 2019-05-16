@@ -1041,8 +1041,8 @@ def test_ioworker_maximum(nvme0n1):
     wl = []
     start_time = time.time()
 
-    # support upto 16 qpairs, 1 admin, 15 io queues
-    for i in range(15):
+    # support upto 16 io qpairs
+    for i in range(16):
         a = nvme0n1.ioworker(io_size=8, lba_align=16,
                              lba_random=False, qdepth=16,
                              read_percentage=100, time=10)
