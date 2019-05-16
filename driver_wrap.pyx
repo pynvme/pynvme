@@ -2010,7 +2010,8 @@ class _IOWorker(object):
 
         if error != 0:
             warnings.warn(f"ioworker host ERROR {error}")
-        elif rets.error != 0:
+            
+        if rets.error != 0:
             warnings.warn("ioworker device ERROR status: %02x/%02x" %
                           ((rets.error>>8)&0x7, rets.error&0xff))
 
@@ -2158,13 +2159,18 @@ class _IOWorker(object):
 
             with locker:
                 # close resources in right order
-                nvme0n1.close()
+                if 'nvme0n1' in locals():
+                    nvme0n1.close()
 
                 # delete resources
                 if 'qpair' in locals():
                     del qpair
-                del nvme0n1
-                del nvme0
+
+                if 'nvme0n1' in locals():
+                    del nvme0n1
+
+                if 'nvme0' in locals():
+                    del nvme0
 
             if args.io_counter_per_second:
                 PyMem_Free(args.io_counter_per_second)

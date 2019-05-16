@@ -1219,7 +1219,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
     // terminate ioworker when any error happen
     // only keep the first error code
     uint16_t error = ((*(unsigned short*)(&cpl->status))>>1)&0x7ff;
-    SPDK_DEBUGLOG(SPDK_LOG_NVME, "ioworker error happen in cpl\n");
+    SPDK_NOTICELOG("ioworker error happen in cpl, error %x\n", error);
     gctx->flag_finish = true;
     if (rets->error == 0)
     {
@@ -1318,7 +1318,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
                           ioworker_one_cb, ctx);
   if (ret != 0)
   {
-    SPDK_NOTICELOG("ioworker error happen in cpl\n");
+    SPDK_NOTICELOG("ioworker error happen in sending cmd\n");
     gctx->flag_finish = true;
     return ret;
   }
