@@ -384,11 +384,11 @@ static void cmd_log_finish(void)
 }
 
 
-void cmdlog_cmd_cpl(void* cb_ctx, struct spdk_nvme_cpl* cpl)
+void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
 {
   struct timeval diff;
   struct timeval now;
-  struct cmd_log_entry_t* log_entry = (struct cmd_log_entry_t*)cb_ctx;
+  struct cmd_log_entry_t* log_entry = req->cmdlog_entry;
 
   assert(cpl != NULL);
   assert(log_entry != NULL);
@@ -396,11 +396,10 @@ void cmdlog_cmd_cpl(void* cb_ctx, struct spdk_nvme_cpl* cpl)
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
 
   //check if the log entry is still for this completed cmd
-  if (log_entry->req == NULL ||
-      log_entry->req->cb_arg != log_entry)
+  if (log_entry->req == NULL || log_entry->req != req)
   {
-    //it's a overlapped entry, just skip cmdlog cb
-    SPDK_DEBUGLOG(SPDK_LOG_NVME, "log entry %p is overlapped, skip it\n", log_entry);
+    //it's an overlapped entry, just skip cmdlog callback
+    SPDK_NOTICELOG("skip overlapped cmdlog entry %p\n", log_entry);
     return;
   }
 
@@ -442,8 +441,8 @@ void cmdlog_cmd_cpl(void* cb_ctx, struct spdk_nvme_cpl* cpl)
   //recover callback argument
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "recover req %p cb arg, entry %p, old %p, new %p\n",
                 log_entry->req, log_entry, log_entry->req->cb_arg, log_entry->cb_arg);
-  log_entry->req->cb_arg = log_entry->cb_arg;
   log_entry->req = NULL;
+  req->cmdlog_entry = NULL;
 }
 
 
@@ -459,17 +458,14 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
   assert(qid < CMD_LOG_QPAIR_COUNT);
   assert(log_table != NULL);
   assert(tail_index < CMD_LOG_DEPTH);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog: add cmd %s\n", \
-                               cmd_name(req->cmd.opc, qid==0?0:1));
+  
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog: add cmd %s\n", cmd_name(req->cmd.opc, qid==0?0:1));
 
   if (log_entry->req != NULL)
   {
-    //this entry is overlapped before complete
-    SPDK_NOTICELOG("uncompleted cmd in cmdlog:\n");
+    // this entry is overlapped before command complete
+    SPDK_NOTICELOG("uncompleted cmd in cmdlog: %p\n", log_entry);
     nvme_qpair_print_command(qpair, &log_entry->cmd);
-
-    // discard the entry by revert cb arg, and skip cmdlog cb later
-    log_entry->req->cb_arg = log_entry->cb_arg;
   }
 
   log_entry->buf = req->payload.contig_or_cb_arg;
@@ -477,12 +473,11 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
   memcpy(&log_entry->cmd, &req->cmd, sizeof(struct spdk_nvme_cmd));
   gettimeofday(&log_entry->time_cmd, NULL);
 
-  // change callback to cmdlog cb, and cmdlog cb cals users cb
+  // link req and cmdlog entry
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "save req %p cb arg to entry %p, new %p, old %p\n",
                 req, log_entry, req->cb_arg, log_entry->cb_arg);
   log_entry->req = req;
-  log_entry->cb_arg = req->cb_arg;
-  req->cb_arg = log_entry;
+  req->cmdlog_entry = log_entry;
 
   // add tail to commit the new cmd only when it is sent successfully
   tail_index += 1;
