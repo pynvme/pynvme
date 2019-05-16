@@ -102,7 +102,7 @@ pytest: setup info
 test:
 	-rm test.log
 	make pytest 2>test.log | tee -a test.log
-	cat test.log | grep "437 passed, 8 skipped, 1 xfailed, 3 warnings" || exit -1
+	cat test.log | grep "434 passed, 2 skipped" || exit -1
 
 nvmt: setup      # create a NVMe/TCP target on 2 cores, based on memory bdev, for local test only
 	sudo ./spdk/app/nvmf_tgt/nvmf_tgt -m 3 &
