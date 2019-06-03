@@ -275,7 +275,7 @@ void buffer_fini(void* buf)
 // queue_table traces cmd log tables by queue pairs
 // CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
 // reserved one slot space for tail value
-#define CMD_LOG_DEPTH              (2048-1)  
+#define CMD_LOG_DEPTH              (2048-1)
 #define CMD_LOG_QPAIR_COUNT        (32)
 
 struct cmd_log_entry_t {
@@ -409,9 +409,11 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   timersub(&now, &log_entry->time_cmd, &diff);
   log_entry->cpl_latency_us = timeval_to_us(&diff);
 
-  //verify read data
-  if (log_entry->cmd.opc == 2 && log_entry->buf != NULL)
+  //verify read data for IO read commands
+  if (log_entry->req->qpair->id != 0 && log_entry->cmd.opc == 2)
   {
+    assert(log_entry->buf != NULL);
+
     if ((*g_driver_global_config_ptr & DCFG_VERIFY_READ) != 0)
     {
       struct spdk_nvme_cmd* cmd = &log_entry->cmd;
@@ -432,6 +434,8 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
         assert(log_entry->req);
 
         //Unrecovered Read Error: The read data could not be recovered from the media.
+        SPDK_NOTICELOG("original cpl:\n");
+        nvme_qpair_print_completion(log_entry->req->qpair, cpl);
         cpl->status.sct = 0x02;
         cpl->status.sc = 0x81;
       }
@@ -458,7 +462,7 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
   assert(qid < CMD_LOG_QPAIR_COUNT);
   assert(log_table != NULL);
   assert(tail_index < CMD_LOG_DEPTH);
-  
+
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog: add cmd %s\n", cmd_name(req->cmd.opc, qid==0?0:1));
 
   if (log_entry->req != NULL)

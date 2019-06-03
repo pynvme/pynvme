@@ -47,7 +47,7 @@
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=1ydSc3UeEm8" target="_blank"><img align="right" src="http://img.youtube.com/vi/1ydSc3UeEm8/0.jpg" alt="pynvme: test NVMe devices in Python" width="480" border="0" /></a>
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=1ydSc3UeEm8" target="_blank"><img align="right" src="https://github.com/cranechu/pynvme/raw/master/doc/logo.jpg" alt="pynvme: test NVMe devices in Python" width="480" border="0" /></a>
 
 - [Install](#install)
 - [VSCode](#vscode)
@@ -387,7 +387,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "v19.05"
+__version__ = "1.0"
 
 
 # nvme command timeout, it's a warning

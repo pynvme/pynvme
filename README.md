@@ -5,7 +5,7 @@ test NVMe devices in Python. [https://github.com/cranechu/pynvme]
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
 
-<img align="right" src="doc/logo.jpg">
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=1ydSc3UeEm8" target="_blank"><img align="right" src="https://github.com/cranechu/pynvme/raw/master/doc/logo.jpg" alt="pynvme: test NVMe devices in Python" width="480" border="0" /></a>
 
 - [Install](#install)
 - [VSCode](#vscode)

@@ -16,6 +16,7 @@
     "python.linting.enabled": false,
     "workbench.panel.defaultLocation": "right",
     "terminal.integrated.fontFamily": "monospace",
+    "terminal.integrated.shell.linux": "/bin/bash",
     "editor.minimap.enabled": false,
     "editor.detectIndentation": false
 }
