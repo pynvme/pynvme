@@ -996,7 +996,7 @@ def test_get_smart_data(nvme0):
     assert smart_buffer[2] == 0 or smart_buffer[2] == 1
 
 
-@pytest.mark.parametrize("loading", [0, 10])
+@pytest.mark.parametrize("loading", [0, 100])
 def test_aer_smart_temperature(nvme0, loading, aer):
     import time
     start_time = time.time()
