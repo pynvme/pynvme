@@ -524,6 +524,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
   uint8_t msix_base;
   uint16_t control;
   uint32_t table_offset;
+  uint32_t vector_num = 0;
   struct spdk_pci_device* pci = spdk_nvme_ctrlr_get_pci_device(ctrlr);
 
   // find msix capability
@@ -531,13 +532,15 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
   spdk_pci_device_cfg_read16(pci, &control, msix_base+2);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix control: 0x%x\n", control);
 
+  vector_num = (control&0x7ff)+1;
+  vector_num = MIN(vector_num,CMD_LOG_QPAIR_COUNT);
   // find address of msix table, should in BAR0
   spdk_pci_device_cfg_read32(pci, &table_offset, msix_base+4);
   assert((table_offset&0x7) == 0);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix vector table address: 0x%x\n", table_offset);
 
   // fill msix_data address in msix table, one entry for one qpair, disable
-  for (uint32_t i=0; i<CMD_LOG_QPAIR_COUNT; i++)
+  for (uint32_t i=0; i<vector_num; i++)
   {
     uint32_t data;
     uint32_t offset = table_offset + 16*i;
