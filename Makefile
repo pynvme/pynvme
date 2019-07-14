@@ -72,7 +72,6 @@ reset:
 
 info:
 	sudo ./spdk/scripts/setup.sh status
-	sudo cat /sys/power/mem_sleep
 	sudo cat /proc/meminfo
 	sudo cat /proc/cpuinfo
 	sudo cat /etc/*release
@@ -102,7 +101,7 @@ pytest: setup info
 test:
 	-rm test.log
 	make pytest 2>test.log | tee -a test.log
-	cat test.log | grep "434 passed, 2 skipped" || exit -1
+	cat test.log | grep "432 passed, 2 skipped" || exit -1
 
 nvmt: setup      # create a NVMe/TCP target on 2 cores, based on memory bdev, for local test only
 	sudo ./spdk/app/nvmf_tgt/nvmf_tgt -m 3 &

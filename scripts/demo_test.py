@@ -75,3 +75,44 @@ def test_trim_basic(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
 
     # verify after trim
     nvme0n1.compare(q, all_zero_databuf, start_lba).waitdone()
+
+
+@pytest.mark.parametrize("loading", [0, 100])
+def test_aer_smart_temperature(nvme0, loading, aer):
+    import time
+    start_time = time.time()
+
+    smart_log = d.Buffer(512, "smart log")
+    assert smart_log.data(2, 1) == 0
+
+    # aer callback function
+    def cb(cdw0, status):
+        # set temp threshold back
+        logging.info("in aer cb, status 0x%x" % status)
+        nvme0.setfeatures(0x04, cdw11=320)
+        nvme0.getlogpage(0x02, smart_log, 512)
+    aer(cb)
+
+    # overlap the cmdlog
+    for i in range(10000):
+        nvme0.getfeatures(0x07).waitdone()
+
+    # fill with getfeatures cmd as noise for 10 seconds
+    def getfeatures_cb(cdw0, status):
+        if smart_log.data(2, 1) < 256 and \
+           time.time()-start_time < 10:
+            nvme0.getfeatures(0x07, cb=getfeatures_cb)
+    for i in range(loading):
+        nvme0.getfeatures(0x07, cb=getfeatures_cb)
+
+    # set temp threshold to trigger aer
+    nvme0.setfeatures(0x04, cdw11=200)
+    with pytest.warns(UserWarning, match="AER notification"):
+        while smart_log.data(2, 1) == 0:
+            nvme0.waitdone()
+    assert smart_log.data(2, 1) != 0
+    assert smart_log.data(2, 1) > 256
+
+    logging.info("it should be soon to trigger aer: %ds" %
+                 (time.time()-start_time))
+    assert time.time()-start_time < 15.0
