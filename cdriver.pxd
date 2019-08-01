@@ -91,13 +91,13 @@ cdef extern from "driver.h":
                        unsigned int offset,
                        unsigned int * value)
 
-    void nvme_deallocate_ranges(ctrlr *c,
+    void nvme_deallocate_ranges(namespace *c,
                                 void * buf, unsigned int count)
     int nvme_wait_completion_admin(ctrlr * c)
     void nvme_cmd_cb_print_cpl(void * qpair, const cpl * cpl)
     int nvme_send_cmd_raw(ctrlr * c,
                           qpair * qpair,
-                          unsigned int opcode,
+                          unsigned int cdw0,
                           unsigned int nsid,
                           void * buf, size_t len,
                           unsigned int cdw10,
@@ -109,6 +109,7 @@ cdef extern from "driver.h":
                           cmd_cb_func cb_fn,
                           void * cb_arg)
     bint nvme_cpl_is_error(const cpl * cpl)
+    namespace * nvme_get_ns(ctrlr * c, unsigned int nsid)
 
     void nvme_register_aer_cb(ctrlr * ctrlr,
                               aer_cb_func aer_cb,
@@ -140,8 +141,8 @@ cdef extern from "driver.h":
     unsigned int ns_get_sector_size(namespace * ns)
     unsigned long ns_get_num_sectors(namespace * ns)
     int ns_fini(namespace * ns)
-    
-    void crc32_clear(unsigned long lba, unsigned long lba_count, bint sanitize, bint uncorr)
+    void ns_crc32_clear(namespace * ns, unsigned long lba, unsigned long lba_count, bint sanitize, bint uncorr)
+
     int ioworker_entry(namespace* ns,
                        qpair* qpair,
                        ioworker_args* args,

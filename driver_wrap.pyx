@@ -43,7 +43,7 @@
 
 """test NVMe devices in Python. [https://github.com/cranechu/pynvme]
 
-[![Status](https://gitlab.com/cranechu/pynvme/badges/master/pipeline.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
+[![Status](https://img.shields.io/gitlab/pipeline/cranechu/pynvme.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
 
@@ -67,7 +67,7 @@
 
 The pynvme is a python extension module. Users can operate NVMe SSD intuitively in Python scripts. It is designed for NVMe SSD testing with performance considered. Integrated with third-party tools, vscode and pytest, pynvme provides a convenient and professional solution to test NVMe devices.
 
-The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes, e.g. Controller, Namespace, Qpair, Buffer, and IOWorker. With pynvme, we can send any NVMe command in Python scripts, with a list of other capabilites:
+The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes, e.g. Controller, Namespace, Qpair, Buffer, and IOWorker. With pynvme, users can operate NVMe devices intuitively. We can: 
 1. access PCI configuration space
 2. access NVMe registers in BAR space
 3. send any NVMe admin/IO commands
@@ -77,6 +77,7 @@ The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes
 7. IOWorker generates high-performance IO
 8. integrated with pytest
 9. integrated with VSCode
+10. test multiple controllers, namespaces and qpairs simultaneously
 
 Before moving forward, check and backup your data in the NVMe SSD to be tested. It is always recommended to attach just one piece of NVMe SSD in your system to avoid mistakes.
 
@@ -89,13 +90,14 @@ Users can install and use pynvme in commodity computers.
 System Requirement
 ------------------
 1. CPU: x86_64
-2. OS: Linux, recommend Fedora 29, Ubuntu is also tested
+2. OS: Linux, recommend Fedora 29, Ubuntu 2018.04 LTS is also tested.
 3. Memory: 8GB or larger, 2MB hugepage size.
 4. SATA: install OS and pynvme in a SATA drive.
 5. NVMe: NVMe SSD is the device to be tested. Backup your data!
 6. Python3. Python2 is not supported.
 7. sudo privilege is required.
 8. RAID mode in BIOS (Intel® RST) should be disabled.
+9. Secure boot in BIOS should be disabled.
 
 Source Code
 -----------
@@ -163,7 +165,7 @@ sudo visudo
 
 3. In order to monitor qpairs status and cmdlog along the progress of testing, user can install vscode extension pynvme-console. The extension provides DUT status and cmdlogs in VSCode UI.
 ```shell
-code --install-extension pynvme-console-1.0.0.vsix
+code --install-extension pynvme-console-1.1.0.vsix
 ```
 
 4. Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device.
@@ -1169,7 +1171,6 @@ cdef class Controller(object):
         assert lbaf < 16, "invalid format lbaf"
 
         logging.debug(f"format, ses {ses}, lbaf {lbaf}, nsid {nsid}")
-        d.crc32_clear(0, 0, True, False)
         self.send_admin_raw(None, 0x80,
                             nsid=nsid,
                             cdw10=(ses<<9) + lbaf,
@@ -1180,6 +1181,7 @@ cdef class Controller(object):
                             cdw15=0,
                             cb_func=cmd_cb,
                             cb_arg=<void*>cb)
+
         return self
 
     def sanitize(self, option=2, pattern=0, cb=None):
@@ -1195,7 +1197,12 @@ cdef class Controller(object):
         """
 
         logging.info(f"sanitize, option {option}")
-        d.crc32_clear(0, 0, True, False)
+
+        # clear crc table of all namespaces
+        for nsid in range(1, self.id_data(519, 516)+1):
+            ns = d.nvme_get_ns(self._ctrlr, nsid)
+            d.ns_crc32_clear(ns, 0, 0, True, False)
+            
         self.send_admin_raw(None, 0x84,
                             nsid=0,
                             cdw10=option,
@@ -1423,6 +1430,7 @@ cdef class Qpair(object):
     """
 
     cdef d.qpair * _qpair
+    cdef Controller _nvme
 
     def __cinit__(self, Controller nvme,
                   unsigned int depth,
@@ -1434,10 +1442,11 @@ cdef class Qpair(object):
         self._qpair = d.qpair_create(nvme._ctrlr, prio, depth)
         if self._qpair is NULL:
             raise QpairCreationError("qpair create fail")
+        self._nvme = nvme
 
     def __dealloc__(self):
         # print("dealloc qpair: %x" % <unsigned long>self._qpair); sys.stdout.flush()
-        if self._qpair is not NULL:
+        if self._qpair is not NULL and self._nvme._ctrlr is not NULL:
             if d.qpair_free(self._qpair) != 0:
                 raise QpairDeletionError()
             self._qpair = NULL
@@ -1617,6 +1626,11 @@ cdef class Namespace(object):
         lbaf = self.get_lba_format(data_size, meta_size)
         self._nvme.format(lbaf, ses, self._nsid).waitdone()
         d.ns_refresh(self._ns, self._nsid, self._nvme._ctrlr)
+
+        # clear crc table
+        logging.debug("clear crc table")
+        d.ns_crc32_clear(self._ns, 0, 0, True, False)
+            
 
     def get_lba_format(self, data_size=512, meta_size=0):
         """find the lba format by its data size and meta data size
@@ -1838,7 +1852,7 @@ cdef class Namespace(object):
             SystemError: the command fails
         """
 
-        d.crc32_clear(lba, lba_count, False, True)
+        d.ns_crc32_clear(self._ns, lba, lba_count, False, True)
         self.send_io_raw(qpair, None, 4, self._nsid,
                          lba, lba>>32,
                          lba_count-1,
@@ -1863,7 +1877,7 @@ cdef class Namespace(object):
             SystemError: the command fails
         """
 
-        d.crc32_clear(lba, lba_count, False, False)
+        d.ns_crc32_clear(self._ns, lba, lba_count, False, False)
         self.send_io_raw(qpair, None, 8, self._nsid,
                          lba, lba>>32,
                          (lba_count-1)+(io_flags<<16),
@@ -1921,7 +1935,7 @@ cdef class Namespace(object):
     cdef void deallocate_ranges(self,
                                 Buffer buf,
                                 unsigned int range_count):
-        d.nvme_deallocate_ranges(self._nvme._ctrlr, buf.ptr, range_count)
+        d.nvme_deallocate_ranges(self._ns, buf.ptr, range_count)
 
     cdef int send_io_raw(self,
                          Qpair qpair,
@@ -1983,7 +1997,6 @@ class _IOWorker(object):
 
     def start(self):
         """Start the worker's process"""
-        logging.debug("start ioworker")
         self.p.start()
         return self
 
@@ -2006,7 +2019,6 @@ class _IOWorker(object):
         childpid, error, rets, output_io_per_second, output_io_per_latency = self.q.get()
         rets = DotDict(rets)
         self.p.join()
-        logging.debug("ioworker closed")
 
         if error != 0:
             warnings.warn(f"ioworker host ERROR {error}")

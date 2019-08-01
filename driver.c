@@ -59,97 +59,16 @@
 
 // the global configuration of the driver
 #define DCFG_VERIFY_READ      (BIT(0))
+#define DCFG_ENABLE_MSIX      (BIT(0))
 
 
-//// shared data
-///////////////////////////////
-
-#define DRIVER_IO_TOKEN_NAME      "driver_io_token"
-#define DRIVER_CRC32_TABLE_NAME   "driver_crc32_table"
-#define DRIVER_GLOBAL_CONFIG_NAME "driver_global_config"
-
-// TODO: support multiple namespace
-static uint64_t g_driver_table_size = 0;
 static uint64_t* g_driver_io_token_ptr = NULL;
-static uint32_t* g_driver_csum_table_ptr = NULL;
-static uint64_t* g_driver_global_config_ptr = NULL;
+static uint64_t* g_driver_config_ptr = NULL;
 
-static int memzone_reserve_shared_memory(uint64_t table_size)
+
+static uint32_t timeval_to_us(struct timeval* t)
 {
-  if (spdk_process_is_primary())
-  {
-    assert(g_driver_io_token_ptr == NULL);
-    assert(g_driver_csum_table_ptr == NULL);
-
-    // get the shared memory for token
-    SPDK_INFOLOG(SPDK_LOG_NVME, "create token table, size: %ld\n", table_size);
-    g_driver_table_size = table_size;
-    g_driver_csum_table_ptr = spdk_memzone_reserve(DRIVER_CRC32_TABLE_NAME,
-                                                   table_size,
-                                                   0, SPDK_MEMZONE_NO_IOVA_CONTIG);
-    g_driver_io_token_ptr = spdk_memzone_reserve(DRIVER_IO_TOKEN_NAME,
-                                                 sizeof(uint64_t),
-                                                 0, 0);
-  }
-  else
-  {
-    // find the shared memory for token
-    g_driver_table_size = table_size;
-    g_driver_io_token_ptr = spdk_memzone_lookup(DRIVER_IO_TOKEN_NAME);
-    g_driver_csum_table_ptr = spdk_memzone_lookup(DRIVER_CRC32_TABLE_NAME);
-  }
-
-  if (g_driver_csum_table_ptr == NULL)
-  {
-    SPDK_NOTICELOG("memory is not large enough to keep CRC32 table.\n");
-    SPDK_NOTICELOG("Data verification is disabled!\n");
-  }
-
-  if (g_driver_io_token_ptr == NULL)
-  {
-    SPDK_ERRLOG("fail to find memzone space\n");
-    return -1;
-  }
-
-  if (spdk_process_is_primary())
-  {
-    // avoid token 0
-    *g_driver_io_token_ptr = 1;
-  }
-
-  return 0;
-}
-
-void crc32_clear(uint64_t lba, uint64_t lba_count, int sanitize, int uncorr)
-{
-  int c = uncorr ? 0xff : 0;
-  size_t len = lba_count*sizeof(uint32_t);
-
-  if (sanitize == true)
-  {
-    assert(lba == 0);
-    assert(g_driver_table_size != 0); //Namspace instance not exist, you may need to add nvme0n1 in the fixture list
-    SPDK_DEBUGLOG(SPDK_LOG_NVME, "clear the whole table\n");
-    len = g_driver_table_size;
-  }
-
-  if (g_driver_csum_table_ptr != NULL)
-  {
-    SPDK_DEBUGLOG(SPDK_LOG_NVME, "clear checksum table, lba 0x%lx, c %d, len %ld\n",
-                  lba, c, len);
-    memset(&g_driver_csum_table_ptr[lba], c, len);
-  }
-}
-
-static void crc32_fini(void)
-{
-  if (spdk_process_is_primary())
-  {
-    spdk_memzone_free(DRIVER_IO_TOKEN_NAME);
-    spdk_memzone_free(DRIVER_CRC32_TABLE_NAME);
-  }
-  g_driver_io_token_ptr = NULL;
-  g_driver_csum_table_ptr = NULL;
+  return t->tv_sec*US_PER_S + t->tv_usec;
 }
 
 
@@ -179,7 +98,8 @@ static inline uint32_t buffer_calc_csum(uint64_t* ptr, int len)
   return crc;
 }
 
-static void buffer_fill_data(void* buf,
+static void buffer_fill_data(uint32_t* crc_table,
+                             void* buf,
                              uint64_t lba,
                              uint32_t lba_count,
                              uint32_t lba_size)
@@ -203,15 +123,15 @@ static void buffer_fill_data(void* buf,
     // suppose device modify data correctly. If the command fail, we cannot
     // tell what part of data is updated, while what not. Even when atomic
     // write is supported, we still cannot tell that.
-    if (g_driver_csum_table_ptr != NULL)
+    if (crc_table != NULL)
     {
-      uint32_t crc = buffer_calc_csum(ptr, lba_size);
-      g_driver_csum_table_ptr[lba] = crc;
+      crc_table[lba] = buffer_calc_csum(ptr, lba_size);      
     }
   }
 }
 
-static int buffer_verify_data(const void* buf,
+static int buffer_verify_data(uint32_t* crc_table,
+                              const void* buf,
                               const unsigned long lba_first,
                               const uint32_t lba_count,
                               const uint32_t lba_size)
@@ -226,9 +146,9 @@ static int buffer_verify_data(const void* buf,
 
     // if crc table is not available, just use computed crc as
     //expected crc, to bypass verification
-    if (g_driver_csum_table_ptr != NULL)
+    if (crc_table != NULL)
     {
-      expected_crc = g_driver_csum_table_ptr[lba];
+      expected_crc = crc_table[lba];
     }
 
     if (expected_crc == 0)
@@ -275,8 +195,7 @@ void buffer_fini(void* buf)
 // queue_table traces cmd log tables by queue pairs
 // CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
 // reserved one slot space for tail value
-#define CMD_LOG_DEPTH              (2048-1)
-#define CMD_LOG_QPAIR_COUNT        (32)
+#define CMD_LOG_DEPTH              (4096)
 
 struct cmd_log_entry_t {
   // cmd and cpl
@@ -297,89 +216,88 @@ static_assert(sizeof(struct cmd_log_entry_t) == 128, "cacheline aligned");
 
 struct cmd_log_table_t {
   struct cmd_log_entry_t table[CMD_LOG_DEPTH];
+  uint32_t head_index;
   uint32_t tail_index;
   uint32_t msix_data;
   uint32_t msix_enabled;
-  struct spdk_nvme_qpair* qpair;
-  uint32_t dummy[26];
+  uint32_t dummy[28];
 };
-static_assert(sizeof(struct cmd_log_table_t) == sizeof(struct cmd_log_entry_t)*(CMD_LOG_DEPTH+1), "cacheline aligned");
+static_assert(sizeof(struct cmd_log_table_t)%64 == 0, "cacheline aligned");
 
-#define DRIVER_CMDLOG_TABLE_NAME  "driver_cmdlog_table"
-static struct cmd_log_table_t* cmd_log_queue_table;
-
-
-static uint32_t timeval_to_us(struct timeval* t)
+typedef volatile struct _msix_entry
 {
-  return t->tv_sec*US_PER_S + t->tv_usec;
+  uint64_t msg_addr;
+  uint32_t msg_data;
+  uint32_t mask : 1;
+  uint32_t rsvd : 31;
+} msix_entry;
+
+
+#define DRIVER_CMDLOG_TABLE_NAME  "cmdlog_table_%p"
+
+static void cmdlog_init_msix(struct spdk_nvme_qpair* q)
+{
+  uint64_t addr;
+  msix_entry* msix_table;
+  struct spdk_nvme_ctrlr* ctrlr;
+  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;
+  uint16_t qid = q->id;
+
+  assert(q != NULL);
+  assert(cmdlog != NULL);
+
+  ctrlr = q->ctrlr;
+  assert(ctrlr != NULL);
+
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "ctrlr %p\n", q->ctrlr);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "intc_ctrl %p\n", q->ctrlr->pynvme_intc_ctrl);
+  assert(q->ctrlr->pynvme_intc_ctrl != NULL);
+  msix_table = (msix_entry*)(ctrlr->pynvme_intc_ctrl->msix_table);
+  assert(msix_table != NULL);
+
+  addr = spdk_vtophys(&cmdlog->msix_data, NULL);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix table addr %p\n", msix_table);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "vec %d, msix data addr %lx\n", qid, addr);
+  
+  // fill the vector table
+  msix_table[qid].msg_addr = addr;
+  msix_table[qid].msg_data = 1;
+  msix_table[qid].mask = 0;
+  msix_table[qid].rsvd = 0;
+
+  // clear the interrupt  
+  cmdlog->msix_data = 0;
+  cmdlog->msix_enabled = true;
 }
 
 
-static void cmd_log_qpair_init(struct spdk_nvme_qpair* q)
+void cmdlog_init(struct spdk_nvme_qpair* q)
 {
-  uint16_t qid = 0;
+  char cmdlog_name[64];
 
-  if (q)
-  {
-    qid = q->id;
-  }
-  assert(qid < CMD_LOG_QPAIR_COUNT);
+  assert(q != NULL);
+  snprintf(cmdlog_name, 64, DRIVER_CMDLOG_TABLE_NAME, q);
+  q->pynvme_cmdlog = spdk_memzone_reserve(cmdlog_name,
+                                          sizeof(struct cmd_log_table_t),
+                                          0,
+                                          SPDK_MEMZONE_NO_IOVA_CONTIG);
+  assert(q->pynvme_cmdlog != NULL);
 
-  // set tail to invalid value, means the qpair is empty
-  cmd_log_queue_table[qid].tail_index = 0;
-  cmd_log_queue_table[qid].qpair = q;
+  // pynvme enables interrupt of qpairs by default
+  cmdlog_init_msix(q);
 }
 
 
-static void cmd_log_qpair_clear(uint16_t qid)
+static void cmdlog_free(struct spdk_nvme_qpair* q)
 {
-  assert(qid < CMD_LOG_QPAIR_COUNT);
+  char cmdlog_name[64];
 
-  // set tail to invalid value, means the qpair is empty
-  cmd_log_queue_table[qid].tail_index = CMD_LOG_DEPTH;
-}
-
-
-static int cmd_log_init(void)
-{
-  if (spdk_process_is_primary())
-  {
-    cmd_log_queue_table = spdk_memzone_reserve(DRIVER_CMDLOG_TABLE_NAME,
-                                               sizeof(struct cmd_log_table_t)*CMD_LOG_QPAIR_COUNT,
-                                               0, SPDK_MEMZONE_NO_IOVA_CONTIG);
-
-    // clear all qpair's cmd log
-    for (int i=0; i<CMD_LOG_QPAIR_COUNT; i++)
-    {
-      cmd_log_qpair_clear(i);
-    }
-
-    // also init config word with cmdlog
-    g_driver_global_config_ptr = spdk_memzone_reserve(DRIVER_GLOBAL_CONFIG_NAME,
-                                                      sizeof(uint64_t),
-                                                      0, 0);
-    *g_driver_global_config_ptr = 0;
-  }
-  else
-  {
-    cmd_log_queue_table = spdk_memzone_lookup(DRIVER_CMDLOG_TABLE_NAME);
-    g_driver_global_config_ptr = spdk_memzone_lookup(DRIVER_GLOBAL_CONFIG_NAME);
-  }
-
-  if (cmd_log_queue_table == NULL)
-  {
-    fprintf(stderr, "Cannot allocate or find the cmdlog memory!\n");
-    return -1;
-  }
-
-  return 0;
-}
-
-
-static void cmd_log_finish(void)
-{
-  spdk_memzone_free(DRIVER_CMDLOG_TABLE_NAME);
-  spdk_memzone_free(DRIVER_GLOBAL_CONFIG_NAME);
+  assert(q != NULL);
+  assert(q->pynvme_cmdlog != NULL);
+  
+  snprintf(cmdlog_name, 64, DRIVER_CMDLOG_TABLE_NAME, q);
+  spdk_memzone_free(cmdlog_name);
+  q->pynvme_cmdlog = NULL;
 }
 
 
@@ -413,7 +331,7 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   {
     assert(log_entry->buf != NULL);
 
-    if ((*g_driver_global_config_ptr & DCFG_VERIFY_READ) != 0)
+    if ((*g_driver_config_ptr & DCFG_VERIFY_READ) != 0)
     {
       struct spdk_nvme_cmd* cmd = &log_entry->cmd;
       uint64_t lba = cmd->cdw10 + ((uint64_t)(cmd->cdw11)<<32);
@@ -425,7 +343,8 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
       uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
 
       //verify data pattern and crc
-      if (0 != buffer_verify_data(log_entry->buf,
+      if (0 != buffer_verify_data(ns->crc_table,
+                                  log_entry->buf,
                                   lba,
                                   lba_count,
                                   lba_size))
@@ -452,18 +371,18 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
 // for spdk internel ues: nvme_qpair_submit_request
 void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
 {
-  uint16_t qid = qpair->id;
-  struct cmd_log_table_t* log_table = &cmd_log_queue_table[qid];
+  struct cmd_log_table_t* log_table = qpair->pynvme_cmdlog;
+  uint32_t head_index = log_table->head_index;
   uint32_t tail_index = log_table->tail_index;
   struct cmd_log_entry_t* log_entry = &log_table->table[tail_index];
 
   assert(req != NULL);
-  assert(qid < CMD_LOG_QPAIR_COUNT);
   assert(log_table != NULL);
   assert(tail_index < CMD_LOG_DEPTH);
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog: add cmd %s\n", cmd_name(req->cmd.opc, qid==0?0:1));
-
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog: add cmd %s\n",
+                cmd_name(req->cmd.opc, qpair->id==0?0:1));
+  
   if (log_entry->req != NULL)
   {
     // this entry is overlapped before command complete
@@ -482,13 +401,24 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
   log_entry->req = req;
   req->cmdlog_entry = log_entry;
 
-  // add tail to commit the new cmd only when it is sent successfully
+  // inc tail to commit the new cmd only when it is sent successfully
   tail_index += 1;
   if (tail_index == CMD_LOG_DEPTH)
   {
     tail_index = 0;
   }
   log_table->tail_index = tail_index;
+
+  // inc head to remove the old one
+  if (head_index == tail_index)
+  {
+    head_index += 1;
+    if (head_index == CMD_LOG_DEPTH)
+    {
+      head_index = 0;
+      log_table->head_index = head_index;
+    }
+  }
 }
 
 
@@ -517,51 +447,32 @@ static uint8_t intc_find_msix(struct spdk_pci_device* pci)
   return next_offset;
 }
 
-typedef volatile struct _msix_entry
+
+#define INTC_CTRL_NAME   "intc_ctrl_name%p"
+
+void intc_init(struct spdk_nvme_ctrlr* ctrlr)
 {
-  uint64_t msg_addr;
-  uint32_t msg_data;
-  uint32_t mask : 1;
-  uint32_t rsvd : 31;
-} msix_entry;
-
-struct msix_ctrl {
-    uint32_t bir;
-    uint32_t bir_offset;
-    uint64_t vir_addr;
-    uint64_t phys_addr;
-    uint32_t size;
-};
-
-static struct msix_ctrl intr_ctrl = {
-    .bir = 0,
-    .bir_offset = 0,
-    .vir_addr = 0,
-    .phys_addr = 0,
-    .size = 0
-};
-
-static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
-{
+  char intc_name[64];
+  struct msix_ctrl* intc_ctrl;
   struct spdk_pci_device* pci = spdk_nvme_ctrlr_get_pci_device(ctrlr);
   uint8_t msix_base = 0;
   uint16_t control = 0;
   uint32_t bir_val = 0;
   uint32_t bar_offset = 0;
   uint32_t vector_num = 0;
-  msix_entry *msix_table = NULL;
   int rc;
 	void *table_addr;
 	uint64_t phys_addr;
   uint64_t size;
 
+  SPDK_INFOLOG(SPDK_LOG_NVME, "pci %p\n", pci);
+  
   //find msix capability
   msix_base = intc_find_msix(pci);
   spdk_pci_device_cfg_read16(pci, &control, (msix_base + 2));
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix control: 0x%x\n", control);
 
   vector_num = (control&0x7fff) + 1;
-  vector_num = MIN(vector_num, CMD_LOG_QPAIR_COUNT);
   SPDK_INFOLOG(SPDK_LOG_NVME, "vector_num %d\n", vector_num);
   
   //find address of MSIX table.
@@ -575,35 +486,22 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
 	rc = spdk_pci_device_map_bar(pci, bir_val, &table_addr, &phys_addr, &size);
   assert(rc == 0);
   
-  //init msix_ctrl structure
-  intr_ctrl.bir = bir_val;
-  intr_ctrl.bir_offset = bar_offset;
-  intr_ctrl.phys_addr = phys_addr;
-  intr_ctrl.vir_addr = (uintptr_t)table_addr;
-  intr_ctrl.size = size;
+  // collect intc information of this controller
+  snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
+  intc_ctrl = spdk_memzone_reserve(intc_name,
+                                   sizeof(struct msix_ctrl),
+                                   0,
+                                   0);
+  assert(intc_ctrl != NULL);
+  intc_ctrl->bir = bir_val;
+  intc_ctrl->bir_offset = bar_offset;
+  intc_ctrl->phys_addr = phys_addr;
+  intc_ctrl->vir_addr = (uintptr_t)table_addr;
+  intc_ctrl->size = size;
+  intc_ctrl->msix_table = table_addr + bar_offset;
   
-  //config msix table
-  msix_table = (msix_entry *)(table_addr + bar_offset);
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix table addr %lx\n", (uint64_t)msix_table);
-
-  // fill msix_data address in msix table, one entry for one qpair, disable
-  for (uint32_t i = 0; i < vector_num; i++)
-  {
-    uint64_t addr = spdk_vtophys(&cmd_log_queue_table[i].msix_data, NULL);
-
-    SPDK_DEBUGLOG(SPDK_LOG_NVME, "vec %d, msix data addr %lx\n", i, addr);
-    
-    // clear the interrupt  
-    cmd_log_queue_table[i].msix_data = 0;
-    cmd_log_queue_table[i].msix_enabled = true;
-
-    // fill the vector table
-    msix_table[i].msg_addr = addr;
-    msix_table[i].msg_data = 1;
-    msix_table[i].mask = 0;
-    msix_table[i].rsvd = 0;
-  }
-
+  ctrlr->pynvme_intc_ctrl = intc_ctrl;
+  
   // enable msix
   control |= 0x8000;
   spdk_pci_device_cfg_write16(pci, control, msix_base+2);
@@ -612,6 +510,7 @@ static void intc_init(struct spdk_nvme_ctrlr* ctrlr)
 
 static void intc_fini(struct spdk_nvme_ctrlr* ctrlr)
 {
+  char intc_name[64];
   uint8_t msix_base;
   uint16_t control;
   struct spdk_pci_device* pci = spdk_nvme_ctrlr_get_pci_device(ctrlr);
@@ -622,39 +521,41 @@ static void intc_fini(struct spdk_nvme_ctrlr* ctrlr)
 
   // disable msix
   control &= (~0x8000);
+  snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
+  spdk_memzone_free(intc_name);
+  ctrlr->pynvme_intc_ctrl = NULL;
+  
   spdk_pci_device_cfg_write16(pci, control, msix_base+2);
 }
 
 
 void intc_clear(struct spdk_nvme_qpair* q)
 {
-  cmd_log_queue_table[q->id].msix_data = 0;
+  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;  
+  cmdlog->msix_data = 0;
 }
 
 
 bool intc_isset(struct spdk_nvme_qpair* q)
 {
-  return cmd_log_queue_table[q->id].msix_data != 0;
+  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;  
+  return cmdlog->msix_data != 0;
 }
 
 
 void intc_mask(struct spdk_nvme_qpair* q)
 {
-  uint32_t q_id = q->id;
-  msix_entry *msix_table = NULL;
-  
-  msix_table = (msix_entry *)(intr_ctrl.vir_addr + intr_ctrl.bir_offset);
-  msix_table[q_id].mask = 1;
+  assert(q->ctrlr->pynvme_intc_ctrl != NULL);  
+  msix_entry *msix_table = (msix_entry*)(q->ctrlr->pynvme_intc_ctrl->msix_table);
+  msix_table[q->id].mask = 1;
 }
 
 
 void intc_unmask(struct spdk_nvme_qpair* q)
 {
-  uint32_t q_id = q->id;
-  msix_entry *msix_table = NULL;
-  
-  msix_table = (msix_entry *)(intr_ctrl.vir_addr + intr_ctrl.bir_offset);
-  msix_table[q_id].mask = 0;
+  assert(q->ctrlr->pynvme_intc_ctrl != NULL);  
+  msix_entry *msix_table = (msix_entry*)(q->ctrlr->pynvme_intc_ctrl->msix_table);
+  msix_table[q->id].mask = 0;
 }
 
 
@@ -745,6 +646,14 @@ int pcie_cfg_write8(struct spdk_pci_device* pci,
 
 ////module: nvme ctrlr
 ///////////////////////////////
+
+struct ctrlr_entry {
+	struct spdk_nvme_ctrlr	*ctrlr;
+  STAILQ_ENTRY(ctrlr_entry) next;
+};
+
+STAILQ_HEAD(, ctrlr_entry) g_controllers = STAILQ_HEAD_INITIALIZER(g_controllers);	
+
 struct spdk_nvme_ctrlr* nvme_probe(char* traddr)
 {
   struct spdk_nvme_transport_id trid;
@@ -795,13 +704,26 @@ struct spdk_nvme_ctrlr* nvme_init(char * traddr)
     return NULL;
   }
 
-  if (spdk_process_is_primary())
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "found device: %s\n", ctrlr->trid.traddr);
+
+  if (true != spdk_process_is_primary())
   {
-    // enable msix interrupt
-    intc_init(ctrlr);
+    // init intc table in secondary processes
+    char intc_name[64];
+    snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
+    ctrlr->pynvme_intc_ctrl = spdk_memzone_lookup(intc_name);
+    assert(ctrlr->pynvme_intc_ctrl != NULL);    
   }
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "found device: %s\n", ctrlr->trid.traddr);
+  if (spdk_process_is_primary())
+  {
+    // add new ctrlr
+    struct ctrlr_entry* e = malloc(sizeof(struct ctrlr_entry));
+    assert(e);
+    e->ctrlr = ctrlr;
+    STAILQ_INSERT_TAIL(&g_controllers, e, next);
+  }
+  
   return ctrlr;
 }
 
@@ -814,20 +736,38 @@ int nvme_fini(struct spdk_nvme_ctrlr* ctrlr)
     return 0;
   }
 
-  // io qpairs should all be deleted before closing master controller
-  if (true == spdk_process_is_primary() &&
-      false == TAILQ_EMPTY(&ctrlr->active_io_qpairs))
-  {
-    return -1;
-  }
-
   if (spdk_process_is_primary())
   {
+    if (false == TAILQ_EMPTY(&ctrlr->active_io_qpairs))
+    {
+      // io qpairs should all be deleted before closing master controller      
+      struct spdk_nvme_qpair	*qpair;
+      TAILQ_FOREACH(qpair, &ctrlr->active_io_qpairs, tailq)
+      {
+        qpair_free(qpair);
+      }
+    }
+
     // disable msix interrupt
     intc_fini(ctrlr);
-  }
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "close device: %s\n", ctrlr->trid.traddr);
+    // clear the admin queue resources in pynvme
+    cmdlog_free(ctrlr->adminq);
+
+    //remove ctrlr from list
+    struct ctrlr_entry* e;
+    struct ctrlr_entry* tmp;
+    STAILQ_FOREACH_SAFE(e, &g_controllers, next, tmp)
+    {
+      if (e->ctrlr == ctrlr)
+      {
+        STAILQ_REMOVE(&g_controllers, e, ctrlr_entry, next);
+        free(e);
+        break;
+      }
+    }
+  }
+  
   return spdk_nvme_detach(ctrlr);
 }
 
@@ -847,13 +787,13 @@ int nvme_get_reg32(struct spdk_nvme_ctrlr* ctrlr,
 
 int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
 {
-  msix_entry *msix_table = (msix_entry *)(intr_ctrl.vir_addr + intr_ctrl.bir_offset);
   int32_t rc;
+  struct cmd_log_table_t* cmdlog = ctrlr->adminq->pynvme_cmdlog;
 
   // check msix interrupt
-  if (cmd_log_queue_table[0].msix_enabled)
+  if (cmdlog->msix_enabled)
   {
-    if (cmd_log_queue_table[0].msix_data == 0)
+    if (cmdlog->msix_data == 0)
     {
       // to check it again later
       return 0;
@@ -861,19 +801,19 @@ int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
   }
 
   // mask the interrupt
-  msix_table[0].mask = 1;
+  intc_mask(ctrlr->adminq);
   
   // process all the completions
   rc = spdk_nvme_ctrlr_process_admin_completions(ctrlr);
 
   // clear and un-mask the interrupt
-  cmd_log_queue_table[0].msix_data = 0;
-  msix_table[0].mask = 0;
+  cmdlog->msix_data = 0;
+  intc_unmask(ctrlr->adminq);
 
   return rc;
 }
 
-void nvme_deallocate_ranges(struct spdk_nvme_ctrlr* ctrlr,
+void nvme_deallocate_ranges(struct spdk_nvme_ns* ns,
                             void* buf, unsigned int count)
 {
   struct spdk_nvme_dsm_range *ranges = (struct spdk_nvme_dsm_range*)buf;
@@ -883,13 +823,13 @@ void nvme_deallocate_ranges(struct spdk_nvme_ctrlr* ctrlr,
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "deallocate lba 0x%lx, count %d\n",
                  ranges[i].starting_lba,
                  ranges[i].length);
-    crc32_clear(ranges[i].starting_lba, ranges[i].length, 0, 0);
+    ns_crc32_clear(ns, ranges[i].starting_lba, ranges[i].length, 0, 0);
   }
 }
 
 int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
                       struct spdk_nvme_qpair *qpair,
-                      unsigned int opcode,
+                      unsigned int cdw0,
                       unsigned int nsid,
                       void* buf, size_t len,
                       unsigned int cdw10,
@@ -908,7 +848,7 @@ int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
 
   //setup cmd structure
   memset(&cmd, 0, sizeof(struct spdk_nvme_cmd));
-  cmd.opc = opcode;
+  *(unsigned int*)&cmd = cdw0;
   cmd.nsid = nsid;
   cmd.cdw10 = cdw10;
   cmd.cdw11 = cdw11;
@@ -953,12 +893,19 @@ int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl)
 }
 
 
+struct spdk_nvme_ns* nvme_get_ns(struct spdk_nvme_ctrlr* ctrlr,
+                                 uint32_t nsid)
+{
+  return spdk_nvme_ctrlr_get_ns(ctrlr, nsid);
+}
+
 ////module: qpair
 ///////////////////////////////
 
 struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
                                      int prio, int depth)
 {
+  uint16_t qid;
   struct spdk_nvme_qpair* qpair;
   struct spdk_nvme_io_qpair_opts opts;
 
@@ -974,16 +921,11 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
     return NULL;
   }
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "created qpair %d\n", qpair->id);
+  qid = qpair->id;
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "created qpair %d\n", qid);
 
-  // limited qpair count
-  if (qpair->id >= CMD_LOG_QPAIR_COUNT)
-  {
-    spdk_nvme_ctrlr_free_io_qpair(qpair);
-    return NULL;
-  }
+  cmdlog_init(qpair);
 
-  cmd_log_qpair_init(qpair);
   return qpair;
 }
 
@@ -1000,13 +942,10 @@ int qpair_get_id(struct spdk_nvme_qpair* q)
 
 int qpair_free(struct spdk_nvme_qpair* q)
 {
-  if (q == NULL)
-  {
-    return 0;
-  }
+  assert(q != NULL);
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "free qpair: %d\n", q->id);
-  cmd_log_qpair_clear(q->id);
+  cmdlog_free(q);
 
   return spdk_nvme_ctrlr_free_io_qpair(q);
 }
@@ -1015,13 +954,65 @@ int qpair_free(struct spdk_nvme_qpair* q)
 ////module: namespace
 ///////////////////////////////
 
+#define NS_CRC32_TABLE_NAME   "ns_crc32_table_%p"
+
+static int ns_table_init(struct spdk_nvme_ns* ns, uint64_t table_size)
+{
+  char memzone_name[64];
+  
+  ns->table_size = table_size;
+  snprintf(memzone_name, 64, NS_CRC32_TABLE_NAME, ns);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "crc table size: %ld\n", table_size);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "crc table name: %s\n", memzone_name);
+
+  if (spdk_process_is_primary())
+  {
+    assert(ns->crc_table == NULL);
+
+    // get the shared memory for token
+    ns->crc_table = spdk_memzone_reserve(memzone_name,
+                                         table_size,
+                                         0,
+                                         SPDK_MEMZONE_NO_IOVA_CONTIG);
+  }
+  else
+  {
+    // find the shared memory for token
+    ns->crc_table = spdk_memzone_lookup(memzone_name);
+  }
+
+  if (ns->crc_table == NULL)
+  {
+    SPDK_NOTICELOG("memory is not large enough to keep CRC32 table.\n");
+    SPDK_NOTICELOG("Data verification is disabled!\n");
+  }
+
+  return 0;
+}
+
+
+static void ns_table_fini(struct spdk_nvme_ns* ns)
+{
+  char memzone_name[64];
+
+  snprintf(memzone_name, 64, NS_CRC32_TABLE_NAME, ns);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "crc table name: %s\n", memzone_name);
+
+  if (spdk_process_is_primary())
+  {
+    spdk_memzone_free(memzone_name);
+    ns->crc_table = NULL;
+  }
+}
+
+
 struct spdk_nvme_ns* ns_init(struct spdk_nvme_ctrlr* ctrlr, uint32_t nsid)
 {
   struct spdk_nvme_ns* ns = spdk_nvme_ctrlr_get_ns(ctrlr, nsid);
   uint64_t nsze = spdk_nvme_ns_get_num_sectors(ns);
 
   assert(ns != NULL);
-  if (0 != memzone_reserve_shared_memory(sizeof(uint32_t)*nsze))
+  if (0 != ns_table_init(ns, sizeof(uint32_t)*nsze))
   {
     return NULL;
   }
@@ -1029,9 +1020,38 @@ struct spdk_nvme_ns* ns_init(struct spdk_nvme_ctrlr* ctrlr, uint32_t nsid)
   return ns;
 }
 
-int ns_refresh(struct spdk_nvme_ns *ns, uint32_t id, struct spdk_nvme_ctrlr *ctrlr)
+
+void ns_crc32_clear(struct spdk_nvme_ns *ns, uint64_t lba,
+                    uint64_t lba_count, int sanitize, int uncorr)
 {
-  return nvme_ns_construct(ns, id, ctrlr);
+  int c = uncorr ? 0xff : 0;
+  size_t len = lba_count*sizeof(uint32_t);
+
+  assert(ns != NULL);
+  assert(ns->table_size != 0); // namespace may not initialized in scripts
+  assert(ns->crc_table != NULL);
+  
+  if (sanitize == true)
+  {
+    assert(lba == 0);
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "clear the whole table\n");
+    len = ns->table_size;
+  }
+  
+  SPDK_INFOLOG(SPDK_LOG_NVME, "clear checksum table, "
+                "lba 0x%lx, c %d, len %ld\n", lba, c, len);
+  memset(&ns->crc_table[lba], c, len);
+}
+
+
+int ns_refresh(struct spdk_nvme_ns *ns, uint32_t id,
+               struct spdk_nvme_ctrlr *ctrlr)
+{
+  nvme_ns_construct(ns, id, ctrlr);
+  ns_table_fini(ns);
+  ns_table_init(ns, sizeof(uint32_t)*spdk_nvme_ns_get_num_sectors(ns));
+  
+  return 0;
 }
 
 int ns_cmd_read_write(int is_read,
@@ -1048,11 +1068,7 @@ int ns_cmd_read_write(int is_read,
   struct spdk_nvme_cmd cmd;
   uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
 
-  assert(ns != NULL);
   assert(qpair != NULL);
-
-  //only support 1 namespace now
-  assert(ns->id == 1);
 
   //validate data buffer
   assert(buf != NULL);
@@ -1074,7 +1090,7 @@ int ns_cmd_read_write(int is_read,
   if (is_read != true)
   {
     //for write buffer
-    buffer_fill_data(buf, lba, lba_count, lba_size);
+    buffer_fill_data(ns->crc_table, buf, lba, lba_count, lba_size);
   }
 
   //send io cmd in qpair
@@ -1093,7 +1109,7 @@ uint64_t ns_get_num_sectors(struct spdk_nvme_ns* ns)
 
 int ns_fini(struct spdk_nvme_ns* ns)
 {
-  crc32_fini();
+  ns_table_fini(ns);
   return 0;
 }
 
@@ -1403,6 +1419,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   assert(qpair != NULL);
   assert(args != NULL);
   assert(rets != NULL);
+  assert(io_ctx != NULL);
 
   //init rets
   rets->io_count_read = 0;
@@ -1434,7 +1451,8 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   // check io size
   if (args->lba_size*sector_size > ns->ctrlr->max_xfer_size)
   {
-    SPDK_ERRLOG("IO size is larger than max xfer size, %d\n", ns->ctrlr->max_xfer_size);
+    SPDK_ERRLOG("IO size is larger than max xfer size, %d\n",
+                ns->ctrlr->max_xfer_size);
     rets->error = 0x0002;  // Invalid Field in Command
     free(io_ctx);
     return -2;
@@ -1579,23 +1597,25 @@ char* log_buf_dump(const char* header, const void* buf, size_t len)
 
 void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
 {
-  uint32_t dump_count = count;
+  struct cmd_log_table_t* cmdlog = qpair->pynvme_cmdlog;
   uint16_t qid = qpair->id;
-  struct cmd_log_table_t* table = &cmd_log_queue_table[qid];
-  uint32_t index = cmd_log_queue_table[qid].tail_index;
+  uint32_t dump_count = count;
   uint32_t seq = 0;
+  uint32_t index;
 
-  assert(qid < CMD_LOG_QPAIR_COUNT);
-  assert(table != NULL);
-
+  // print cmdlog from tail to head
+  assert(cmdlog != NULL);
+  index = cmdlog->tail_index;
+  
   if (count == 0 || count > CMD_LOG_DEPTH)
   {
     dump_count = CMD_LOG_DEPTH;
   }
 
   // cmdlog is NOT SQ/CQ. cmdlog keeps CMD/CPL for script test debug purpose
-  SPDK_NOTICELOG("dump qpair %d, latest tail in cmdlog: %d\n",
-                 qid, table->tail_index);
+  SPDK_NOTICELOG("dump ctrlr %s, qpair %d, from %d to %d, count %d\n",
+                 qpair->ctrlr->trid.traddr, qid,
+                 index, cmdlog->head_index, dump_count);
 
   // only send the most recent part of cmdlog
   while (seq++ < dump_count)
@@ -1608,26 +1628,26 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
     index -= 1;
 
     // no timeval, empty slot, not print
-    struct timeval tv = table->table[index].time_cmd;
+    struct timeval tv = cmdlog->table[index].time_cmd;
     if (timercmp(&tv, &(struct timeval){0}, !=))
     {
       struct tm* time;
       char tmbuf[64];
 
       //cmd part
-      tv = table->table[index].time_cmd;
+      tv = cmdlog->table[index].time_cmd;
       time = localtime(&tv.tv_sec);
       strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
       SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, tv.tv_usec);
-      nvme_qpair_print_command(qpair, &table->table[index].cmd);
+      nvme_qpair_print_command(qpair, &cmdlog->table[index].cmd);
 
       //cpl part
-      tv.tv_usec = table->table[index].cpl_latency_us;
-      timeradd(&table->table[index].time_cmd, &tv, &tv);
+      tv.tv_usec = cmdlog->table[index].cpl_latency_us;
+      timeradd(&cmdlog->table[index].time_cmd, &tv, &tv);
       time = localtime(&tv.tv_sec);
       strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
       SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, tv.tv_usec);
-      nvme_qpair_print_completion(qpair, &table->table[index].cpl);
+      nvme_qpair_print_completion(qpair, &cmdlog->table[index].cpl);
     }
   }
 }
@@ -1788,12 +1808,28 @@ static void* rpc_server(void* args)
 }
 
 
+static void rpc_list_qpair_content(struct spdk_json_write_ctx *w,
+                                   struct spdk_nvme_qpair* q)
+{
+  uint32_t os = nvme_pcie_qpair_outstanding_count(q);
+
+  spdk_json_write_object_begin(w);
+  
+  spdk_json_write_named_string(w, "ctrlr", q->ctrlr->trid.traddr);
+  spdk_json_write_named_uint32(w, "qid", q->id+1);  // 0 means octal
+  spdk_json_write_named_uint32(w, "outstanding", MIN(os, 100));
+  spdk_json_write_named_uint64(w, "qpair", (uint64_t)q);
+
+  spdk_json_write_object_end(w);
+}
+
+
 static void
 rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
                    const struct spdk_json_val *params)
 {
   struct spdk_json_write_ctx *w;
-
+  
   w = spdk_jsonrpc_begin_result(request);
   if (w == NULL)
   {
@@ -1801,29 +1837,22 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
   }
 
   spdk_json_write_array_begin(w);
-  for (int i=0; i<CMD_LOG_QPAIR_COUNT; i++)
+
+  //find all inited nvme controllers
+  struct ctrlr_entry* e;
+  STAILQ_FOREACH(e, &g_controllers, next)
   {
-    // only send valid qpair
-    if (cmd_log_queue_table[i].tail_index < CMD_LOG_DEPTH)
+      // admin qpair
+    rpc_list_qpair_content(w, e->ctrlr->adminq);
+      
+    // io qpairs
+    struct spdk_nvme_qpair	*q;
+    TAILQ_FOREACH(q, &e->ctrlr->active_io_qpairs, tailq)
     {
-      uint32_t outstanding = 0;
-      struct spdk_nvme_qpair* qpair = cmd_log_queue_table[i].qpair;
-
-      if (qpair != NULL)
-      {
-        outstanding = nvme_pcie_qpair_outstanding_count(qpair);
-      }
-
-      // limit blocks in UI
-      if (outstanding > 100)
-      {
-        outstanding = 100;
-      }
-
-      //json: leading 0 means octal, so +1 to avoid it
-      spdk_json_write_uint32(w, i+1 + ((outstanding/4)<<16));
+      rpc_list_qpair_content(w, q);
     }
   }
+
   spdk_json_write_array_end(w);
   spdk_jsonrpc_end_result(request, w);
 }
@@ -1834,8 +1863,8 @@ static void
 rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
                const struct spdk_json_val *params)
 {
-  uint32_t qid;
   size_t count;
+  struct spdk_nvme_qpair* q;
   struct spdk_json_write_ctx *w;
 
 	if (params == NULL)
@@ -1846,8 +1875,8 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
     return;
   }
 
-  if (spdk_json_decode_array(params, spdk_json_decode_uint32,
-                             &qid, 1, &count, sizeof(uint32_t)))
+  if (spdk_json_decode_array(params, spdk_json_decode_uint64,
+                             &q, 1, &count, sizeof(uint64_t)))
   {
     SPDK_ERRLOG("spdk_json_decode_object failed\n");
     spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
@@ -1863,17 +1892,19 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
     return;
   }
 
-  qid = qid-1;  //avoid 0 in json
-
+  assert(q);
+  assert(q->ctrlr);
+  
   w = spdk_jsonrpc_begin_result(request);
   if (w == NULL)
   {
     return;
   }
 
-  struct cmd_log_entry_t* table = cmd_log_queue_table[qid].table;
-  uint32_t index = cmd_log_queue_table[qid].tail_index;
-  uint32_t seq = 0;
+  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;  
+  struct cmd_log_entry_t* table = cmdlog->table;
+  uint32_t index = cmdlog->tail_index;
+  uint32_t seq = 1;
 
   // list the cmdlog in reversed order
   spdk_json_write_array_begin(w);
@@ -1893,15 +1924,15 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
     if (timercmp(&time_cmd, &(struct timeval){0}, !=))
     {
       // get the string of the op name
-      const char* cmdname = cmd_name(table[index].cmd.opc, qid==0?0:1);
+      const char* cmdname = cmd_name(table[index].cmd.opc, q->id==0?0:1);
       uint32_t* cmd = (uint32_t*)&table[index].cmd;
-      spdk_json_write_string_fmt(w, "%ld.%06ld: [cmd: %s] \n"
+      spdk_json_write_string_fmt(w, "%ld.%06ld [cmd%03d: %s]\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x",
                                  time_cmd.tv_sec, time_cmd.tv_usec,
-                                 cmdname,
+                                 seq, cmdname, 
                                  cmd[0], cmd[1], cmd[2], cmd[3],
                                  cmd[4], cmd[5], cmd[6], cmd[7],
                                  cmd[8], cmd[9], cmd[10], cmd[11],
@@ -1924,10 +1955,10 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
       }
       else
       {
-        spdk_json_write_string_fmt(w, "not completed ...\n");
+        spdk_json_write_string_fmt(w, "not completed\n...\n");
       }
     }
-  } while (seq++ < 100);
+  } while (seq++ < 128);
 
   spdk_json_write_array_end(w);
   spdk_jsonrpc_end_result(request, w);
@@ -1938,9 +1969,54 @@ SPDK_RPC_REGISTER("get_cmdlog", rpc_get_cmdlog, SPDK_RPC_STARTUP | SPDK_RPC_RUNT
 ////driver system
 ///////////////////////////////
 
+#define DRIVER_IO_TOKEN_NAME      "driver_io_token"
+
+static void driver_init_token(void)
+{
+  if (spdk_process_is_primary())
+  {
+    assert(g_driver_io_token_ptr == NULL);
+    g_driver_io_token_ptr = spdk_memzone_reserve(DRIVER_IO_TOKEN_NAME,
+                                                 sizeof(uint64_t),
+                                                 0,
+                                                 0);    
+
+    // avoid token 0
+    *g_driver_io_token_ptr = 1;
+  }
+  else
+  {
+    g_driver_io_token_ptr = spdk_memzone_lookup(DRIVER_IO_TOKEN_NAME);
+  }
+
+  assert(g_driver_io_token_ptr != NULL);
+}
+
+
+#define DRIVER_GLOBAL_CONFIG_NAME "driver_global_config"
+
+static void driver_init_config(void)
+{
+  if (spdk_process_is_primary())
+  {
+    assert(g_driver_config_ptr == NULL);
+    g_driver_config_ptr = spdk_memzone_reserve(DRIVER_GLOBAL_CONFIG_NAME,
+                                               sizeof(uint64_t),
+                                               0,
+                                               0);
+    *g_driver_config_ptr = 0;
+  }
+  else
+  {
+    g_driver_config_ptr = spdk_memzone_lookup(DRIVER_GLOBAL_CONFIG_NAME);
+  }
+
+  assert(g_driver_config_ptr != NULL);
+}
+
+
 int driver_init(void)
 {
-  int ret = 0;
   char buf[20];
   struct spdk_env_opts opts;
 
@@ -1972,47 +2048,40 @@ int driver_init(void)
     pthread_create(&rpc_t, NULL, rpc_server, NULL);
   }
 
-  // init cmd log
-  ret = cmd_log_init();
-  if (ret != 0)
-  {
-    return ret;
-  }
+  driver_init_config();
+  driver_init_token();
 
-  // init admin cmd log
-  if (spdk_process_is_primary())
-  {
-    cmd_log_qpair_init(NULL);
-  }
-
-  return ret;
+  return 0;
 }
 
 
 int driver_fini(void)
 {
-  //delete cmd log of admin queue
+  // clear global shared data
   if (spdk_process_is_primary())
   {
-    cmd_log_qpair_clear(0);
-    cmd_log_finish();
+    spdk_memzone_free(DRIVER_IO_TOKEN_NAME);
+    spdk_memzone_free(DRIVER_GLOBAL_CONFIG_NAME);
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
   }
-
+  
+  g_driver_io_token_ptr = NULL;
+  g_driver_config_ptr = NULL;
+  
 	return spdk_env_cleanup();
 }
 
 
 uint64_t driver_config(uint64_t cfg_word)
 {
-  if (g_driver_csum_table_ptr != NULL)
+  if (g_driver_config_ptr != NULL)
   {
-    *g_driver_global_config_ptr = cfg_word;
+    *g_driver_config_ptr = cfg_word;
   }
   else
   {
     SPDK_INFOLOG(SPDK_LOG_NVME, "no enough memory, not to enable data verification feature.\n");
   }
 
-  return *g_driver_global_config_ptr;
+  return *g_driver_config_ptr;
 }

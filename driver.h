@@ -90,7 +90,7 @@ extern int nvme_get_reg32(struct spdk_nvme_ctrlr* ctrlr,
                           unsigned int* value);
 
 extern int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* c);
-extern void nvme_deallocate_ranges(struct spdk_nvme_ctrlr* ctrlr,
+extern void nvme_deallocate_ranges(namespace* ns,
                                    void* buf, unsigned int count);
 extern void nvme_cmd_cb_print_cpl(void* qpair, const struct spdk_nvme_cpl* cpl);
 
@@ -99,7 +99,7 @@ typedef void (*cmd_cb_func)(void* cb_arg,
                                  const struct spdk_nvme_cpl* cpl);
 extern int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
                              struct spdk_nvme_qpair *qpair,
-                             unsigned int opcode,
+                             unsigned int cdw0,
                              unsigned int nsid,
                              void* buf, size_t len,
                              unsigned int cdw10,
@@ -111,6 +111,7 @@ extern int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
                              cmd_cb_func cb_fn,
                              void* cb_arg);
 extern int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl);
+extern namespace* nvme_get_ns(ctrlr* c, unsigned int nsid);
 
 extern void nvme_register_aer_cb(struct spdk_nvme_ctrlr* ctrlr,
                                  spdk_nvme_aer_cb aer_cb,
@@ -129,9 +130,9 @@ extern int qpair_get_id(struct spdk_nvme_qpair* q);
 extern int qpair_free(struct spdk_nvme_qpair* q);
 
 extern namespace* ns_init(ctrlr* c, unsigned int nsid);
-extern int ns_refresh(struct spdk_nvme_ns *ns, uint32_t id, struct spdk_nvme_ctrlr *ctrlr);
+extern int ns_refresh(namespace* ns, uint32_t id, struct spdk_nvme_ctrlr *ctrlr);
 extern int ns_cmd_read_write(int is_read,
-                             struct spdk_nvme_ns* ns,
+                             namespace* ns,
                              struct spdk_nvme_qpair *qpair,
                              void *buf,
                              size_t len,
@@ -142,11 +143,13 @@ extern int ns_cmd_read_write(int is_read,
                              void* cb_arg);
 extern uint32_t ns_get_sector_size(namespace* ns);
 extern uint64_t ns_get_num_sectors(namespace* ns);
-extern int ns_fini(struct spdk_nvme_ns* ns);
+extern int ns_fini(namespace* ns);
 
-extern void crc32_clear(uint64_t lba, uint64_t lba_count, int sanitize, int uncorr);
+extern void ns_crc32_clear(namespace* ns,
+                           uint64_t lba, uint64_t lba_count,
+                           int sanitize, int uncorr);
 
-extern int ioworker_entry(struct spdk_nvme_ns* ns,
+extern int ioworker_entry(namespace* ns,
                           struct spdk_nvme_qpair *qpair,
                           ioworker_args* args,
                           ioworker_rets* rets);
@@ -161,3 +164,7 @@ extern void intc_clear(struct spdk_nvme_qpair* q);
 extern bool intc_isset(struct spdk_nvme_qpair* q);
 extern void intc_mask(struct spdk_nvme_qpair* q);
 extern void intc_unmask(struct spdk_nvme_qpair* q);
+extern void intc_init(struct spdk_nvme_ctrlr* ctrlr);
+
+extern void cmdlog_init(struct spdk_nvme_qpair* q);
+

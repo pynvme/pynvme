@@ -116,3 +116,16 @@ def test_aer_smart_temperature(nvme0, loading, aer):
     logging.info("it should be soon to trigger aer: %ds" %
                  (time.time()-start_time))
     assert time.time()-start_time < 15.0
+
+    
+def test_two_namespace_ioworkers(nvme0n1, nvme0):
+    nvme1 = d.Controller(b'03:00.0')
+    nvme1n1 = d.Namespace(nvme1)
+    with nvme0n1.ioworker(io_size=8, lba_align=16,
+                          lba_random=True, qdepth=16,
+                          read_percentage=0, time=100), \
+         nvme1n1.ioworker(io_size=8, lba_align=16,
+                          lba_random=True, qdepth=16,
+                          read_percentage=0, time=100):
+        pass
+

@@ -25,7 +25,7 @@ test NVMe devices in Python. [https://github.com/cranechu/pynvme]
 
 The pynvme is a python extension module. Users can operate NVMe SSD intuitively in Python scripts. It is designed for NVMe SSD testing with performance considered. Integrated with third-party tools, vscode and pytest, pynvme provides a convenient and professional solution to test NVMe devices.
 
-The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes, e.g. Controller, Namespace, Qpair, Buffer, and IOWorker. With pynvme, we can send any NVMe command in Python scripts, with a list of other capabilites:
+The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes, e.g. Controller, Namespace, Qpair, Buffer, and IOWorker. With pynvme, users can operate NVMe devices intuitively. We can:
 1. access PCI configuration space
 2. access NVMe registers in BAR space
 3. send any NVMe admin/IO commands
@@ -35,6 +35,7 @@ The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes
 7. IOWorker generates high-performance IO
 8. integrated with pytest
 9. integrated with VSCode
+10. test multiple controllers, namespaces and qpairs simultaneously
 
 Before moving forward, check and backup your data in the NVMe SSD to be tested. It is always recommended to attach just one piece of NVMe SSD in your system to avoid mistakes.
 
@@ -47,13 +48,14 @@ Users can install and use pynvme in commodity computers.
 System Requirement
 ------------------
 1. CPU: x86_64
-2. OS: Linux, recommend Fedora 29, Ubuntu is also tested
+2. OS: Linux, recommend Fedora 29, Ubuntu 2018.04 LTS is also tested.
 3. Memory: 8GB or larger, 2MB hugepage size.
 4. SATA: install OS and pynvme in a SATA drive.
 5. NVMe: NVMe SSD is the device to be tested. Backup your data!
 6. Python3. Python2 is not supported.
 7. sudo privilege is required.
 8. RAID mode in BIOS (Intel® RST) should be disabled.
+9. Secure boot in BIOS should be disabled.
 
 Source Code
 -----------
@@ -121,7 +123,7 @@ sudo visudo
 
 3. In order to monitor qpairs status and cmdlog along the progress of testing, user can install vscode extension pynvme-console. The extension provides DUT status and cmdlogs in VSCode UI.
 ```shell
-code --install-extension pynvme-console-1.0.0.vsix
+code --install-extension pynvme-console-1.x.x.vsix
 ```
 
 4. Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device.

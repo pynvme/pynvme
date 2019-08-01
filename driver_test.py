@@ -76,6 +76,103 @@ def test_qpair_different_size(nvme0n1, nvme0, shift):
     nvme0.getfeatures(7).waitdone()
 
 
+def test_two_controllers(nvme0):
+    nvme1 = d.Controller(b'03:00.0')
+    logging.info("model number: %s" % nvme0.id_data(63, 24, str))
+    logging.info("model number: %s" % nvme1.id_data(63, 24, str))
+    assert nvme0.id_data(63, 24, str)[:6] == nvme1.id_data(63, 24, str)[:6]
+    assert nvme0.id_data(23, 4, str) != nvme1.id_data(23, 4, str)
+    
+    
+def test_two_namespace_basic(nvme0n1, nvme0, verify):
+    nvme1 = d.Controller(b'03:00.0')
+    nvme1n1 = d.Namespace(nvme1)
+    nvme0n1.format()
+    nvme1n1.format()
+    
+    logging.info("controller0 namespace size: %d" % nvme0n1.id_data(7, 0))
+    logging.info("controller1 namespace size: %d" % nvme1n1.id_data(7, 0))
+    assert nvme0n1.id_data(7, 0) != nvme1n1.id_data(7, 0)
+
+    q1 = d.Qpair(nvme0, 32)
+    q2 = d.Qpair(nvme1, 64)
+    buf = d.Buffer(512)
+    buf1 = d.Buffer(512)
+    buf2 = d.Buffer(512)
+
+    # test nvme0n1
+    nvme0n1.read(q1, buf1, 11, 1).waitdone()
+    #print(buf1.dump())
+    assert buf1[0] == 0
+    assert buf1[504] == 0
+    nvme0n1.write(q1, buf, 11, 1).waitdone()
+    nvme0n1.read(q1, buf1, 11, 1).waitdone()
+    #print(buf1.dump())
+    assert buf1[0] == 11
+    assert buf1[504] == 1
+
+    # test nvme1n1
+    nvme1n1.read(q2, buf2, 11, 1).waitdone()
+    #print(buf2.dump())
+    assert buf2[0] == 0
+    assert buf2[504] == 0
+    nvme1n1.write(q2, buf, 11, 1).waitdone()
+    nvme1n1.read(q2, buf2, 11, 1).waitdone()
+    #print(buf2.dump())
+    assert buf2[0] == 11
+    assert buf2[504] == 2
+
+    assert buf1[:504] == buf2[:504]
+    assert buf1[:] != buf2[:]
+
+    # test nvme0n1 again
+    nvme0n1.read(q1, buf1, 11, 1).waitdone()
+    #print(buf1.dump())
+    assert buf1[0] == 11
+    assert buf1[504] == 1
+    nvme0n1.write(q1, buf, 11, 1).waitdone()
+    nvme0n1.read(q1, buf1, 11, 1).waitdone()
+    #print(buf1.dump())
+    assert buf1[0] == 11
+    assert buf1[504] == 3
+    
+    nvme0n1.read(q1, buf1, 22, 1).waitdone()
+    #print(buf1.dump())
+    assert buf1[0] == 0
+    assert buf1[504] == 0
+    nvme0n1.write(q1, buf, 22, 1).waitdone()
+    nvme0n1.read(q1, buf1, 22, 1).waitdone()
+    #print(buf1.dump())
+    assert buf1[0] == 22
+    assert buf1[504] == 4
+
+    nvme0.cmdlog(15)
+    nvme1.cmdlog(15)
+    q1.cmdlog(15)
+    q2.cmdlog(15)
+
+    
+def test_two_namespace_ioworkers(nvme0n1, nvme0):
+    nvme1 = d.Controller(b'03:00.0')
+    nvme1n1 = d.Namespace(nvme1)
+    with nvme0n1.ioworker(io_size=8, lba_align=16,
+                          lba_random=True, qdepth=16,
+                          read_percentage=0, time=1), \
+         nvme1n1.ioworker(io_size=8, lba_align=16,
+                          lba_random=True, qdepth=16,
+                          read_percentage=0, time=1):
+        pass
+
+
+def test_write_and_format(nvme0n1, nvme0):
+    with nvme0n1.ioworker(io_size=8, lba_align=16,
+                          lba_random=True, qdepth=16,
+                          read_percentage=0, time=1):
+        pass
+    
+    nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()    
+
+    
 def test_get_identify_quick(nvme0, nvme0n1):
     logging.info("vid: 0x%x" % nvme0.id_data(1, 0))
     logging.info("ssvid: 0x%x" % nvme0.id_data(3, 2))
@@ -669,10 +766,10 @@ def test_buffer_set_get():
 
 @pytest.mark.parametrize("repeat", range(2))
 def test_create_many_qpair(nvme0, repeat):
-    q = []
+    ql = []
     for i in range(16):
-        q.append(d.Qpair(nvme0, 8))
-    del q
+        ql.append(d.Qpair(nvme0, 8))
+    del ql
     
     for i in range(50):
         q = d.Qpair(nvme0, 80)
@@ -735,9 +832,9 @@ def test_write_fua_latency(nvme0n1, nvme0):
     fua_time = time.time()-now
     logging.info("FUA write latency %fs" % fua_time)
 
-    assert fua_time > non_fua_time
+    assert non_fua_time < fua_time
 
-
+    
 def test_read_fua_latency(nvme0n1, nvme0):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
@@ -756,9 +853,6 @@ def test_read_fua_latency(nvme0n1, nvme0):
         nvme0n1.read(q, buf, 0, 8, 1<<30).waitdone()
     fua_time = time.time()-now
     logging.info("FUA read latency %fs" % fua_time)
-
-    # it fails sometimes
-    #assert fua_time > non_fua_time
 
 
 def test_write_limited_retry(nvme0n1, nvme0):
@@ -1547,10 +1641,17 @@ def test_single_large_ioworker(nvme0n1):
 
 def test_admin_cmd_log(nvme0):
     nvme0.getfeatures(7).waitdone()
-    nvme0.cmdlog(5)
+    nvme0.cmdlog(15)
 
+    
+def test_io_cmd_log(nvme0, nvme0n1):
+    q = d.Qpair(nvme0, 16)
+    buf = d.Buffer(512)
+    for i in range(5):
+        nvme0n1.read(q, buf, 0).waitdone()
+    q.cmdlog(15)
 
-
+    
 def test_cmd_cb_features(nvme0):
     orig_config = 0
 
@@ -1793,6 +1894,24 @@ def test_ioworker_address_region_512(nvme0, nvme0n1, start, length):
     assert read_buf[:] == b[:]
 
 
+def test_fused_operations(nvme0, nvme0n1):
+    q = d.Qpair(nvme0, 10)
+    b = d.Buffer()
+    
+    # compare and write
+    nvme0n1.write(q, b, 8).waitdone()
+    nvme0n1.compare(q, b, 8).waitdone()
+
+    # fused
+    nvme0n1.send_cmd(5|(1<<8), q, b, 1, 8, 0, 0)
+    nvme0n1.send_cmd(1|(1<<9), q, b, 1, 8, 0, 0)
+    q.waitdone(2)
+
+    # atomic: first cmd should be timeout
+    nvme0n1.send_cmd(1|(1<<8), q, b, 1, 8, 0, 0).waitdone()
+    nvme0n1.send_cmd(5|(1<<9), q, b, 1, 8, 0, 0).waitdone()
+
+    
 @pytest.mark.parametrize("lba_size", [4096, 512])
 @pytest.mark.parametrize("repeat", range(2))
 def test_write_4k_lba(nvme0, nvme0n1, lba_size, repeat):
@@ -1885,6 +2004,14 @@ def test_ioworker_longtime(nvme0n1, verify):
 
     for a in l:
         r = a.close()
+
+
+@pytest.mark.parametrize("lba_size", [4096, 512, 4096, 512])
+def test_namespace_change_format(nvme0, nvme0n1, lba_size, verify):
+    nvme0n1.format(lba_size)
+    nvme0n1.ioworker(io_size=8, lba_align=8,
+                     lba_random=True, qdepth=16, 
+                     read_percentage=100, time=1).start().close()
 
 
 @pytest.mark.parametrize("lba_size", [4096, 512])

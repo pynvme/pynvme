@@ -54,7 +54,7 @@ def pcie(nvme0):
     del ret
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def nvme0n1(nvme0):
     ret = d.Namespace(nvme0, 1)
     yield ret

@@ -55,7 +55,7 @@ cython_clean:
 	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* *.log scripts/__pycache__
 
 all: cython_lib
-.PHONY: all spdk doc debug
+.PHONY: all spdk doc
 
 spdk:
 	cd spdk; make clean; ./configure --enable-debug --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
@@ -101,7 +101,7 @@ pytest: setup info
 test:
 	-rm test.log
 	make pytest 2>test.log | tee -a test.log
-	cat test.log | grep "432 passed, 2 skipped" || exit -1
+	cat test.log | grep "442 passed, 2 skipped" || exit -1
 
 nvmt: setup      # create a NVMe/TCP target on 2 cores, based on memory bdev, for local test only
 	sudo ./spdk/app/nvmf_tgt/nvmf_tgt -m 3 &
