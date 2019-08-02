@@ -18,5 +18,6 @@
     "terminal.integrated.fontFamily": "monospace",
     "terminal.integrated.shell.linux": "/bin/bash",
     "editor.minimap.enabled": false,
-    "editor.detectIndentation": false
+    "editor.detectIndentation": false,
+    "terminal.integrated.fontSize": 12
 }

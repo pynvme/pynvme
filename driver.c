@@ -59,7 +59,7 @@
 
 // the global configuration of the driver
 #define DCFG_VERIFY_READ      (BIT(0))
-#define DCFG_ENABLE_MSIX      (BIT(0))
+#define DCFG_ENABLE_MSIX      (BIT(1))
 
 
 static uint64_t* g_driver_io_token_ptr = NULL;
@@ -910,6 +910,7 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
   struct spdk_nvme_io_qpair_opts opts;
 
   //user options
+  memset(&opts, 0, sizeof(opts));
   opts.qprio = prio;
   opts.io_queue_size = depth;
   opts.io_queue_requests = depth*2;
@@ -2020,12 +2021,9 @@ int driver_init(void)
   char buf[20];
   struct spdk_env_opts opts;
 
-  //init random sequence reproducible
-  srandom(1);
-
   // distribute multiprocessing to different cores
   spdk_env_opts_init(&opts);
-  sprintf(buf, "0x%x", 1<<(getpid()%get_nprocs()));
+  sprintf(buf, "0x%llx", 1ULL<<(getpid()%get_nprocs()));
   opts.core_mask = buf;
   opts.shm_id = 0;
   opts.name = "pynvme";
@@ -2051,6 +2049,9 @@ int driver_init(void)
   driver_init_config();
   driver_init_token();
 
+  //init random sequence reproducible
+  srandom(time(NULL));
+
   return 0;
 }
 
@@ -2068,7 +2069,7 @@ int driver_fini(void)
   g_driver_io_token_ptr = NULL;
   g_driver_config_ptr = NULL;
   
-	return spdk_env_cleanup();
+  return spdk_env_cleanup();
 }
 
 

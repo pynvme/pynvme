@@ -43,7 +43,7 @@
 
 """test NVMe devices in Python. [https://github.com/cranechu/pynvme]
 
-[![Status](https://img.shields.io/gitlab/pipeline/cranechu/pynvme.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
+[![Status](https://img.shields.io/gitlab/pipeline/cranechu/pynvme.svg)]
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
 
@@ -139,7 +139,7 @@ make test TESTS=scripts/demo_test.py
 make test TESTS=scripts/utility_test.py::test_download_firmware
 ```
 By default, it runs tests in driver_test.py. However, these are tests of pynvme itself, instead of SSD drives. Your DUT drive may fail in some test cases. Please add your tests in *scripts* directory. 
-Test logs are saved in file *test.log*. 
+Test logs are saved in file *test.log*. When you submit issues, please kindly attach this test.log file. 
 
 After test, you may wish to bring kernel NVMe driver back like this:
 ```shell
@@ -165,7 +165,7 @@ sudo visudo
 
 3. In order to monitor qpairs status and cmdlog along the progress of testing, user can install vscode extension pynvme-console. The extension provides DUT status and cmdlogs in VSCode UI.
 ```shell
-code --install-extension pynvme-console-1.1.0.vsix
+code --install-extension pynvme-console-1.x.x.vsix
 ```
 
 4. Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device.
@@ -179,16 +179,24 @@ lspci
 make setup; code .  # make sure to enable SPDK nvme driver before starting vscode
 ```
 
-6. Now, it is ready to create, debug and run test scripts on your NVMe SSD. Import following packages in new test script files.
+6. Users can add their own script files under scripts directory. Import following packages in new test script files.
 ```python
 import pytest
 import logging
 
 import nvme as d    # import pynvme's python package
-
 ```
 
-VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance test, it is recommended to run tests in command line, by *make test*. 
+7. Now, we can debug and run test scripts in VSCode!
+![](./vscode.png)
+- A. Activity Bar: you can select the last Test icon for pytest and pynvme extentions.
+- B. pytest panel: collects all test files and cases in scripts directory.
+- C. pynvme panel: displays all active qpairs in all controllers. Click qpair to open or refresh its cmdlog viewer.
+- D. editor: edit test scripts here.
+- E. cmdlog viewer: displays the latest 128 command and completion dwords in one qpair.
+- F. log viewer: displays pytest log.
+
+VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance tests and regular CI tests, it is recommended to run tests in command line, by *make test*. 
 
 
 Tutorial

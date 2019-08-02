@@ -78,8 +78,6 @@ def test_qpair_different_size(nvme0n1, nvme0, shift):
 
 def test_two_controllers(nvme0):
     nvme1 = d.Controller(b'03:00.0')
-    logging.info("model number: %s" % nvme0.id_data(63, 24, str))
-    logging.info("model number: %s" % nvme1.id_data(63, 24, str))
     assert nvme0.id_data(63, 24, str)[:6] == nvme1.id_data(63, 24, str)[:6]
     assert nvme0.id_data(23, 4, str) != nvme1.id_data(23, 4, str)
     
@@ -175,10 +173,6 @@ def test_write_and_format(nvme0n1, nvme0):
     
 def test_get_identify_quick(nvme0, nvme0n1):
     logging.info("vid: 0x%x" % nvme0.id_data(1, 0))
-    logging.info("ssvid: 0x%x" % nvme0.id_data(3, 2))
-    logging.info("serial number: %s" % nvme0.id_data(23, 4, str))
-    logging.info("model number: %s" % nvme0.id_data(63, 24, str))
-    logging.info("firmware revision: %s" % nvme0.id_data(71, 64, str))
     logging.info("namespace size: %d" % nvme0n1.id_data(7, 0))
     logging.info("namespace capacity: %d" % nvme0n1.id_data(15, 8))
     logging.info("namespace utilization: %d" % nvme0n1.id_data(23, 16))
