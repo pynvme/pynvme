@@ -43,7 +43,7 @@
 
 """test NVMe devices in Python. [https://github.com/cranechu/pynvme]
 
-![Status](https://img.shields.io/gitlab/pipeline/cranechu/pynvme.svg)
+[![Status](https://img.shields.io/gitlab/pipeline/cranechu/pynvme.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
 
