@@ -295,11 +295,22 @@ NVMe的命令是异步执行的，所以我们要等待命令的完成。
 ```python
 nvme0.waitdone(1)
 ```
-或者使用这种写法来发送并回收一条命令：
+或者使用更简便的写法来发送并回收一条命令：
 ```python
 nvme0.getfeatures(7).waitdone()
 ```
-pynvme支持命令的回调函数。当命令完成时，该回调函数会被执行。
+当命令的返回任何错误状态时，pynvme会抛出warning。如何这个warning是符合期望的，可以通过pytest来捕获：
+```python
+import warnings
+
+def test_get_identify(nvme0, nvme0n1):
+    with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
+        nvme0.identify(id_buf, 0, 0).waitdone()
+```
+如果设备返回命令超时（5秒钟），pynvme也会抛出一个timeout warning。
+
+pynvme支持命令的回调函数。当命令完成时，该回调函数会被执行。在回调函数中，脚本可以得到Completion CDW0以及status字段。回调函数的原型和使用如下所示：
+
 ```python
 def getfeatures_cb(cdw0, status):
     logging.info(f"get the status: {cdw0}")
@@ -319,7 +330,10 @@ pynvme支持NVMe协议规定的大部分命令。除此之外，pynvme还可以�
 ```python
 nvme0.send_cmd(0xff).waitdone()
 ```
+使用这个通用的send_cmd接口，我们也可以实现更复杂的SQ/CQ creation/deletion测试，等等。
+
 Controller可以被reset，通过写寄存器CC.EN实现。
+
 ```python
 nvme0.reset()
 ```
@@ -330,6 +344,7 @@ nvme0.downfw('path/to/firmware_image_file')
 上面的reset和downfw方法并不是NVMe命令，所以不需要为他们调用waitdone方法。
 
 NVMe还有一个比较特殊的命令：asynchorous event request (AER)。该命令被发出后，一直等到NVMe设备出现某些错误或者特定事件才会返回。由于无法完全准确预期AER的返回，所以AER由驱动程序在Controller初始化的时候就全部发出，当AER返回时pynvme会产生Warning。如果脚本需要处理AER返回，需要通过aer的fixture来注册回调函数。该回调函数在测试函数执行完毕后会自动注销。AER返回后，驱动程序会自动发出新的AER命令。
+
 ```python
 def test_sanitize(nvme0, nvme0n1, buf, aer):
     if nvme0.id_data(331, 328) == 0:
@@ -444,7 +459,7 @@ nvme0n1.dsm(qpair, buf, 2).waitdone()
 ```python
 nvme0n1.send_cmd(0xff, qpair, buf, nsid, 1, 2, 3).waitdone()
 ```
-和admin命令一样，所有IO命令也支持回调函数，也可以通过id_data访问namespace的identify数据。这些不再赘述。
+脚本也可以利用这个通用的send_cmd命令来实现fused operations。和admin命令一样，所有IO命令也支持回调函数，以及通过id_data访问namespace的identify数据。
 
 在测试SSD的时候，我们经常需要大量读写NVMe设备，有时也需要做各种performance测试。如果在脚本中发送每一条IO命令，性能肯定非常差。为此，我们在namespace对象中提供了ioworker方法。
 

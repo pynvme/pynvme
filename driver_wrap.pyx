@@ -397,7 +397,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "1.0"
+__version__ = "1.1"
 
 
 # nvme command timeout, it's a warning
