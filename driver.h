@@ -79,8 +79,7 @@ extern int pcie_cfg_write8(struct spdk_pci_device* pci,
                            unsigned char value,
                            unsigned int offset);
 
-extern ctrlr* nvme_init(char * traddr);
-extern ctrlr* nvme_probe(char * traddr);
+extern ctrlr* nvme_init(char * traddr, unsigned int port);
 extern int nvme_fini(struct spdk_nvme_ctrlr* c);
 extern int nvme_set_reg32(struct spdk_nvme_ctrlr* ctrlr,
                           unsigned int offset,
@@ -88,6 +87,12 @@ extern int nvme_set_reg32(struct spdk_nvme_ctrlr* ctrlr,
 extern int nvme_get_reg32(struct spdk_nvme_ctrlr* ctrlr,
                           unsigned int offset,
                           unsigned int* value);
+extern int nvme_set_reg64(struct spdk_nvme_ctrlr* ctrlr,
+                          unsigned int offset,
+                          unsigned long value);
+extern int nvme_get_reg64(struct spdk_nvme_ctrlr* ctrlr,
+                          unsigned int offset,
+                          unsigned long* value);
 
 extern int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* c);
 extern void nvme_deallocate_ranges(namespace* ns,
@@ -166,5 +171,6 @@ extern void intc_mask(struct spdk_nvme_qpair* q);
 extern void intc_unmask(struct spdk_nvme_qpair* q);
 extern void intc_init(struct spdk_nvme_ctrlr* ctrlr);
 
-extern void cmdlog_init(struct spdk_nvme_qpair* q);
+extern void cmdlog_init(struct spdk_nvme_qpair * q);
+extern void cmdlog_free(struct spdk_nvme_qpair* q);
 

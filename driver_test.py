@@ -47,12 +47,26 @@ import nvme  # test double import
 @pytest.mark.skip("nvme over tcp")
 def test_nvme_tcp_basic():
     c = d.Controller(b'127.0.0.1')
+    c = d.Controller(b'127.0.0.1:4420')
+    logging.info("debug: %s" % c.id_data(63, 24, str))
+    logging.info("debug: %s" % c.id_data(63, 24, str))
+    logging.info("debug: %s" % c.id_data(63, 24, str))
+
     n = d.Namespace(c, 1)
-    test_get_identify_quick(c, n)
-    del n
-    del c
+    logging.info("debug: %s" % c.id_data(63, 24, str))
+    logging.info("debug: %s" % c.id_data(63, 24, str))
+    logging.info("MDTS = %d" % c.mdts)
+    logging.info("debug: %s" % c.id_data(63, 24, str))
+    logging.info("debug: %s" % c.id_data(63, 24, str))
+    assert c.mdts == 128*1024
+    c.cmdlog(10)
 
+    n.ioworker(io_size=8, lba_align=8,
+               region_start=0, region_end=0x100,
+               lba_random=False, qdepth=4,
+               read_percentage=50, time=5).start().close()
 
+    
 def test_create_device(nvme0, nvme0n1):
     assert nvme0 is not None
 

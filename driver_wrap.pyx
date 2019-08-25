@@ -397,7 +397,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "1.1"
+__version__ = "1.2"
 
 
 # nvme command timeout, it's a warning
@@ -823,7 +823,7 @@ cdef class Controller(object):
     """
 
     cdef d.ctrlr * _ctrlr
-    cdef char _bdf[20]
+    cdef char _bdf[64]
     cdef Buffer hmb_buf
 
     def __cinit__(self, addr):
@@ -840,8 +840,22 @@ cdef class Controller(object):
         self._create()
 
     def _create(self):
-        self._ctrlr = d.nvme_init(self._bdf)
-        # print("created ctrlr: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
+        # tcp or pci?
+        addr = self._bdf.decode('utf-8')
+        port = 0
+        if ':' not in addr:
+            # pure ip address without port
+            port = 4420
+        else:
+            port = addr.split(':')[-1]
+            try:
+                port = int(port)
+                addr = addr.split(':')[0]
+            except:
+                # invalid port, which should be pci address
+                port = 0
+
+        self._ctrlr = d.nvme_init(addr.encode('utf-8'), port)
         if self._ctrlr is NULL:
             raise NvmeEnumerateError(f"fail to create the controller")
         d.nvme_register_timeout_cb(self._ctrlr, timeout_driver_cb, _cTIMEOUT)
@@ -880,6 +894,13 @@ cdef class Controller(object):
             if ret != 0:
                 raise NvmeDeletionError(f"fail to close the controller, check if any qpair is not deleted: {ret}")
             self._ctrlr = NULL
+
+    @property
+    def cap(self):
+        # it is a 64-bit readonly register
+        cdef unsigned long value
+        d.nvme_get_reg64(self._ctrlr, 0, &value)
+        return value
 
     def __getitem__(self, index):
         """read nvme registers in BAR memory space by dwords."""
@@ -1534,7 +1555,7 @@ cdef class Namespace(object):
     """
 
     cdef d.namespace * _ns
-    cdef char _bdf[8]
+    cdef char _bdf[64]
     cdef unsigned int _nsid
     cdef unsigned int sector_size
     cdef Controller _nvme
@@ -1542,7 +1563,7 @@ cdef class Namespace(object):
     def __cinit__(self, Controller nvme, unsigned int nsid=1):
         logging.debug("initialize namespace nsid %d" % nsid)
         self._nvme = nvme
-        strncpy(self._bdf, nvme._bdf, 8)
+        strncpy(self._bdf, nvme._bdf, 64)
         self._nsid = nsid
         self._ns = d.ns_init(nvme._ctrlr, nsid)
         # print("created namespace: %x" % <unsigned long>self._ns); sys.stdout.flush()
@@ -1696,7 +1717,7 @@ cdef class Namespace(object):
 
         assert not (time==0 and io_count==0), "when to stop the ioworker?"
         assert qdepth>=2 and qdepth<=1023, "support qdepth upto 1023"
-        assert qdepth <= (self._nvme[0]&0xffff) + 1, "qdepth is larger than specification"
+        assert qdepth <= (self._nvme.cap & 0xffff) + 1, "qdepth is larger than specification"
         assert region_start < region_end, "region end is not included"
 
         pciaddr = self._bdf

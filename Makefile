@@ -68,6 +68,7 @@ reset:
 	sudo ./spdk/scripts/setup.sh cleanup
 	sudo ./spdk/scripts/setup.sh reset
 	-sudo rm -f /var/tmp/pynvme.sock*
+	-sudo rm -rf .pytest_cache
 	-sudo fuser -k 4420/tcp
 
 info:
@@ -76,6 +77,7 @@ info:
 	sudo cat /proc/cpuinfo
 	sudo cat /etc/*release
 	sudo lspci -s ${pciaddr} -vv
+	ip addr
 	df
 	whoami
 	groups
@@ -103,11 +105,11 @@ test:
 	make pytest 2>test.log | tee -a test.log
 	cat test.log | grep "442 passed, 2 skipped" || exit -1
 
-nvmt: setup      # create a NVMe/TCP target on 2 cores, based on memory bdev, for local test only
-	sudo ./spdk/app/nvmf_tgt/nvmf_tgt -m 3 &
+nvmt:
+	sudo ./spdk/app/nvmf_tgt/nvmf_tgt --no-pci -m 0x3 &
 	sleep 5
-	sudo ./spdk/scripts/rpc.py construct_malloc_bdev -b Malloc0 64 512
-	sudo ./spdk/scripts/rpc.py nvmf_create_transport -t TCP -p 4
+	sudo ./spdk/scripts/rpc.py bdev_malloc_create -b Malloc0 1024 512
+	sudo ./spdk/scripts/rpc.py nvmf_create_transport -t TCP -p 10
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_create nqn.2016-06.io.spdk:cnode1 -a -s SPDK00000000000001
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 Malloc0
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_listener nqn.2016-06.io.spdk:cnode1 -t tcp -a 127.0.0.1 -s 4420

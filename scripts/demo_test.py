@@ -129,3 +129,19 @@ def test_two_namespace_ioworkers(nvme0n1, nvme0):
                           read_percentage=0, time=100):
         pass
 
+
+def test_spdk_summit_demo(nvme0, nvme0n1):
+    logging.info("writing to PCIe SSD and monitoring the temperature")
+    nvmt = d.Controller(b'127.0.0.1:4420')
+    with nvme0n1.ioworker(io_size=8, lba_align=16,
+                          lba_random=False, qdepth=16,
+                          read_percentage=0, time=20):
+        # read the SMART temperature
+        smart_log = d.Buffer(512, "smart log")
+        for i in range(30):
+            for n in (nvme0, nvmt):
+                n.getlogpage(0x02, smart_log, 512).waitdone()
+                ktemp = smart_log.data(2, 1)
+                logging.info("temperature %d: %0.2f degreeC" % (i, k2c(ktemp)))
+            time.sleep(1)
+

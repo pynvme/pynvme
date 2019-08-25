@@ -81,8 +81,7 @@ cdef extern from "driver.h":
                         unsigned char value,
                         unsigned int offset)
 
-    ctrlr * nvme_init(char * traddr)
-    ctrlr * nvme_probe(char * traddr)
+    ctrlr * nvme_init(char * traddr, unsigned int port)
     int nvme_fini(ctrlr * c)
     int nvme_set_reg32(ctrlr * c,
                        unsigned int offset,
@@ -90,6 +89,12 @@ cdef extern from "driver.h":
     int nvme_get_reg32(ctrlr * c,
                        unsigned int offset,
                        unsigned int * value)
+    int nvme_set_reg64(ctrlr * c,
+                       unsigned int offset,
+                       unsigned long value)
+    int nvme_get_reg64(ctrlr * c,
+                       unsigned int offset,
+                       unsigned long * value)
 
     void nvme_deallocate_ranges(namespace *c,
                                 void * buf, unsigned int count)
