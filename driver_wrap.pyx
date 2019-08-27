@@ -89,8 +89,8 @@ Users can install and use pynvme in commodity computers.
 
 System Requirement
 ------------------
-1. CPU: x86_64
-2. OS: Linux, recommend Fedora 29, Ubuntu 2018.04 LTS is also tested.
+1. CPU: x86_64.
+2. OS: Linux. CentOS 8 is recommended and supported.
 3. Memory: 8GB or larger, 2MB hugepage size.
 4. SATA: install OS and pynvme in a SATA drive.
 5. NVMe: NVMe SSD is the device to be tested. Backup your data!

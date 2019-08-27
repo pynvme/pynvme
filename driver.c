@@ -1054,8 +1054,11 @@ static void ns_table_fini(struct spdk_nvme_ns* ns)
 
   if (spdk_process_is_primary())
   {
-    spdk_memzone_free(memzone_name);
-    ns->crc_table = NULL;
+    if (ns->crc_table != NULL)
+    {
+      spdk_memzone_free(memzone_name);
+      ns->crc_table = NULL;
+    }
   }
 }
 
