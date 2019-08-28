@@ -1284,6 +1284,12 @@ def test_ioworker_bandwidth_multiple_queue(nvme0n1, qcount):
     logging.info("Q %d: %dMB/s" % (qcount, (128*io_total)/10000))
 
 
+@pytest.mark.parametrize("qcount", [1, 2, 4, 8, 16])
+def test_ioworker_iops_multiple_queue_fob(nvme0, nvme0n1, qcount):
+    nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
+    test_ioworker_iops_multiple_queue(nvme0n1, qcount)
+
+    
 def test_ioworker_invalid_qdepth(nvme0, nvme0n1):
     # format to clear all data before test
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
