@@ -97,7 +97,7 @@ cython_lib:
 tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env
 
-pytest: setup info
+pytest: info
 	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -x -v -r Efsx
 
 test:
@@ -106,9 +106,9 @@ test:
 	cat test.log | grep "447 passed, 2 skipped" || exit -1
 
 nvmt:
-	sudo ./spdk/app/nvmf_tgt/nvmf_tgt --no-pci -m 0x3 &
+	sudo ./nvmf_tgt --no-pci -m 0x3 &
 	sleep 5
-	sudo ./spdk/scripts/rpc.py bdev_malloc_create -b Malloc0 1024 512
+	sudo ./spdk/scripts/rpc.py construct_malloc_bdev -b Malloc0 1024 512
 	sudo ./spdk/scripts/rpc.py nvmf_create_transport -t TCP -p 10
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_create nqn.2016-06.io.spdk:cnode1 -a -s SPDK00000000000001
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 Malloc0

@@ -8,8 +8,11 @@ driver_test:
     - echo $DUT_PCIADDR
   script:
     - ./install.sh
+    - make setup
+    - make nvmt
     - make $MAKE_TARGET
     - make $MAKE_TARGET
   after_script:
     - mv test.log ../ -f
     - make clean
+    - make reset
