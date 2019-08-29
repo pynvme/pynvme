@@ -106,7 +106,8 @@ test:
 	cat test.log | grep "447 passed, 2 skipped" || exit -1
 
 nvmt:
-	sudo ./nvmf_tgt --no-pci -m 0x3 &
+	cd ./spdk/app/nvmf_tgt; make
+	sudo ./spdk/app/nvmf_tgt/nvmf_tgt --no-pci -m 0x3 &
 	sleep 5
 	sudo ./spdk/scripts/rpc.py construct_malloc_bdev -b Malloc0 1024 512
 	sudo ./spdk/scripts/rpc.py nvmf_create_transport -t TCP -p 10
