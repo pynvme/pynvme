@@ -9,9 +9,8 @@ driver_test:
   script:
     - ./install.sh
     - make setup
-    - make nvmt
     - make $MAKE_TARGET
-    - make test TESTS=driver_test.py::test_nvme_tcp_basic
+    - make $MAKE_TARGET
   after_script:
     - mv test.log ../ -f
     - make clean
