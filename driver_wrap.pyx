@@ -537,6 +537,14 @@ cdef class Buffer(object):
             d.buffer_fini(self.ptr)
 
     @property
+    def data_head(self):
+        return self.dump().split('\n')[0][:-2].encode('ascii')
+        
+    @property
+    def data_tail(self):
+        return self.dump().split('\n')[-2][:-2].encode('ascii')
+        
+    @property
     def phys_addr(self):
         return self.phys_addr
 

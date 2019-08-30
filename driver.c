@@ -238,8 +238,6 @@ typedef volatile struct _msix_entry
 } msix_entry;
 
 
-#define DRIVER_CMDLOG_TABLE_NAME  "cmdlog_table_%p"
-
 static void cmdlog_init_msix(struct spdk_nvme_qpair* q)
 {
   uint64_t addr;
@@ -276,13 +274,19 @@ static void cmdlog_init_msix(struct spdk_nvme_qpair* q)
 }
 
 
+static void _cmdlog_uname(struct spdk_nvme_qpair* q, char* name, uint32_t len)
+{
+  assert(q != NULL);
+  snprintf(name, len, "cmdlog_table_%s_%d", q->ctrlr->trid.traddr, q->id);
+  SPDK_INFOLOG(SPDK_LOG_NVME, "cmdlog name: %s\n", name);
+}
+
+
 void cmdlog_init(struct spdk_nvme_qpair* q)
 {
   char cmdlog_name[64];
-
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "init cmdlog of q %p\n", q);
-  assert(q != NULL);
-  snprintf(cmdlog_name, 64, DRIVER_CMDLOG_TABLE_NAME, q);
+  _cmdlog_uname(q, cmdlog_name, sizeof(cmdlog_name));
+  assert(q->pynvme_cmdlog == NULL);
   q->pynvme_cmdlog = spdk_memzone_reserve(cmdlog_name,
                                           sizeof(struct cmd_log_table_t),
                                           0,
@@ -301,11 +305,7 @@ void cmdlog_free(struct spdk_nvme_qpair* q)
 {
   char cmdlog_name[64];
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "free cmdlog of q %p\n", q);
-  assert(q != NULL);
-  assert(q->pynvme_cmdlog != NULL);
-  
-  snprintf(cmdlog_name, 64, DRIVER_CMDLOG_TABLE_NAME, q);
+  _cmdlog_uname(q, cmdlog_name, sizeof(cmdlog_name));
   spdk_memzone_free(cmdlog_name);
   q->pynvme_cmdlog = NULL;
 }
@@ -1976,7 +1976,10 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
     return;
   }
 
-  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;
+  // find the cmdlog
+  char cmdlog_name[64];
+  _cmdlog_uname(q, cmdlog_name, sizeof(cmdlog_name));
+  struct cmd_log_table_t* cmdlog = spdk_memzone_lookup(cmdlog_name);
   struct cmd_log_entry_t* table = cmdlog->table;
   uint32_t index = cmdlog->tail_index;
   uint32_t seq = 1;
