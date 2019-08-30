@@ -135,10 +135,10 @@ def test_spdk_summit_demo(nvme0, nvme0n1):
     nvmt = d.Controller(b'127.0.0.1:4420')
     with nvme0n1.ioworker(io_size=8, lba_align=8,
                           lba_random=False, qdepth=10,
-                          read_percentage=100, time=10), \
+                          read_percentage=33, time=10), \
          nvme0n1.ioworker(io_size=8, lba_align=8,
                           lba_random=False, qdepth=50,
-                          read_percentage=100, time=20):
+                          read_percentage=67, time=20):
         # read the SMART temperature
         smart_log = d.Buffer(512, "smart log")
         for i in range(30):
@@ -147,4 +147,7 @@ def test_spdk_summit_demo(nvme0, nvme0n1):
                 ktemp = smart_log.data(2, 1)
                 logging.info("temperature %d: %0.2f degreeC" % (i, k2c(ktemp)))
             time.sleep(1)
+
+    test_hello_world(nvme0, nvme0n1)
+    test_hello_world(nvmt, d.Namespace(nvmt))
 

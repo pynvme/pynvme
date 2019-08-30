@@ -1566,7 +1566,7 @@ cdef class Namespace(object):
         strncpy(self._bdf, nvme._bdf, 64)
         self._nsid = nsid
         self._ns = d.ns_init(nvme._ctrlr, nsid)
-        # print("created namespace: %x" % <unsigned long>self._ns); sys.stdout.flush()
+        #print("created namespace: 0x%x" % <unsigned long>self._ns); sys.stdout.flush()
         if self._ns is NULL:
             raise NamespaceCreationError()
         self.sector_size = d.ns_get_sector_size(self._ns)
@@ -1580,7 +1580,8 @@ cdef class Namespace(object):
         """
 
         logging.debug("close namespace")
-        # print("dealloc namespace: %x" % <unsigned long>self._ns); sys.stdout.flush()
+        #print("dealloc namespace: 0x%x" % <unsigned long>self._ns); sys.stdout.flush()
+        self._ns = d.nvme_get_ns(self._nvme._ctrlr, self._nsid)
         if self._ns is not NULL:
             if d.ns_fini(self._ns) != 0:
                 raise NamespaceDeletionError()
@@ -1654,6 +1655,7 @@ cdef class Namespace(object):
 
         lbaf = self.get_lba_format(data_size, meta_size)
         self._nvme.format(lbaf, ses, self._nsid).waitdone()
+        self._ns = d.nvme_get_ns(self._nvme._ctrlr, self._nsid)
         d.ns_refresh(self._ns, self._nsid, self._nvme._ctrlr)
 
         # clear crc table
@@ -1881,6 +1883,7 @@ cdef class Namespace(object):
             SystemError: the command fails
         """
 
+        self._ns = d.nvme_get_ns(self._nvme._ctrlr, self._nsid)
         d.ns_crc32_clear(self._ns, lba, lba_count, False, True)
         self.send_io_raw(qpair, None, 4, self._nsid,
                          lba, lba>>32,
@@ -1906,6 +1909,7 @@ cdef class Namespace(object):
             SystemError: the command fails
         """
 
+        self._ns = d.nvme_get_ns(self._nvme._ctrlr, self._nsid)
         d.ns_crc32_clear(self._ns, lba, lba_count, False, False)
         self.send_io_raw(qpair, None, 8, self._nsid,
                          lba, lba>>32,
@@ -1923,6 +1927,7 @@ cdef class Namespace(object):
                              unsigned int io_flags,
                              d.cmd_cb_func cb_func,
                              void* cb_arg):
+        self._ns = d.nvme_get_ns(self._nvme._ctrlr, self._nsid)
         ret = d.ns_cmd_read_write(is_read, self._ns, qpair._qpair,
                                   buf.ptr, buf.size,
                                   lba, lba_count, io_flags,
@@ -1964,6 +1969,7 @@ cdef class Namespace(object):
     cdef void deallocate_ranges(self,
                                 Buffer buf,
                                 unsigned int range_count):
+        self._ns = d.nvme_get_ns(self._nvme._ctrlr, self._nsid)
         d.nvme_deallocate_ranges(self._ns, buf.ptr, range_count)
 
     cdef int send_io_raw(self,

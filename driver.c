@@ -326,7 +326,10 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   if (log_entry->req == NULL || log_entry->req != req)
   {
     //it's an overlapped entry, just skip cmdlog callback
-    SPDK_NOTICELOG("skip overlapped cmdlog entry %p\n", log_entry);
+    SPDK_NOTICELOG("skip overlapped cmdlog entry %p, cmd %s\n",
+                   log_entry,
+                   cmd_name(req->cmd.opc,
+                            req->qpair->id==0?0:1));
     return;
   }
 
@@ -728,7 +731,8 @@ struct spdk_nvme_ctrlr* nvme_init(char * traddr, unsigned int port)
     return NULL;
   }
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "found device: %s\n", ctrlr->trid.traddr);
+  SPDK_INFOLOG(SPDK_LOG_NVME, "found device: %s, %p\n",
+               ctrlr->trid.traddr, ctrlr);
 
   if (true != spdk_process_is_primary())
   {
@@ -1008,16 +1012,22 @@ int qpair_free(struct spdk_nvme_qpair* q)
 ////module: namespace
 ///////////////////////////////
 
-#define NS_CRC32_TABLE_NAME   "ns_crc32_table_%p"
+static void _ns_uname(struct spdk_nvme_ns* ns, char* name, uint32_t len)
+{
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "ns %p\n", ns);
+  uint64_t uid = spdk_nvme_ns_get_data(ns)->eui64;
+  snprintf(name, len, "ns_crc32_table_%lx", uid);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "crc table name: %s\n", name);
+}
+
 
 static int ns_table_init(struct spdk_nvme_ns* ns, uint64_t table_size)
 {
   char memzone_name[64];
-  
-  ns->table_size = table_size;
-  snprintf(memzone_name, 64, NS_CRC32_TABLE_NAME, ns);
+  _ns_uname(ns, memzone_name, sizeof(memzone_name));
+
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "crc table size: %ld\n", table_size);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "crc table name: %s\n", memzone_name);
+  ns->table_size = table_size;
 
   if (spdk_process_is_primary())
   {
@@ -1028,17 +1038,20 @@ static int ns_table_init(struct spdk_nvme_ns* ns, uint64_t table_size)
                                          table_size,
                                          0,
                                          SPDK_MEMZONE_NO_IOVA_CONTIG);
+    if (ns->crc_table == NULL)
+    {
+      SPDK_NOTICELOG("memory is not large enough to keep CRC32 table.\n");
+      SPDK_NOTICELOG("Data verification is disabled!\n");
+    }
   }
   else
   {
     // find the shared memory for token
     ns->crc_table = spdk_memzone_lookup(memzone_name);
-  }
-
-  if (ns->crc_table == NULL)
-  {
-    SPDK_NOTICELOG("memory is not large enough to keep CRC32 table.\n");
-    SPDK_NOTICELOG("Data verification is disabled!\n");
+    if (ns->crc_table == NULL)
+    {
+      SPDK_NOTICELOG("cannot find the crc_table in secondary process!\n");
+    }
   }
 
   return 0;
@@ -1048,9 +1061,7 @@ static int ns_table_init(struct spdk_nvme_ns* ns, uint64_t table_size)
 static void ns_table_fini(struct spdk_nvme_ns* ns)
 {
   char memzone_name[64];
-
-  snprintf(memzone_name, 64, NS_CRC32_TABLE_NAME, ns);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "crc table name: %s\n", memzone_name);
+  _ns_uname(ns, memzone_name, sizeof(memzone_name));
 
   if (spdk_process_is_primary())
   {
@@ -1069,6 +1080,8 @@ struct spdk_nvme_ns* ns_init(struct spdk_nvme_ctrlr* ctrlr, uint32_t nsid)
   uint64_t nsze = spdk_nvme_ns_get_num_sectors(ns);
 
   assert(ns != NULL);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "ctrlr %p, nsid %d\n", ctrlr, nsid);
+  
   if (0 != ns_table_init(ns, sizeof(uint32_t)*nsze))
   {
     return NULL;
@@ -1963,7 +1976,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
     return;
   }
 
-  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;  
+  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;
   struct cmd_log_entry_t* table = cmdlog->table;
   uint32_t index = cmdlog->tail_index;
   uint32_t seq = 1;
@@ -2146,14 +2159,6 @@ int driver_fini(void)
 
 uint64_t driver_config(uint64_t cfg_word)
 {
-  if (g_driver_config_ptr != NULL)
-  {
-    *g_driver_config_ptr = cfg_word;
-  }
-  else
-  {
-    SPDK_INFOLOG(SPDK_LOG_NVME, "no enough memory, not to enable data verification feature.\n");
-  }
-
-  return *g_driver_config_ptr;
+  assert(g_driver_config_ptr != NULL);
+  return *g_driver_config_ptr = cfg_word;
 }
