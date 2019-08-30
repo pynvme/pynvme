@@ -277,7 +277,8 @@ static void cmdlog_init_msix(struct spdk_nvme_qpair* q)
 static void _cmdlog_uname(struct spdk_nvme_qpair* q, char* name, uint32_t len)
 {
   assert(q != NULL);
-  snprintf(name, len, "cmdlog_table_%s_%d", q->ctrlr->trid.traddr, q->id);
+  snprintf(name, len, "cmdlog_table_%s_%d_%s",
+           q->ctrlr->trid.traddr, q->id, q->ctrlr->trid.subnqn);
   SPDK_INFOLOG(SPDK_LOG_NVME, "cmdlog name: %s\n", name);
 }
 
