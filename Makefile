@@ -103,7 +103,7 @@ pytest: info
 test:
 	-rm test.log
 	make pytest 2>test.log | tee -a test.log
-	cat test.log | grep "448 passed, 2 skipped" || exit -1
+	cat test.log | grep "447 passed, 3 skipped" || exit -1
 
 nvmt:
 	cd ./spdk/app/nvmf_tgt; make

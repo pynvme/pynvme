@@ -279,7 +279,7 @@ static void _cmdlog_uname(struct spdk_nvme_qpair* q, char* name, uint32_t len)
   assert(q != NULL);
   snprintf(name, len, "cmdlog_table_%s_%d_%s",
            q->ctrlr->trid.traddr, q->id, q->ctrlr->trid.subnqn);
-  SPDK_INFOLOG(SPDK_LOG_NVME, "cmdlog name: %s\n", name);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog name: %s\n", name);
 }
 
 
@@ -1830,6 +1830,8 @@ io_opc_name(uint8_t opc)
 		return "Reservation Acquire";
 	case SPDK_NVME_OPC_RESERVATION_RELEASE:
 		return "Reservation Release";
+	case SPDK_NVME_OPC_FABRIC:
+		return "Fabrics Connect";
 	default:
 		if (opc >= 0x80) {
 			return "Vendor specific";
