@@ -9,7 +9,7 @@ driver_test:
   script:
     - ./install.sh
     - make setup
-    - cd spdk/app/nvmf_tgt/; make
+    - cd spdk/app/nvmf_tgt/; make; cd ../../../
     - make nvmt
     - make $MAKE_TARGET
     - make $MAKE_TARGET

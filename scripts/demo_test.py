@@ -150,4 +150,3 @@ def test_spdk_summit_demo(nvme0, nvme0n1):
 
     test_hello_world(nvme0, nvme0n1)
     test_hello_world(nvmt, d.Namespace(nvmt))
-
