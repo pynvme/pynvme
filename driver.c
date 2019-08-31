@@ -286,6 +286,8 @@ static void _cmdlog_uname(struct spdk_nvme_qpair* q, char* name, uint32_t len)
 void cmdlog_init(struct spdk_nvme_qpair* q)
 {
   char cmdlog_name[64];
+  
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog init: %p\n", q);
   _cmdlog_uname(q, cmdlog_name, sizeof(cmdlog_name));
   assert(q->pynvme_cmdlog == NULL);
   q->pynvme_cmdlog = spdk_memzone_reserve(cmdlog_name,
@@ -305,7 +307,8 @@ void cmdlog_init(struct spdk_nvme_qpair* q)
 void cmdlog_free(struct spdk_nvme_qpair* q)
 {
   char cmdlog_name[64];
-
+  
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog free: %p\n", q);
   _cmdlog_uname(q, cmdlog_name, sizeof(cmdlog_name));
   spdk_memzone_free(cmdlog_name);
   q->pynvme_cmdlog = NULL;

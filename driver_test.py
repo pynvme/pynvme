@@ -44,7 +44,6 @@ import nvme as d
 import nvme  # test double import
 
 
-@pytest.mark.skip(reason="nvme tcp is debugging ...")
 def test_nvme_tcp_basic():
     c = d.Controller(b'127.0.0.1')
     c = d.Controller(b'127.0.0.1:4420')
@@ -61,6 +60,11 @@ def test_nvme_tcp_basic():
     assert c.mdts == 128*1024
     c.cmdlog(10)
 
+
+@pytest.mark.skip(reason="to debug")
+def test_nvme_tcp_ioworker():
+    c = d.Controller(b'127.0.0.1')
+    n = d.Namespace(c, 1)
     n.ioworker(io_size=8, lba_align=8,
                region_start=0, region_end=0x100,
                lba_random=False, qdepth=4,
