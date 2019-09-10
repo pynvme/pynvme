@@ -1,7 +1,7 @@
 /*-
  *   BSD LICENSE
  *
- *   Copyright (c) Crane Che <cranechu@gmail.com>
+ *   Copyright (c) Crane Chu <cranechu@gmail.com>
  *   All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
@@ -169,8 +169,3 @@ extern void intc_clear(struct spdk_nvme_qpair* q);
 extern bool intc_isset(struct spdk_nvme_qpair* q);
 extern void intc_mask(struct spdk_nvme_qpair* q);
 extern void intc_unmask(struct spdk_nvme_qpair* q);
-extern void intc_init(struct spdk_nvme_ctrlr* ctrlr);
-
-extern void cmdlog_init(struct spdk_nvme_qpair * q);
-extern void cmdlog_free(struct spdk_nvme_qpair* q);
-

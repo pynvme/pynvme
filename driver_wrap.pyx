@@ -1,7 +1,7 @@
 #
 #  BSD LICENSE
 #
-#  Copyright (c) Crane Che <cranechu@gmail.com>
+#  Copyright (c) Crane Chu <cranechu@gmail.com>
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 #  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+
 
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
@@ -67,17 +67,18 @@
 
 The pynvme is a python extension module. Users can operate NVMe SSD intuitively in Python scripts. It is designed for NVMe SSD testing with performance considered. Integrated with third-party tools, vscode and pytest, pynvme provides a convenient and professional solution to test NVMe devices.
 
-The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes, e.g. Controller, Namespace, Qpair, Buffer, and IOWorker. With pynvme, users can operate NVMe devices intuitively. We can: 
+The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes, e.g. Controller, Namespace, Qpair, Buffer, and IOWorker. With pynvme, users can operate NVMe devices intuitively, including: 
 1. access PCI configuration space
 2. access NVMe registers in BAR space
 3. send any NVMe admin/IO commands
 4. callback functions are supported
 5. MSIx interrupt is supported
-6. transparent checksum verification
+6. transparent checksum verification for each LBA
 7. IOWorker generates high-performance IO
 8. integrated with pytest
 9. integrated with VSCode
 10. test multiple controllers, namespaces and qpairs simultaneously
+11. test NVMe over TCP targets
 
 Before moving forward, check and backup your data in the NVMe SSD to be tested. It is always recommended to attach just one piece of NVMe SSD in your system to avoid mistakes.
 
@@ -90,14 +91,14 @@ Users can install and use pynvme in commodity computers.
 System Requirement
 ------------------
 1. CPU: x86_64.
-2. OS: Linux. CentOS 8 is recommended and supported.
-3. Memory: 8GB or larger, 2MB hugepage size.
+2. OS: Linux.
+3. Memory: 4GB or larger.
 4. SATA: install OS and pynvme in a SATA drive.
 5. NVMe: NVMe SSD is the device to be tested. Backup your data!
-6. Python3. Python2 is not supported.
+6. Python3: Python2 is not supported.
 7. sudo privilege is required.
-8. RAID mode in BIOS (Intel® RST) should be disabled.
-9. Secure boot in BIOS should be disabled.
+8. RAID mode (Intel® RST): should be disabled in BIOS.
+9. Secure boot: should be disabled in BIOS.
 
 Source Code
 -----------
@@ -251,7 +252,9 @@ def test_hello_world(nvme0, nvme0n1:d.Namespace):
     qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
     assert read_buf[10:21] != b'hello world'
 
-    def write_cb(cdw0, status1):  # command callback function
+    # command callback function
+    # NOTICE: status1 is a 16-bit integer including the phase bit!
+    def write_cb(cdw0, status1):  
         nvme0n1.read(qpair, read_buf, 0, 1)
     nvme0n1.write(qpair, data_buf, 0, 1, cb=write_cb)
     qpair.waitdone(2)
@@ -397,7 +400,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "1.2"
+__version__ = "1.3"
 
 
 # nvme command timeout, it's a warning
@@ -616,7 +619,6 @@ cdef class Buffer(object):
         """
         assert type(lba) is int, "parameter must be integer"
         assert type(lba_count) is int, "parameter must be integer"
-        logging.debug(f"{index}, {lba_count}, {lba}")
         self[index*16:(index+1)*16] = struct.pack("<LLQ", 0, lba_count, lba)
 
 
@@ -865,7 +867,7 @@ cdef class Controller(object):
 
         self._ctrlr = d.nvme_init(addr.encode('utf-8'), port)
         if self._ctrlr is NULL:
-            raise NvmeEnumerateError(f"fail to create the controller")
+            raise NvmeEnumerateError("fail to create the controller")
         d.nvme_register_timeout_cb(self._ctrlr, timeout_driver_cb, _cTIMEOUT)
         self.register_aer_cb(None)
         logging.debug("nvme initialized: %s", self._bdf)
@@ -900,7 +902,7 @@ cdef class Controller(object):
         if self._ctrlr is not NULL:
             ret = d.nvme_fini(self._ctrlr)
             if ret != 0:
-                raise NvmeDeletionError(f"fail to close the controller, check if any qpair is not deleted: {ret}")
+                raise NvmeDeletionError("fail to close the controller, check if any qpair is not deleted: %d" % ret)
             self._ctrlr = NULL
 
     @property
@@ -1009,7 +1011,7 @@ cdef class Controller(object):
         reaped = 0
 
         global _reentry_flag
-        assert _reentry_flag is False, f"cannot re-entry waitdone() functions which may be caused by waitdone in callback functions, {_reentry_flag}"
+        assert _reentry_flag is False, "cannot re-entry waitdone() functions which may be caused by waitdone in callback functions, %d" % _reentry_flag
         _reentry_flag = True
 
         logging.debug("to reap %d admin commands" % expected)
@@ -1207,7 +1209,6 @@ cdef class Controller(object):
         assert ses < 8, "invalid format ses"
         assert lbaf < 16, "invalid format lbaf"
 
-        logging.debug(f"format, ses {ses}, lbaf {lbaf}, nsid {nsid}")
         self.send_admin_raw(None, 0x80,
                             nsid=nsid,
                             cdw10=(ses<<9) + lbaf,
@@ -1232,8 +1233,6 @@ cdef class Controller(object):
         # Returns
             self (Controller)
         """
-
-        logging.info(f"sanitize, option {option}")
 
         # clear crc table of all namespaces
         for nsid in range(1, self.id_data(519, 516)+1):
@@ -1529,7 +1528,7 @@ cdef class Qpair(object):
         reaped = 0
 
         global _reentry_flag
-        assert _reentry_flag is False, f"cannot re-entry waitdone() functions which may be caused by waitdone in callback functions, {_reentry_flag}"
+        assert _reentry_flag is False, "cannot re-entry waitdone() functions which may be caused by waitdone in callback functions, %d" % _reentry_flag
         _reentry_flag = True
 
         logging.debug("to reap %d io commands, sqid %d" % (expected, self.sqid))
@@ -1758,7 +1757,6 @@ cdef class Namespace(object):
             buf cannot be released before the command completes.
         """
 
-        logging.debug(f"read, lba {lba}, lba_count {lba_count}")
         assert buf is not None, "no buffer allocated"
         if 0 != self.send_read_write(True, qpair, buf, lba, lba_count,
                                      io_flags, cmd_cb, <void*>cb):
@@ -2064,7 +2062,7 @@ class _IOWorker(object):
         self.p.join()
 
         if error != 0:
-            warnings.warn(f"ioworker host ERROR {error}")
+            warnings.warn("ioworker host ERROR %d" % error)
             
         if rets.error != 0:
             warnings.warn("ioworker device ERROR status: %02x/%02x" %
@@ -2090,7 +2088,6 @@ class _IOWorker(object):
             output_io_per_latency_grouped = []
             for i in range(0, unit*100, unit):
                 output_io_per_latency_grouped.append(sum(output_io_per_latency[i:i+unit]))
-            logging.debug(f"end: {end99}, unit: {unit}")
             rets['latency_distribution_grouped_unit_us'] = unit
             rets['latency_distribution_grouped'] = output_io_per_latency_grouped
 
@@ -2099,11 +2096,9 @@ class _IOWorker(object):
                 assert k>0 and k<100, "percentile should be in (0, 100)"
                 self.output_percentile_latency[k] = self.find_percentile_latency(k, output_io_per_latency)
 
-        logging.debug(f"ioworker result: {rets}")
-
         # release child process resources
         del self.q
-        for f in glob.glob(f"/var/run/dpdk/spdk0/fbarray_memseg*{childpid}"):
+        for f in glob.glob("/var/run/dpdk/spdk0/fbarray_memseg*%d" % childpid):
             os.remove(f)
 
         return rets

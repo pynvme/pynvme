@@ -1,7 +1,7 @@
 /*-
  *   BSD LICENSE
  *
- *   Copyright (c) Crane Che <cranechu@gmail.com>
+ *   Copyright (c) Crane Chu <cranechu@gmail.com>
  *   All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,17 @@ static uint64_t* g_driver_config_ptr = NULL;
 static uint32_t timeval_to_us(struct timeval* t)
 {
   return t->tv_sec*US_PER_S + t->tv_usec;
+}
+
+
+static void _gettimeofday(struct timeval *tv)
+{
+  struct timespec ts;
+
+  // gettimeofday is affected by NTP and etc, so use clock_gettime
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  tv->tv_sec = ts.tv_sec;
+  tv->tv_usec = ts.tv_nsec>>10; //roughly /1000
 }
 
 
@@ -200,7 +211,7 @@ void buffer_fini(void* buf)
 // queue_table traces cmd log tables by queue pairs
 // CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
 // reserved one slot space for tail value
-#define CMD_LOG_DEPTH              (4096)
+#define CMD_LOG_DEPTH              (2048)
 
 struct cmd_log_entry_t {
   // cmd and cpl
@@ -238,7 +249,7 @@ typedef volatile struct _msix_entry
 } msix_entry;
 
 
-static void cmdlog_init_msix(struct spdk_nvme_qpair* q)
+void cmdlog_init_msix(struct spdk_nvme_qpair* q)
 {
   uint64_t addr;
   msix_entry* msix_table;
@@ -277,8 +288,8 @@ static void cmdlog_init_msix(struct spdk_nvme_qpair* q)
 static void _cmdlog_uname(struct spdk_nvme_qpair* q, char* name, uint32_t len)
 {
   assert(q != NULL);
-  snprintf(name, len, "cmdlog_table_%s_%d_%s",
-           q->ctrlr->trid.traddr, q->id, q->ctrlr->trid.subnqn);
+  snprintf(name, len, "cmdlog_table_%s_%d_%d_%s",
+           q->ctrlr->trid.traddr, q->id, getpid(), q->ctrlr->trid.subnqn);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog name: %s\n", name);
 }
 
@@ -295,12 +306,6 @@ void cmdlog_init(struct spdk_nvme_qpair* q)
                                           0,
                                           SPDK_MEMZONE_NO_IOVA_CONTIG);
   assert(q->pynvme_cmdlog != NULL);
-
-  if (q->trtype == SPDK_NVME_TRANSPORT_PCIE)
-  {
-    // pynvme enables interrupt of qpairs by default for PCIe SSD
-    cmdlog_init_msix(q);
-  }
 }
 
 
@@ -338,7 +343,7 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   }
 
   //reuse dword2 of cpl as latency value
-  gettimeofday(&now, NULL);
+  _gettimeofday(&now);
   memcpy(&log_entry->cpl, cpl, sizeof(struct spdk_nvme_cpl));
   timersub(&now, &log_entry->time_cmd, &diff);
   log_entry->cpl_latency_us = timeval_to_us(&diff);
@@ -410,7 +415,7 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
   log_entry->buf = req->payload.contig_or_cb_arg;
   log_entry->cpl_latency_us = 0;
   memcpy(&log_entry->cmd, &req->cmd, sizeof(struct spdk_nvme_cmd));
-  gettimeofday(&log_entry->time_cmd, NULL);
+  _gettimeofday(&log_entry->time_cmd);
 
   // link req and cmdlog entry
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "save req %p cb arg to entry %p, new %p, old %p\n",
@@ -528,7 +533,7 @@ void intc_init(struct spdk_nvme_ctrlr* ctrlr)
 }
 
 
-static void intc_fini(struct spdk_nvme_ctrlr* ctrlr)
+void intc_fini(struct spdk_nvme_ctrlr* ctrlr)
 {
   char intc_name[64];
   uint8_t msix_base;
@@ -630,6 +635,9 @@ static bool probe_cb(void *cb_ctx,
   opts->header_digest = false;
 	opts->data_digest = false;
 
+  // disable keep alive function in controller side
+	opts->keep_alive_timeout_ms = 0;
+  
 	return true;
 }
 
@@ -764,14 +772,12 @@ struct spdk_nvme_ctrlr* nvme_init(char * traddr, unsigned int port)
 
 int nvme_fini(struct spdk_nvme_ctrlr* ctrlr)
 {
-  enum spdk_nvme_transport_type	trtype = ctrlr->trid.trtype;
-
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "free ctrlr: %s\n", ctrlr->trid.traddr);
-
   if (ctrlr == NULL)
   {
     return 0;
   }
+
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "free ctrlr: %s\n", ctrlr->trid.traddr);
 
   if (spdk_process_is_primary())
   {
@@ -785,18 +791,6 @@ int nvme_fini(struct spdk_nvme_ctrlr* ctrlr)
       }
     }
 
-    // disable msix interrupt on PCIe SSD
-    if (trtype == SPDK_NVME_TRANSPORT_PCIE)
-    {
-      intc_fini(ctrlr);
-    }
-
-    // clear the admin queue resources in pynvme
-    if (trtype == SPDK_NVME_TRANSPORT_PCIE)
-    {
-      cmdlog_free(ctrlr->adminq);
-    }
-    
     //remove ctrlr from list
     struct ctrlr_entry* e;
     struct ctrlr_entry* tmp;
@@ -962,7 +956,6 @@ struct spdk_nvme_ns* nvme_get_ns(struct spdk_nvme_ctrlr* ctrlr,
 struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
                                      int prio, int depth)
 {
-  uint16_t qid;
   struct spdk_nvme_qpair* qpair;
   struct spdk_nvme_io_qpair_opts opts;
 
@@ -979,15 +972,7 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
     return NULL;
   }
 
-  qid = qpair->id;
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "created qpair %d\n", qid);
-
-  //fabric queue need to init cmdlog inside to qpair init
-  if (ctrlr->trid.trtype == SPDK_NVME_TRANSPORT_PCIE)
-  {
-    cmdlog_init(qpair);
-  }  
-
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "created qpair %d\n", qpair->id);
   return qpair;
 }
 
@@ -1005,10 +990,7 @@ int qpair_get_id(struct spdk_nvme_qpair* q)
 int qpair_free(struct spdk_nvme_qpair* q)
 {
   assert(q != NULL);
-
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "free qpair: %d\n", q->id);
-  cmdlog_free(q);
-
   return spdk_nvme_ctrlr_free_io_qpair(q);
 }
 
@@ -1020,7 +1002,8 @@ static void _ns_uname(struct spdk_nvme_ns* ns, char* name, uint32_t len)
 {
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "ns %p\n", ns);
   uint64_t uid = spdk_nvme_ns_get_data(ns)->eui64;
-  snprintf(name, len, "ns_crc32_table_%lx", uid);
+  snprintf(name, len, "ns_crc32_table_%s_%d_%lx",
+           ns->ctrlr->trid.traddr, ns->id, uid);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "crc table name: %s\n", name);
 }
 
@@ -1230,8 +1213,8 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
 
 
 static inline void timeradd_second(struct timeval* now,
-                                     unsigned int seconds,
-                                     struct timeval* due)
+                                   unsigned int seconds,
+                                   struct timeval* due)
 {
   struct timeval duration;
 
@@ -1253,7 +1236,7 @@ static bool ioworker_send_one_is_finish(struct ioworker_args* args,
   }
 
   assert(c->io_count_sent < args->io_count);
-  gettimeofday(&now, NULL);
+  _gettimeofday(&now);
   if (true == timercmp(&now, &c->due_time, >))
   {
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "ioworker finish, due time %ld us\n", c->due_time.tv_usec);
@@ -1279,17 +1262,23 @@ static void ioworker_one_io_throttle(struct ioworker_global_ctx* gctx,
   timeradd(&gctx->io_due_time, &gctx->io_delay_time, &gctx->io_due_time);
 }
 
-static uint32_t ioworker_get_duration(struct timeval* start,
-                                      struct ioworker_global_ctx* gctx)
+static uint32_t ioworker_get_duration(struct timeval* start)
 {
   struct timeval now;
   struct timeval diff;
   uint32_t msec;
 
-  gettimeofday(&now, NULL);
+  _gettimeofday(&now);
+  if (!timercmp(&now, start, >))
+  {
+    SPDK_INFOLOG(SPDK_LOG_NVME, "%ld.%06ld\n", now.tv_sec, now.tv_usec);
+    SPDK_INFOLOG(SPDK_LOG_NVME, "%ld.%06ld\n", start->tv_sec, start->tv_usec);
+    assert(false);
+  }
+  
   timersub(&now, start, &diff);
-  msec = diff.tv_sec * 1000UL;
-  return msec + (diff.tv_usec+500)/1000;
+  msec = diff.tv_sec*1000ULL;
+  return msec + (diff.tv_usec+500)/1000ULL;
 }
 
 static uint32_t ioworker_update_rets(struct ioworker_io_ctx* ctx,
@@ -1346,7 +1335,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
   gctx->io_count_cplt ++;
 
   // update statistics in ret structure
-  gettimeofday(&now, NULL);
+  _gettimeofday(&now);
   assert(rets != NULL);
   latency_us = ioworker_update_rets(ctx, rets, &now);
 
@@ -1475,7 +1464,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   gctx->sequential_lba += args->lba_align;
   gctx->io_count_sent ++;
   ctx->is_read = is_read;
-  gettimeofday(&ctx->time_sent, NULL);
+  _gettimeofday(&ctx->time_sent);
   return 0;
 }
 
@@ -1573,7 +1562,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   gctx.flag_finish = false;
   gctx.args = args;
   gctx.rets = rets;
-  gettimeofday(&test_start, NULL);
+  _gettimeofday(&test_start);
   timeradd_second(&test_start, args->seconds, &gctx.due_time);
   gctx.io_delay_time.tv_sec = 0;
   gctx.io_delay_time.tv_usec = args->iops ? US_PER_S/args->iops : 0;
@@ -1599,11 +1588,10 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
          gctx.flag_finish != true)
   {
     //exceed 30 seconds more than the expected test time, abort ioworker
-    if (ioworker_get_duration(&test_start, &gctx) >
-        args->seconds*1000UL + 30*1000UL)
+    if (ioworker_get_duration(&test_start) > (args->seconds+30)*1000ULL)
     {
       //ioworker timeout
-      SPDK_INFOLOG(SPDK_LOG_NVME, "ioworker timeout, io sent %ld, io cplt %ld, finish %d\n",
+      SPDK_ERRLOG("ioworker timeout, io sent %ld, io cplt %ld, finish %d\n",
                    gctx.io_count_sent, gctx.io_count_cplt, gctx.flag_finish);
       ret = -4;
       break;
@@ -1614,7 +1602,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   }
 
   // final duration
-  rets->mseconds = ioworker_get_duration(&test_start, &gctx);
+  rets->mseconds = ioworker_get_duration(&test_start);
 
   //release io ctx
   for (unsigned int i=0; i<args->qdepth; i++)
@@ -1709,7 +1697,7 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
     if (timercmp(&tv, &(struct timeval){0}, !=))
     {
       struct tm* time;
-      char tmbuf[64];
+      char tmbuf[128];
 
       //cmd part
       tv = cmdlog->table[index].time_cmd;
@@ -2012,7 +2000,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
       uint32_t* cmd = (uint32_t*)&table[index].cmd;
 
       //get the string of date/time
-      char tmbuf[64];
+      char tmbuf[128];
       strftime(tmbuf, sizeof tmbuf, "%Y-%m-%d %H:%M:%S",
                localtime(&time_cmd.tv_sec));
       

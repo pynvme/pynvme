@@ -1,7 +1,7 @@
 #
 #  BSD LICENSE
 #
-#  Copyright (c) Crane Che <cranechu@gmail.com>
+#  Copyright (c) Crane Chu <cranechu@gmail.com>
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 #  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+
 
 #SPDK infrastructure
 SPDK_ROOT_DIR := $(abspath $(CURDIR)/spdk)
@@ -52,7 +52,7 @@ TESTS := driver_test.py
 #cython part
 clean: cython_clean
 cython_clean:
-	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* *.log scripts/__pycache__
+	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* scripts/__pycache__
 
 all: cython_lib
 .PHONY: all spdk doc
@@ -72,23 +72,25 @@ reset:
 	-sudo fuser -k 4420/tcp
 
 info:
-	sudo ./spdk/scripts/setup.sh status
-	sudo cat /proc/meminfo
-	sudo cat /proc/cpuinfo
-	sudo cat /etc/*release
-	sudo lspci -s ${pciaddr} -vv
-	ip addr
-	df
-	whoami
-	groups
-	lspci
-	date
-	pwd
-	git status -sb
-	git --no-pager log -1
+	- sudo ./spdk/scripts/setup.sh status
+	- sudo cat /proc/meminfo
+	- sudo cat /proc/cpuinfo
+	- sudo cat /etc/*release
+	- sudo lspci -s ${pciaddr} -vv
+	- ip addr
+	- df
+	- whoami
+	- groups
+	- lspci
+	- date
+	- pwd
+	- git status -sb
+	- git --no-pager log -1
 
 setup: reset
 	-xhost +local:		# enable GUI with root/sudo
+	-sudo chmod 777 /tmp
+	-ulimit -n 2048
 	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh  	# use UIO only
 
 cython_lib:
@@ -103,7 +105,6 @@ pytest: info
 test:
 	-rm test.log
 	make pytest 2>test.log | tee -a test.log
-	cat test.log | grep "447 passed, 3 skipped" || exit -1
 
 nvmt:
 	cd ./spdk/app/nvmf_tgt; make

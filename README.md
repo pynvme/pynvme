@@ -25,17 +25,18 @@ test NVMe devices in Python. [https://github.com/cranechu/pynvme]
 
 The pynvme is a python extension module. Users can operate NVMe SSD intuitively in Python scripts. It is designed for NVMe SSD testing with performance considered. Integrated with third-party tools, vscode and pytest, pynvme provides a convenient and professional solution to test NVMe devices.
 
-The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes, e.g. Controller, Namespace, Qpair, Buffer, and IOWorker. With pynvme, users can operate NVMe devices intuitively. We can:
+The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes, e.g. Controller, Namespace, Qpair, Buffer, and IOWorker. With pynvme, users can operate NVMe devices intuitively, including:
 1. access PCI configuration space
 2. access NVMe registers in BAR space
 3. send any NVMe admin/IO commands
 4. callback functions are supported
 5. MSIx interrupt is supported
-6. transparent checksum verification
+6. transparent checksum verification for each LBA
 7. IOWorker generates high-performance IO
 8. integrated with pytest
 9. integrated with VSCode
 10. test multiple controllers, namespaces and qpairs simultaneously
+11. test NVMe over TCP targets
 
 Before moving forward, check and backup your data in the NVMe SSD to be tested. It is always recommended to attach just one piece of NVMe SSD in your system to avoid mistakes.
 
@@ -47,15 +48,15 @@ Users can install and use pynvme in commodity computers.
 
 System Requirement
 ------------------
-1. CPU: x86_64
-2. OS: Linux, recommend Fedora 29, Ubuntu 2018.04 LTS is also tested.
-3. Memory: 8GB or larger, 2MB hugepage size.
+1. CPU: x86_64.
+2. OS: Linux.
+3. Memory: 4GB or larger.
 4. SATA: install OS and pynvme in a SATA drive.
 5. NVMe: NVMe SSD is the device to be tested. Backup your data!
-6. Python3. Python2 is not supported.
+6. Python3: Python2 is not supported.
 7. sudo privilege is required.
-8. RAID mode in BIOS (Intel® RST) should be disabled.
-9. Secure boot in BIOS should be disabled.
+8. RAID mode (Intel® RST): should be disabled in BIOS.
+9. Secure boot: should be disabled in BIOS.
 
 Source Code
 -----------
@@ -209,7 +210,9 @@ def test_hello_world(nvme0, nvme0n1:d.Namespace):
     qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
     assert read_buf[10:21] != b'hello world'
 
-    def write_cb(cdw0, status1):  # command callback function
+    # command callback function
+    # NOTICE: status1 is a 16-bit integer including the phase bit!
+    def write_cb(cdw0, status1):
         nvme0n1.read(qpair, read_buf, 0, 1)
     nvme0n1.write(qpair, data_buf, 0, 1, cb=write_cb)
     qpair.waitdone(2)

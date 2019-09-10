@@ -1,7 +1,7 @@
 #
 #  BSD LICENSE
 #
-#  Copyright (c) Crane Che <cranechu@gmail.com>
+#  Copyright (c) Crane Chu <cranechu@gmail.com>
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,6 @@
 #  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 # -*- coding: utf-8 -*-
 
@@ -44,15 +43,16 @@ import nvme as d
 import nvme  # test double import
 
 
-@pytest.mark.skip(reason="to debug")
-def test_nvme_tcp_basic():
-    c = d.Controller(b'127.0.0.1')
-    c = d.Controller(b'127.0.0.1:4420')
+        
+@pytest.mark.parametrize("repeat", range(2))
+def test_nvme_tcp_basic(repeat):
+    tcp_target = b'10.24.48.17'
+    #tcp_target = b'127.0.0.1'
+    c = d.Controller(tcp_target)
     logging.info("debug: %s" % c.id_data(63, 24, str))
     logging.info("debug: %s" % c.id_data(63, 24, str))
     logging.info("debug: %s" % c.id_data(63, 24, str))
 
-    n = d.Namespace(c, 1)
     logging.info("debug: %s" % c.id_data(63, 24, str))
     logging.info("debug: %s" % c.id_data(63, 24, str))
     logging.info("MDTS = %d" % c.mdts)
@@ -60,16 +60,6 @@ def test_nvme_tcp_basic():
     logging.info("debug: %s" % c.id_data(63, 24, str))
     assert c.mdts == 128*1024
     c.cmdlog(10)
-
-    
-@pytest.mark.skip(reason="to debug")
-def test_nvme_tcp_ioworker():
-    c = d.Controller(b'127.0.0.1')
-    n = d.Namespace(c, 1)
-    n.ioworker(io_size=8, lba_align=8,
-               region_start=0, region_end=0x100,
-               lba_random=False, qdepth=4,
-               read_percentage=50, time=5).start().close()
 
     
 def test_create_device(nvme0, nvme0n1):
@@ -97,7 +87,7 @@ def test_qpair_different_size(nvme0n1, nvme0, shift):
 
 def test_two_controllers(nvme0):
     nvme1 = d.Controller(b'03:00.0')
-    assert nvme0.id_data(63, 24, str)[:6] == nvme1.id_data(63, 24, str)[:6]
+    assert nvme0.id_data(63, 24, str)[:6] != nvme1.id_data(63, 24, str)[:6]
     assert nvme0.id_data(23, 4, str) != nvme1.id_data(23, 4, str)
     
     
@@ -109,7 +99,7 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     
     logging.info("controller0 namespace size: %d" % nvme0n1.id_data(7, 0))
     logging.info("controller1 namespace size: %d" % nvme1n1.id_data(7, 0))
-    assert nvme0n1.id_data(7, 0) != nvme1n1.id_data(7, 0)
+    assert nvme0n1.id_data(7, 0) == nvme1n1.id_data(7, 0)
 
     q1 = d.Qpair(nvme0, 32)
     q2 = d.Qpair(nvme1, 64)
@@ -169,7 +159,7 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     q2.cmdlog(15)
 
     
-def test_two_namespace_ioworkers(nvme0n1, nvme0):
+def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
     nvme1 = d.Controller(b'03:00.0')
     nvme1n1 = d.Namespace(nvme1)
     with nvme0n1.ioworker(io_size=8, lba_align=16,
@@ -181,6 +171,16 @@ def test_two_namespace_ioworkers(nvme0n1, nvme0):
         pass
 
 
+def test_nvme_tcp_ioworker():
+    tcp_target = b'10.24.48.17'    
+    c = d.Controller(tcp_target)
+    n = d.Namespace(c, 1)
+    n.ioworker(io_size=8, lba_align=8,
+               region_start=0, region_end=0x100,
+               lba_random=False, qdepth=4,
+               read_percentage=50, time=15).start().close()
+
+    
 def test_write_and_format(nvme0n1, nvme0):
     with nvme0n1.ioworker(io_size=8, lba_align=16,
                           lba_random=True, qdepth=16,
@@ -313,7 +313,6 @@ def test_enable_and_disable_hmb(nvme0):
 
     # getfeatures of hmb to check
     nvme0.getfeatures(0x0d, buf=buf, cb=cb).waitdone()
-    logging.info(f"hmb status: {buf[0:16]}")
     assert hmb_status == 0
 
     #one buffer, one entry in the list
@@ -328,7 +327,6 @@ def test_enable_and_disable_hmb(nvme0):
 
     # getfeatures of hmb to check
     nvme0.getfeatures(0x0d, buf=buf, cb=cb).waitdone()
-    logging.info(f"hmb status: {buf[0:16]}")
     assert hmb_status == 1
 
     # disable hmb
@@ -336,7 +334,6 @@ def test_enable_and_disable_hmb(nvme0):
 
     # getfeatures of hmb to check
     nvme0.getfeatures(0x0d, buf=buf, cb=cb).waitdone()
-    logging.info(f"hmb status: {buf[0:16]}")
     assert hmb_status == 0
 
     # enable
@@ -344,7 +341,6 @@ def test_enable_and_disable_hmb(nvme0):
 
     # getfeatures of hmb to check
     nvme0.getfeatures(0x0d, buf=buf, cb=cb).waitdone()
-    logging.info(f"hmb status: {buf[0:16]}")
     assert hmb_status == 1
 
     # disable hmb
@@ -352,7 +348,6 @@ def test_enable_and_disable_hmb(nvme0):
 
     # getfeatures of hmb to check
     nvme0.getfeatures(0x0d, buf=buf, cb=cb).waitdone()
-    logging.info(f"hmb status: {buf[0:16]}")
     assert hmb_status == 0
 
 
@@ -457,7 +452,7 @@ def test_write_and_flush(nvme0, nvme0n1):
 
 def test_write_zeroes(nvme0, nvme0n1):
     if not nvme0n1.supports(0x08):
-        return
+        pytest.skip("command not support")
 
     q = d.Qpair(nvme0, 8)
     buf = d.Buffer(4096)
@@ -498,6 +493,9 @@ def test_write_zeroes(nvme0, nvme0n1):
 
 
 def test_write_and_compare(nvme0, nvme0n1):
+    if not nvme0n1.supports(0x08):
+        pytest.skip("command not support")
+
     q = d.Qpair(nvme0, 8)
     buf = d.Buffer(4096)
 
@@ -555,6 +553,7 @@ def test_format_basic(nvme0, nvme0n1, lbaf):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
 
+    # 512GB DUT format takes long time
     logging.info("format all namespace")
     with pytest.warns(UserWarning, match="drive timeout:"):
         nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
@@ -966,7 +965,7 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     start = time.time()
     while not q.msix_isset(): pass
     latency1 = time.time()-start
-    logging.info("interrupt latency %dus" % (latency1*1000_000))
+    logging.info("interrupt latency %dus" % (latency1*1000000))
     q.waitdone()
     q.msix_clear()
 
@@ -976,7 +975,7 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     start = time.time()
     while not q.msix_isset(): pass
     latency2 = time.time()-start
-    logging.info("interrupt latency %dus" % (latency2*1000_000))
+    logging.info("interrupt latency %dus" % (latency2*1000000))
     q.waitdone(2)
     q.msix_clear()
 
@@ -985,7 +984,7 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     start = time.time()
     while not q.msix_isset(): pass
     latency1 = time.time()-start
-    logging.info("interrupt latency %dus" % (latency1*1000_000))
+    logging.info("interrupt latency %dus" % (latency1*1000000))
     q.waitdone()
     q.msix_clear()
 
@@ -1122,7 +1121,6 @@ def test_ioworker_maximum(nvme0n1):
     wl = []
     start_time = time.time()
 
-    # support upto 16 io qpairs
     for i in range(16):
         a = nvme0n1.ioworker(io_size=8, lba_align=16,
                              lba_random=False, qdepth=16,
@@ -1153,6 +1151,8 @@ def test_ioworker_simplified(nvme0n1):
                      lba_random=True, qdepth=16,
                      read_percentage=0, time=2).start().close()
 
+    
+def test_ioworker_simplified_context(nvme0n1):
     with nvme0n1.ioworker(io_size=8, lba_align=16,
                           lba_random=True, qdepth=16,
                           read_percentage=0, time=2) as w:
@@ -1268,7 +1268,7 @@ def test_ioworker_iops_multiple_queue(nvme0n1, qcount):
         r = a.close()
         io_total += (r.io_count_read+r.io_count_write)
 
-    logging.info("Q %d IOPS: %dK" % (qcount, io_total/10000))
+    logging.info("Q %d IOPS: %.3fK" % (qcount, io_total/10000))
 
 
 @pytest.mark.parametrize("qcount", [1, 2, 4, 8, 16])
@@ -1692,7 +1692,6 @@ def test_cmd_cb_features(nvme0):
     nvme0.getfeatures(7, cb=getfeatures_cb_2).waitdone(2)
 
     def getfeatures_cb_3(cdw0, status):
-        logging.info(f"cdw0 {cdw0:#x}, status {status:#x}")
         assert cdw0 == orig_config
     nvme0.getfeatures(7, cb=getfeatures_cb_3).waitdone()
 
@@ -2013,9 +2012,11 @@ def test_ioworker_stress_multiple_small(nvme0n1, repeat):
         r = a.close()
 
 
-def test_ioworker_longtime(nvme0n1, verify):
+def test_ioworker_longtime(nvme0, nvme0n1, verify):
+    nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
+
     l = []
-    for i in range(2):
+    for i in range(16):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
                              lba_random=True, qdepth=64,
                              read_percentage=100, time=60*60).start()
@@ -2040,9 +2041,10 @@ def test_ioworker_longtime_deep(nvme0, nvme0n1, lba_size, verify):
     l = []
     for i in range(2):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             lba_random=True, qdepth=1023, # deep queue made test not stop
+                             lba_random=True, qdepth=1023, 
                              read_percentage=100, time=10*60).start()
         l.append(a)
 
     for a in l:
         r = a.close()
+
