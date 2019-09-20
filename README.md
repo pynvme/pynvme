@@ -340,6 +340,17 @@ __Attributes__
 
 - `size (int)`: the size (in bytes) of the buffer. Default: 4096
 - `name (str)`: the name of the buffer. Default: 'buffer'
+- `pvalue (int)`: data pattern value. Default: 0
+- `Different pattern type has different value definition`:
+- `0`: 1-bit pattern: 0 for all-zero data, 1 for all-one data
+- `32`: 32-bit pattern: 32-bit value of the pattern
+- `0xbeef`: random data: random data compression percentage rate
+- `else`: not supported
+- `ptype (int)`: data pattern type. Default: 0
+- `0`: 1-bit pattern
+- `32`: 32-bit pattern
+- `0xbeef`: random data
+- `else`: not supported
 
 - `Examples`:
 ```python
@@ -971,7 +982,7 @@ __Returns__
 
 ### ioworker
 ```python
-Namespace.ioworker(self, io_size, lba_align, lba_random, read_percentage, time, qdepth, region_start, region_end, iops, io_count, lba_start, qprio, output_io_per_second, output_percentile_latency)
+Namespace.ioworker(self, io_size, lba_align, lba_random, read_percentage, time, qdepth, region_start, region_end, iops, io_count, lba_start, qprio, pvalue, ptype, output_io_per_second, output_percentile_latency)
 ```
 workers sending different read/write IO on different CPU cores.
 
@@ -999,6 +1010,8 @@ __Attributes__
 - `io_count (long)`: specified maximum IO counts to send. Default: 0, means no limit
 - `lba_start (long)`: the LBA address of the first command. Default: 0, means start from region_start
 - `qprio (int)`: SQ priority. Default: 0, as Round Robin arbitration
+- `pvalue (int)`: data pattern value. Refer to class Buffer. Default: 0
+- `ptype (int)`: data pattern type. Refer to class Buffer. Default: 0
 - `output_io_per_second (list)`: list to hold the output data of io_per_second. Default: None, not to collect the data
 - `output_percentile_latency (dict)`: dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in ms. Default: None, not to collect the data
 
