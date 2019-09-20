@@ -33,7 +33,6 @@
 
 
 #include <stdio.h>
-#include <wchar.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -87,17 +86,16 @@ static void _gettimeofday(struct timeval *tv)
 ////module: buffer
 ///////////////////////////////
 
-static_assert(sizeof(wchar_t) == sizeof(uint32_t));
-
 void* buffer_init(size_t bytes, uint64_t *phys_addr,
                   uint32_t ptype, uint32_t pvalue)
 {
-  wchar_t pattern = 0;
+  uint32_t pattern = 0;
   void* buf = spdk_dma_zmalloc(bytes, 0x1000, NULL);
 
   // we can return NULL, but it suppose scripts will handle this case, 
   // No, it's too dangerous. So, we assert it here. 
   assert(buf != NULL);
+  assert(bytes%4 == 0);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "buffer: alloc ptr at %p, size %ld\n",
                buf, bytes);
 
@@ -129,7 +127,11 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
   //spdk_dma_zmalloc has set the buffer all-zero already
   if (pattern != 0)
   {
-    wmemset(buf, pattern, bytes/sizeof(pattern));
+    uint32_t* ptr = buf;
+    for (uint32_t i=0; i<bytes/sizeof(pattern); i++)
+    {
+      ptr[i] = pattern;	    
+    }
   }
 
   // fill random data according to the percentage
