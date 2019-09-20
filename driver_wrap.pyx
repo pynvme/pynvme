@@ -404,22 +404,19 @@ __version__ = "1.3"
 
 
 # nvme command timeout, it's a warning
-# driver times out earlier than driver wrap
-_cTIMEOUT = 5
+# drive times out earlier than driver timeout
+_cTIMEOUT = 10
 _timeout_happened = False
 cdef void timeout_driver_cb(void* cb_arg, d.ctrlr* ctrlr,
                             d.qpair * qpair, unsigned short cid):
     _timeout_happened = True
-    error_string = "drive timeout: %d sec, qpair: %d, cid: %d" % \
-        (_cTIMEOUT, d.qpair_get_id(qpair), cid)
+    error_string = "drive timeout: qpair: %d, cid: %d" % \
+        (d.qpair_get_id(qpair), cid)
     warnings.warn(error_string)
 
 
-# timeout signal in wrap layer, it's an assert fail
-# driver wrap needs longer timeout, some commands need more time, like format
-_cTIMEOUT_wrap = 30
 def _timeout_signal_handler(signum, frame):
-    error_string = "pynvme timeout: %d sec" % _cTIMEOUT_wrap
+    error_string = "pynvme timeout in driver"
     _reentry_flag_init()
     raise TimeoutError(error_string)
 
@@ -835,9 +832,11 @@ cdef class Controller(object):
     cdef d.ctrlr * _ctrlr
     cdef char _bdf[64]
     cdef Buffer hmb_buf
+    cdef unsigned int _timeout
 
     def __cinit__(self, addr):
         strncpy(self._bdf, addr, strlen(addr)+1)
+        self._timeout = _cTIMEOUT*1000
         self._create()
 
     def __dealloc__(self):
@@ -868,12 +867,20 @@ cdef class Controller(object):
         self._ctrlr = d.nvme_init(addr.encode('utf-8'), port)
         if self._ctrlr is NULL:
             raise NvmeEnumerateError("fail to create the controller")
-        d.nvme_register_timeout_cb(self._ctrlr, timeout_driver_cb, _cTIMEOUT)
+        d.nvme_register_timeout_cb(self._ctrlr, timeout_driver_cb, self._timeout)
         self.register_aer_cb(None)
         logging.debug("nvme initialized: %s", self._bdf)
 
+    def _close(self):
+        if self._ctrlr is not NULL:
+            ret = d.nvme_fini(self._ctrlr)
+            if ret != 0:
+                raise NvmeDeletionError("fail to close the controller, check if any qpair is not deleted: %d" % ret)
+            self._ctrlr = NULL
+
+        
     def enable_hmb(self):
-        # init hmb function
+        """enable HMB function"""
         hmb_size = self.id_data(275, 272)
         if hmb_size:
             self.hmb_buf = Buffer(4096*hmb_size)
@@ -886,11 +893,13 @@ cdef class Controller(object):
                              hmb_list_phys>>32, 1).waitdone()
 
     def disable_hmb(self):
+        """disable HMB function """
         self.setfeatures(0x0d, 0).waitdone()
 
     @property
     def mdts(self):
         """max data transfer size"""
+
         page_size = (1UL<<(12+((self[4]>>16)&0xf)))
         mdts_shift = self.id_data(77)
         if mdts_shift == 0:
@@ -898,19 +907,45 @@ cdef class Controller(object):
         else:
             return page_size*(1UL<<mdts_shift)
 
-    def _close(self):
-        if self._ctrlr is not NULL:
-            ret = d.nvme_fini(self._ctrlr)
-            if ret != 0:
-                raise NvmeDeletionError("fail to close the controller, check if any qpair is not deleted: %d" % ret)
-            self._ctrlr = NULL
 
     @property
     def cap(self):
+        """64-bit CAP register of NVMe"""
+
         # it is a 64-bit readonly register
         cdef unsigned long value
         d.nvme_get_reg64(self._ctrlr, 0, &value)
         return value
+
+
+    @property
+    def _timeout_pynvme(self):
+        # timeout signal in pynvme driver layer by seconds,
+        # it's an assert fail, needs longer than drive's timeout
+        return self._timeout//1000 + 20
+
+    
+    @property
+    def timeout(self):
+        """timeout value of this controller in milli-seconds.
+
+        It is configurable by assigning new value in milli-seconds. 
+        """
+        
+        return self._timeout
+
+    
+    @timeout.setter
+    def timeout(self, msec):
+        """set new timeout time for this controller
+
+        # Attributes
+            msec (int): milli-seconds of timeout value
+        """
+
+        self._timeout = msec
+        d.nvme_register_timeout_cb(self._ctrlr, timeout_driver_cb, self._timeout)
+        
 
     def __getitem__(self, index):
         """read nvme registers in BAR memory space by dwords."""
@@ -1016,7 +1051,8 @@ cdef class Controller(object):
 
         logging.debug("to reap %d admin commands" % expected)
         # some admin commands need long timeout limit, like: format,
-        signal.alarm(_cTIMEOUT_wrap)
+        signal.alarm(self._timeout_pynvme)
+        
         while reaped < expected:
             # wait admin Q pair done
             reaped += d.nvme_wait_completion_admin(self._ctrlr)
@@ -1532,7 +1568,8 @@ cdef class Qpair(object):
         _reentry_flag = True
 
         logging.debug("to reap %d io commands, sqid %d" % (expected, self.sqid))
-        signal.alarm(_cTIMEOUT_wrap)
+        signal.alarm(self._nvme._timeout_pynvme)
+        
         while reaped < expected:
             # wait IO Q pair done, max 8 cpl in one time
             max_to_reap = (expected-reaped) % 8

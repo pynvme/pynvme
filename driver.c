@@ -932,10 +932,10 @@ void nvme_register_aer_cb(struct spdk_nvme_ctrlr* ctrlr,
 
 void nvme_register_timeout_cb(struct spdk_nvme_ctrlr* ctrlr,
                               spdk_nvme_timeout_cb timeout_cb,
-                              unsigned int timeout)
+                              unsigned int msec)
 {
   spdk_nvme_ctrlr_register_timeout_callback(
-      ctrlr, (uint64_t)timeout*US_PER_S, timeout_cb, NULL);
+      ctrlr, (uint64_t)msec*1000ULL, timeout_cb, NULL);
 }
 
 int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl)

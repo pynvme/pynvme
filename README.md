@@ -505,6 +505,8 @@ __Returns__
 
     self (Controller)
 
+### cap
+64-bit CAP register of NVMe
 ### cmdlog
 ```python
 Controller.cmdlog(self, count)
@@ -529,6 +531,11 @@ __Returns__
 
 `(str)`: the command name
 
+### disable_hmb
+```python
+Controller.disable_hmb(self)
+```
+disable HMB function
 ### downfw
 ```python
 Controller.downfw(self, filename, slot, action)
@@ -560,6 +567,11 @@ __Returns__
 
     self (Controller)
 
+### enable_hmb
+```python
+Controller.enable_hmb(self)
+```
+enable HMB function
 ### format
 ```python
 Controller.format(self, lbaf, ses, nsid, cb)
@@ -772,6 +784,11 @@ __Attributes__
 __Returns__
 
 `(bool)`: if the command is supported
+
+### timeout
+timeout value of this controller in milli-seconds.
+
+It is configurable by assigning new value in milli-seconds.
 
 ### waitdone
 ```python

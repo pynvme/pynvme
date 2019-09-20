@@ -43,11 +43,11 @@ import nvme as d
 import nvme  # test double import
 
 
+tcp_target = b'10.24.48.17'  #b'127.0.0.1'
+
         
 @pytest.mark.parametrize("repeat", range(2))
 def test_nvme_tcp_basic(repeat):
-    tcp_target = b'10.24.48.17'
-    #tcp_target = b'127.0.0.1'
     c = d.Controller(tcp_target)
     logging.info("debug: %s" % c.id_data(63, 24, str))
     logging.info("debug: %s" % c.id_data(63, 24, str))
@@ -172,7 +172,6 @@ def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
 
 
 def test_nvme_tcp_ioworker():
-    tcp_target = b'10.24.48.17'    
     c = d.Controller(tcp_target)
     n = d.Namespace(c, 1)
     n.ioworker(io_size=8, lba_align=8,
@@ -548,16 +547,37 @@ def test_dsm_trim_and_read(nvme0, nvme0n1):
     nvme0n1.dsm(q, buf, 1).waitdone()
 
 
+def test_set_timeout(nvme0, nvme0n1):
+    # 512GB DUT format takes long time
+    logging.info("format all namespace")
+    assert nvme0.timeout == 10000
+    nvme0.timeout=10
+    with pytest.warns(UserWarning, match="drive timeout:"):
+        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
+    assert nvme0.timeout == 10
+
+    # timeout is set by controller
+    nvme1 = d.Controller(tcp_target)
+    nvme1.timeout=10000
+    with pytest.warns(UserWarning, match="drive timeout:"):
+        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
+    assert nvme0.timeout == 10
+        
+    nvme0.timeout=10000
+    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
+    
+    nvme0.timeout=100000
+    nvme0.reset()
+    assert nvme0.timeout == 100000
+
+    # set to default value
+    nvme0.timeout=10000
+
+
 @pytest.mark.parametrize("lbaf", range(2))
 def test_format_basic(nvme0, nvme0n1, lbaf):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
-
-    # 512GB DUT format takes long time
-    logging.info("format all namespace")
-    with pytest.warns(UserWarning, match="drive timeout:"):
-        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
-    nvme0n1.read(q, buf, 0, 1).waitdone()
 
     logging.info("crypto secure erase one namespace")
     with pytest.warns(UserWarning, match="ERROR status:"):
@@ -1797,19 +1817,33 @@ def test_command_supported_and_effect(nvme0, nvme0n1):
     assert not nvme0n1.supports(0xff)
 
 
-def test_reap_without_command(nvme0, nvme0n1):
-    # pynvme driver timeout
+def test_pynvme_timeout_command(nvme0, nvme0n1):
+    # pynvme driver timeout: admin cmd
+    assert nvme0.timeout == 10000
+    now = time.time()
     with pytest.raises(TimeoutError):
         nvme0.waitdone()
+    assert time.time()-now > 29
+    
+    # pynvme driver timeout: io cmd
+    now = time.time()
+    io_qpair = d.Qpair(nvme0, 10)
+    b = d.Buffer()
+    with pytest.raises(TimeoutError):
+        nvme0n1.write(io_qpair, b, 0).waitdone(2)
+    assert time.time()-now > 29
 
-    with nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
-                          lba_random=False,
-                          region_start=0, region_end=1000,
-                          read_percentage=0,
-                          iops=0, io_count=1000, time=0,
-                          qprio=0, qdepth=9):
-        for i in range(100):
-            nvme0.getfeatures(7).waitdone()
+        
+def test_ioworker_timeout_command(nvme0, nvme0n1):
+    now = time.time()
+    r = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
+                         lba_random=False,
+                         region_start=0, region_end=1000,
+                         read_percentage=0,
+                         iops=1, io_count=1000, time=5,
+                         qprio=0, qdepth=2).start().close()
+    assert time.time()-now > 5
+    assert time.time()-now < 10
 
 
 def test_reentry_waitdone_io_qpair(nvme0, nvme0n1):

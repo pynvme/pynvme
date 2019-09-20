@@ -120,7 +120,7 @@ cdef extern from "driver.h":
                               void * aer_cb_arg)
     void nvme_register_timeout_cb(ctrlr * ctrlr,
                                   timeout_cb_func timeout_cb,
-                                  unsigned int timeout)
+                                  unsigned int msec)
 
     void * buffer_init(size_t bytes, unsigned long* phys_addr)
     void buffer_fini(void * buf)

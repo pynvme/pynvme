@@ -123,7 +123,7 @@ extern void nvme_register_aer_cb(struct spdk_nvme_ctrlr* ctrlr,
                                  void* aer_cb_arg);
 extern void nvme_register_timeout_cb(struct spdk_nvme_ctrlr* ctrlr,
                                      spdk_nvme_timeout_cb timeout_cb,
-                                     unsigned int timeout);
+                                     unsigned int msec);
 
 extern void* buffer_init(size_t bytes, uint64_t *phys_addr);
 extern void buffer_fini(void* buf);
