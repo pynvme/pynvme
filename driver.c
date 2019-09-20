@@ -33,6 +33,7 @@
 
 
 #include <stdio.h>
+#include <wchar.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -86,19 +87,65 @@ static void _gettimeofday(struct timeval *tv)
 ////module: buffer
 ///////////////////////////////
 
-void* buffer_init(size_t bytes, uint64_t *phys_addr)
+static_assert(sizeof(wchar_t) == sizeof(uint32_t));
+
+void* buffer_init(size_t bytes, uint64_t *phys_addr,
+                  uint32_t ptype, uint32_t pvalue)
 {
+  wchar_t pattern = 0;
   void* buf = spdk_dma_zmalloc(bytes, 0x1000, NULL);
 
+  // we can return NULL, but it suppose scripts will handle this case, 
+  // No, it's too dangerous. So, we assert it here. 
+  assert(buf != NULL);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "buffer: alloc ptr at %p, size %ld\n",
+               buf, bytes);
+
+  // get the physical address
   if (phys_addr && buf)
   {
     *phys_addr= spdk_vtophys(buf, NULL);
   }
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "buffer: alloc ptr at %p, size %ld\n",
-               buf, bytes);
+  if (ptype == 0)
+  {
+    // if pvalue is not zero, set data buffer all-one
+    if (pvalue != 0)
+    {
+      pattern = 0xffffffff; 
+    }
+  }
+  else if (ptype == 32)
+  {
+    pattern = pvalue;
+  }
+  else if (ptype == 0xbeef)
+  {
+    // for random buffer, size the buffer all-zero first
+    pattern = 0;
+  }
 
-  assert(buf != NULL);
+  // set the buffer by 32-bit pattern
+  //spdk_dma_zmalloc has set the buffer all-zero already
+  if (pattern != 0)
+  {
+    wmemset(buf, pattern, bytes/sizeof(pattern));
+  }
+
+  // fill random data according to the percentage
+  if (ptype == 0xbeef)
+  {
+    uint32_t count = 0;
+    int fd = open("/dev/urandom", O_RDONLY);
+    
+    assert(pvalue <= 100);  // here needs a percentage <= 100
+    SPDK_INFOLOG(SPDK_LOG_NVME, "percentage: %d\n", pvalue);
+    count = (size_t)(bytes*pvalue/100);
+    count = MIN(count, bytes);
+    read(fd, buf, count);
+    close(fd);
+  }
+  
   return buf;
 }
 
@@ -156,7 +203,7 @@ static int buffer_verify_data(uint32_t* crc_table,
 
   for (uint32_t i=0; i<lba_count; i++, lba++)
   {
-    unsigned long* ptr = (unsigned long*)(buf+i*lba_size);
+    uint64_t* ptr = (uint64_t*)(buf+i*lba_size);
     uint32_t computed_crc = buffer_calc_csum(ptr, lba_size);
     uint32_t expected_crc = computed_crc;
 
@@ -1505,6 +1552,8 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.io_count = %ld\n", args->io_count);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.seconds = %d\n", args->seconds);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.qdepth = %d\n", args->qdepth);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.pvalue = %d\n", args->pvalue);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.ptype = %d\n", args->ptype);
 
   //check args
   assert(args->read_percentage <= 100);
@@ -1576,7 +1625,8 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   for (unsigned int i=0; i<args->qdepth; i++)
   {
     io_ctx[i].data_buf_len = args->lba_size * sector_size;
-    io_ctx[i].data_buf = buffer_init(io_ctx[i].data_buf_len, NULL);
+    io_ctx[i].data_buf = buffer_init(io_ctx[i].data_buf_len, NULL,
+                                     args->ptype, args->pvalue);
     io_ctx[i].gctx = &gctx;
     ioworker_send_one(ns, qpair, &io_ctx[i], &gctx);
   }

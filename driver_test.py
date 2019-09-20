@@ -767,6 +767,73 @@ def test_create_invalid_qpair(nvme0):
         q = d.Qpair(nvme0, 20, prio=1)
 
 
+def test_buffer_data_pattern():
+    b = d.Buffer(512, "pattern")
+    assert b[0] == 0
+    assert b[511] == 0
+    
+    b = d.Buffer(512, "pattern", 0, 0)
+    assert b[0] == 0
+    assert b[511] == 0
+    
+    b = d.Buffer(512, "pattern", 1)
+    assert b[0] == 0xff
+    assert b[511] == 0xff
+    
+    b = d.Buffer(512, "pattern", 1, 32)
+    assert b[0] == 1
+    assert b[511] == 0
+
+    b = d.Buffer(512, "pattern", 0x12345678, 32)
+    assert b[0] == 0x78
+    assert b[511] == 0x12
+
+    b = d.Buffer(512, "pattern", 0, 0xbeef)
+    assert b[0] == 0
+    assert b[511] == 0
+
+    b = d.Buffer(512, "pattern", 1, 0xbeef)
+    assert b[0] != 0
+    assert b[11] == 0
+    assert b[511] == 0
+    
+    b = d.Buffer(512, "pattern", 10, 0xbeef)
+    assert b[0] != 0
+    assert b[11] != 0
+    assert b[511] == 0
+    
+    b = d.Buffer(512, "pattern", 50, 0xbeef)
+    assert b[0] != 0
+    assert b[255] != 0
+    assert b[256] == 0
+    assert b[511] == 0
+
+    b = d.Buffer(512, "pattern", 99, 0xbeef)
+    assert b[0] != 0
+    assert b[255] != 0
+    assert b[256] != 0
+    assert b[511] == 0
+
+    b = d.Buffer(512, "pattern", 100, 0xbeef)
+    assert b[0] != 0
+    assert b[255] != 0
+    assert b[256] != 0
+    assert b[511] != 0
+
+
+def test_buffer_access_overflow():
+    b = d.Buffer(1000)
+    
+    b[999] = 0
+    assert b[999] == 0
+
+    with pytest.raises(IndexError):
+        b[1000] = 0
+
+    with pytest.raises(IndexError):
+        assert b[1000] == 0
+        
+    
 def test_buffer_set_get():
     b = d.Buffer()
     b[0] = 0xa5

@@ -54,6 +54,8 @@ cdef extern from "driver.h":
         unsigned long io_count
         unsigned int seconds
         unsigned int qdepth
+        unsigned int pvalue
+        unsigned int ptype
         unsigned int* io_counter_per_second
         unsigned int* io_counter_per_latency
     ctypedef struct ioworker_rets:
@@ -122,7 +124,10 @@ cdef extern from "driver.h":
                                   timeout_cb_func timeout_cb,
                                   unsigned int msec)
 
-    void * buffer_init(size_t bytes, unsigned long* phys_addr)
+    void * buffer_init(size_t bytes,
+                       unsigned long* phys_addr,
+                       unsigned int ptype,
+                       unsigned int pvalue)
     void buffer_fini(void * buf)
 
     qpair * qpair_create(ctrlr * c, int prio, int depth)

@@ -472,6 +472,17 @@ cdef class Buffer(object):
     # Attributes
         size (int): the size (in bytes) of the buffer. Default: 4096
         name (str): the name of the buffer. Default: 'buffer'
+        pvalue (int): data pattern value. Default: 0
+            Different pattern type has different value definition:
+            0: 1-bit pattern: 0 for all-zero data, 1 for all-one data
+            32: 32-bit pattern: 32-bit value of the pattern 
+            0xbeef: random data: random data compression percentage rate
+            else: not supported
+        ptype (int): data pattern type. Default: 0
+            0: 1-bit pattern
+            32: 32-bit pattern 
+            0xbeef: random data
+            else: not supported
 
     Examples:
 ```python
@@ -512,7 +523,7 @@ cdef class Buffer(object):
     cdef char* name
     cdef unsigned long phys_addr
 
-    def __cinit__(self, size=4096, name="buffer"):
+    def __cinit__(self, size=4096, name="buffer", pvalue=0, ptype=0):
         assert size > 0, "0 is not valid size"
 
         # copy python string to c string
@@ -525,7 +536,7 @@ cdef class Buffer(object):
 
         # buffer init
         self.size = size
-        self.ptr = d.buffer_init(size, &self.phys_addr)
+        self.ptr = d.buffer_init(size, &self.phys_addr, ptype, pvalue)
         if self.ptr is NULL:
             raise MemoryError()
 
@@ -592,6 +603,8 @@ cdef class Buffer(object):
         if isinstance(index, slice):
             return bytes([self[i] for i in range(*index.indices(len(self)))])
         elif isinstance(index, int):
+            if index >= self.size:
+                raise IndexError()
             return (<unsigned char*>self.ptr)[index]
         else:
             raise TypeError()
@@ -602,6 +615,8 @@ cdef class Buffer(object):
             for i, d in enumerate(value):
                 self[i+start] = d
         elif isinstance(index, int):
+            if index >= self.size:
+                raise IndexError()
             (<unsigned char*>self.ptr)[index] = value
         else:
             raise TypeError()
@@ -1728,6 +1743,7 @@ cdef class Namespace(object):
                  read_percentage, time=0, qdepth=64,
                  region_start=0, region_end=0xffff_ffff_ffff_ffff,
                  iops=0, io_count=0, lba_start=0, qprio=0,
+                 pvalue=0, ptype=0, 
                  output_io_per_second=None, output_percentile_latency=None):
         """workers sending different read/write IO on different CPU cores.
 
@@ -1754,6 +1770,8 @@ cdef class Namespace(object):
             io_count (long): specified maximum IO counts to send. Default: 0, means no limit
             lba_start (long): the LBA address of the first command. Default: 0, means start from region_start
             qprio (int): SQ priority. Default: 0, as Round Robin arbitration
+            pvalue (int): data pattern value. Refer to class Buffer. Default: 0
+            ptype (int): data pattern type. Refer to class Buffer. Default: 0
             output_io_per_second (list): list to hold the output data of io_per_second. Default: None, not to collect the data
             output_percentile_latency (dict): dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in ms. Default: None, not to collect the data
 
@@ -1771,6 +1789,7 @@ cdef class Namespace(object):
         return _IOWorker(pciaddr, nsid, lba_start, io_size, lba_align,
                          lba_random, region_start, region_end,
                          read_percentage, iops, io_count, time, qdepth, qprio,
+                         pvalue, ptype, 
                          output_io_per_second, output_percentile_latency)
 
     def read(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
@@ -2055,6 +2074,7 @@ class _IOWorker(object):
     def __init__(self, pciaddr, nsid, lba_start, lba_size, lba_align,
                  lba_random, region_start, region_end,
                  read_percentage, iops, io_count, time, qdepth, qprio,
+                 pvalue, ptype, 
                  output_io_per_second, output_percentile_latency):
         # queue for returning result
         self.q = _mp.Queue()
@@ -2068,6 +2088,7 @@ class _IOWorker(object):
                                      lba_start, lba_size, lba_align, lba_random,
                                      region_start, region_end, read_percentage,
                                      iops, io_count, time, qdepth, qprio,
+                                     pvalue, ptype, 
                                      output_io_per_second, output_percentile_latency))
         self.output_io_per_second = output_io_per_second
         self.output_percentile_latency = output_percentile_latency
@@ -2161,6 +2182,7 @@ class _IOWorker(object):
     def _ioworker(self, rqueue, locker, pciaddr, nsid, lba_start, lba_size,
                   lba_align, lba_random, region_start, region_end,
                   read_percentage, iops, io_count, seconds, qdepth, qprio,
+                  pvalue, ptype, 
                   output_io_per_second, output_percentile_latency):
         cdef d.ioworker_args args
         cdef d.ioworker_rets rets
@@ -2203,7 +2225,9 @@ class _IOWorker(object):
             args.io_count = io_count
             args.seconds = seconds
             args.qdepth = qdepth
-
+            args.pvalue = pvalue
+            args.ptype = ptype
+            
             # ready
             with locker:
                 nvme0 = Controller(pciaddr)
