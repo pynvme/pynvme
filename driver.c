@@ -95,7 +95,6 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
   // we can return NULL, but it suppose scripts will handle this case, 
   // No, it's too dangerous. So, we assert it here. 
   assert(buf != NULL);
-  assert(bytes%4 == 0);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "buffer: alloc ptr at %p, size %ld\n",
                buf, bytes);
 
@@ -128,6 +127,8 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
   if (pattern != 0)
   {
     uint32_t* ptr = buf;
+	  
+    // left remaining unaligned bytes unset
     for (uint32_t i=0; i<bytes/sizeof(pattern); i++)
     {
       ptr[i] = pattern;	    
