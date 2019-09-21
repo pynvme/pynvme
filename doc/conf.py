@@ -32,6 +32,9 @@ extensions = [
     "sphinx_rtd_theme",
 ]
 
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = 'sphinx'
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -53,13 +56,4 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-# The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-#
-source_suffix = ['.rst', '.md']
-
-# The master toctree document.
-master_doc = 'README'
-
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+master_doc = 'contents'
