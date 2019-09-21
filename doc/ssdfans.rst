@@ -1,14 +1,5 @@
-.. role:: raw-html-m2r(raw)
-   :format: html
-
 pynvme介绍与应用
 ================
-
-..
-
-   :raw-html-m2r:`<div style="text-align: right">`\ 有病早治，有问题早解决，大家都好。\ :raw-html-m2r:`<br>`
-   ——《深入浅出SSD》7.4 回归测试\ :raw-html-m2r:`<div>`
-
 
 需求
 ----
@@ -716,17 +707,12 @@ IOWorker也可以记录并返回每秒实际发送IO的数目，以及所有IO�
 Pcie
 ^^^^
 
-pynvme可以访问NVMe设备的PCI配置空间。首先需要获得PCIe对象：
+pynvme可以访问NVMe设备的PCI配置空间。首先需要获得PCIe对象。类似访问Controller的BAR空间，我们通过Pcie对象的下标操作来读写PCI设备的配置空间。
 
 .. code-block:: python
-
+                
    pcie = d.Pcie(nvme0)
-
-类似访问Controller的BAR空间，我们通过Pcie对象的下标操作来读写PCI设备的配置空间。
-
-.. code-block:: python
-
-   hex(pcie[0：4])  # Byte 0/1/2/3
+   hex(pcie[0:4])  # Byte 0/1/2/3
 
 PCIe设备的部分特性定义在配置空间的Capability中。为简化这部分操作，pynvme提供了cap_offset方法，实现Capability的定位。
 

@@ -43,6 +43,9 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
+# pdf needs to install more package for Chinese
+#https://www.xncoding.com/2017/01/22/fullstack/readthedoc.html
+formats: []
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -56,4 +59,4 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-master_doc = 'contents'
+master_doc = 'index'
