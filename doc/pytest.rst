@@ -1,6 +1,16 @@
 Pytest
 ======
 
+Execution
+---------
+
+.. code-block:: shell
+
+   make test
+   make test TESTS=scripts
+   make test TESTS=scripts/demo_test.py
+   make test TESTS=scripts/utility_test.py::test_download_firmware
+
 Fixtures
 --------
 

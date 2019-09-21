@@ -47,7 +47,11 @@ Debug
 
    #. core dump: sudo coredumpctl debug
    #. generate core dump in dead loop: CTRL-\
-   #. test within gdb: sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
+   #. test within gdb
+      
+      .. code-block:: shell
+                      
+         sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
 
 If you meet any issue, or have any suggestions, please report them to `Issues <https://github.com/cranechu/pynvme/issues>`_. They are warmly welcome.
 
