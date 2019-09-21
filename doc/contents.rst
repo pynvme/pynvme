@@ -4,4 +4,3 @@
    :caption: pynvme documents
 
    manual
-   ssdfans
