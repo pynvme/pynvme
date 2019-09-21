@@ -63,7 +63,7 @@ spdk:
 doc: cython_lib
 	pydocmd simple nvme++ > api.md
 	sed -i "1s/.*/# API/" api.md
-	m2r	api.md
+	m2r api.md
 	mv api.rst doc
 	rm api.md
 	cd doc; make clean; make html
