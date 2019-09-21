@@ -35,10 +35,10 @@
 # -*- coding: utf-8 -*-
 #cython: linetrace=True
 #cython: language_level=3
-##cython: embedsignature=True
+#cython: embedsignature=True
 
-# for generating README.md only
-#cython: binding=True
+# for generating api.md only
+##cython: binding=True
 
 
 # python package
