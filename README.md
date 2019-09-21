@@ -6,7 +6,7 @@ test NVMe devices in Python. [https://github.com/cranechu/pynvme]
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
 [![Documentation Status](https://readthedocs.org/projects/pynvme/badge/?version=latest)](https://pynvme.readthedocs.io/?badge=latest)
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=NH6LmLSzjAs" target="_blank"><img align="right" src="https://github.com/cranechu/pynvme/raw/master/doc/logo.jpg" title="watch introduction video" alt="pynvme: test NVMe devices in Python" width="480" border="0" /></a>
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=NH6LmLSzjAs" target="_blank"><img align="right" src="https://github.com/cranechu/pynvme/raw/master/doc/logo.jpg" title="watch introduction video" alt="pynvme: test NVMe devices in Python" width="240" border="0" /></a>
 
 The pynvme is a python extension module. Users can operate NVMe SSD intuitively in Python scripts. It is designed for NVMe SSD testing with performance considered. Integrated with third-party tools, vscode and pytest, pynvme provides a convenient and professional solution to test NVMe devices.
 
@@ -23,3 +23,5 @@ The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes
 10. test multiple controllers, namespaces and qpairs simultaneously
 11. test NVMe over TCP targets
 
+Read the Doc of pynvme: https://pynvme.readthedocs.io/
+PDF: https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf
