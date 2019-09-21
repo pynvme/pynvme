@@ -1,5 +1,6 @@
-Classes
-=======
+
+API
+===
 
 Buffer
 ------

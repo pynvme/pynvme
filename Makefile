@@ -61,8 +61,12 @@ spdk:
 	cd spdk; make clean; ./configure --enable-debug --disable-tests --without-vhost --without-virtio --without-isal; make; cd ..
 
 doc: cython_lib
-	pydocmd simple nvme++ > README.md
-	sed -i "1s/.*/# pynvme/" README.md
+	pydocmd simple nvme++ > api.md
+	sed -i "1s/.*/# API/" api.md
+	m2r	api.md
+	mv api.rst doc
+	rm api.md
+	cd doc; make clean; make html
 
 reset:
 	sudo ./spdk/scripts/setup.sh cleanup
