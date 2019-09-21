@@ -5,13 +5,13 @@ Tutorial
 
    .. code-block:: python
 
-   import nvme as d
+      import nvme as d
 
-   nvme0 = d.Controller(b"01:00.0")  # initialize NVMe controller with its PCIe BDF address
-   id_buf = d.Buffer(4096)  # allocate the buffer
-   nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  # read namespace identify data into buffer
-   nvme0.waitdone()  # nvme commands are executed asynchronously, so we have to wait the completion before access the id_buf.
-   print(id_buf.dump())   # print the whole buffer
+      nvme0 = d.Controller(b"01:00.0")  # initialize NVMe controller with its PCIe BDF address
+      id_buf = d.Buffer(4096)  # allocate the buffer
+      nvme0.identify(id_buf, nsid=0xffffffff, cns=1)  # read namespace identify data into buffer
+      nvme0.waitdone()  # nvme commands are executed asynchronously, so we have to wait the completion before access the id_buf.
+      print(id_buf.dump())   # print the whole buffer
 
 In order to write test scripts more efficently, pynvme provides pytest fixtures. We can write more in intuitive test scripts. Example
 

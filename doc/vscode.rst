@@ -59,4 +59,4 @@ D. editor: edit test scripts here.
 E. cmdlog viewer: displays the latest 128 command and completion dwords in one qpair.
 F. log viewer: displays pytest log.
 
-   VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance tests and regular CI tests, it is recommended to run tests in command line, by *make test*.
+VSCode is convenient and powerful, but it consumes a lot of resources. So, for formal performance tests and regular CI tests, it is recommended to run tests in command line, by *make test*.
