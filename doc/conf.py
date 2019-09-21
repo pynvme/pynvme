@@ -18,10 +18,13 @@ import sphinx_rtd_theme
 
 # -- Project information -----------------------------------------------------
 
-project = 'pynvme'
+project = u'pynvme'
 copyright = '2019, Crane Chu'
 author = 'Crane Chu'
-
+version = '1.3'
+release = version
+language = 'en'
+master_doc = 'index'
 
 # -- General configuration ---------------------------------------------------
 
@@ -55,4 +58,9 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-master_doc = 'index'
+html_logo = 'logo.jpg'
+html_theme_options = {
+    'logo_only': True,
+    'display_version': False,
+}
+
