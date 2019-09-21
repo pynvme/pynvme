@@ -31,6 +31,3 @@ Before moving forward, check and backup your data in the NVMe SSD to be tested. 
    pytest
    classes
    development
-   ssdfans
-
-Contect to cranechu@gmail.com. 
