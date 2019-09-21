@@ -3,8 +3,6 @@
 
 .. toctree::
 
-   ssdfans
-
    
 pynvme
 ======
