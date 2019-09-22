@@ -65,3 +65,6 @@ html_theme_options = {
     'display_version': False,
 }
 
+latex_elements = {
+  'extraclassoptions': 'openany,oneside'
+}
