@@ -1,5 +1,4 @@
-# pynvme
-test NVMe devices in Python. [https://github.com/cranechu/pynvme]
+# pynvme: test NVMe devices in Python.
 
 [![Status](https://img.shields.io/gitlab/pipeline/cranechu/pynvme.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 [![Document](https://readthedocs.org/projects/pynvme/badge/?version=latest)](https://pynvme.readthedocs.io)
