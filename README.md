@@ -26,4 +26,4 @@ The pynvme is a python extension module. Users can operate NVMe SSD intuitively 
 * Web: https://pynvme.readthedocs.io/
 * PDF: https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf
 * Presentation: SPDK PRC Summit 2019, Beijing.  
-  [02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf](_static/02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf)
+  [02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf](doc/_static/02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf)
