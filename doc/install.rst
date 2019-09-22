@@ -26,6 +26,7 @@ Fetch pynvme source code from GitHub, and simply run *install.sh* to build pynvm
 
    git clone https://github.com/cranechu/pynvme
    cd pynvme
+   git checkout tags/1.3  # opetional, checkout the latest stable release
    ./install.sh
 
 Now, it is ready to `start vscode <#vscode>`_. Or, you can continue to refer to detailed installation instructions below.
@@ -57,6 +58,8 @@ Test
 ----
 
 Setup SPDK runtime environment to remove kernel NVMe driver and enable SPDK NVMe driver. Now, we can run tests!
+
+Before moving forward, check and backup your data in the NVMe SSD to be tested. It is always recommended to attach just one piece of NVMe SSD in your system to avoid mistakes.
 
 .. code-block:: shell
 
