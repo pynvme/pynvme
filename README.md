@@ -9,7 +9,7 @@
 
 The pynvme is a python extension module. Users can operate NVMe SSD intuitively in Python scripts. It is designed for NVMe SSD testing with performance considered. Integrated with third-party tools, vscode and pytest, pynvme provides a convenient and professional solution to test NVMe devices.
 
-The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes, e.g. Controller, Namespace, Qpair, Buffer, and IOWorker. With pynvme, users can operate NVMe devices intuitively, including:
+## Features:
 1. access PCI configuration space
 2. access NVMe registers in BAR space
 3. send any NVMe admin/IO commands
@@ -22,6 +22,6 @@ The pynvme wraps SPDK NVMe driver in a Python extension, with abstracted classes
 10. test multiple controllers, namespaces and qpairs simultaneously
 11. test NVMe over TCP targets
 
-Read the Doc of pynvme: https://pynvme.readthedocs.io/
-
-PDF: https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf
+## Docs:
+* Web: https://pynvme.readthedocs.io/
+* PDF: https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf
