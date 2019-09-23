@@ -12,7 +12,7 @@ Buffer
 Buffer allocates memory in DPDK, so we can get its physical address for DMA. Data in buffer is clear to 0 in initialization.
 
 Notice
-    Different pattern type has different value definition:
+    Different pattern type has different value definition.
 
 .. code-block::
 
@@ -23,6 +23,14 @@ Notice
    0xbeef   | random data compression percentage rate
    others   | not supported
 
+
+**Parameters**
+
+
+* **size (int)**\ : the size (in bytes) of the buffer. Default: 4096
+* **name (str)**\ : the name of the buffer. Default: 'buffer'
+* **pvalue (int)**\ : data pattern value. Default: 0
+* **ptype (int)**\ : data pattern type. Default: 0
 
 **Examples**
 
@@ -880,8 +888,8 @@ Each ioworker can run upto 24 hours.
 * **io_count (long)**\ : specified maximum IO counts to send. Default: 0, means no limit
 * **lba_start (long)**\ : the LBA address of the first command. Default: 0, means start from region_start
 * **qprio (int)**\ : SQ priority. Default: 0, as Round Robin arbitration
-* **pvalue (int)**\ : data pattern value. Refer to class Buffer. Default: 0
-* **ptype (int)**\ : data pattern type. Refer to class Buffer. Default: 0
+* **pvalue (int)**\ : data pattern value. Refer to class ``Buffer``. Default: 0
+* **ptype (int)**\ : data pattern type. Refer to class ``Buffer``. Default: 0
 * **output_io_per_second (list)**\ : list to hold the output data of io_per_second. Default: None, not to collect the data
 * **output_percentile_latency (dict)**\ : dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in ms. Default: None, not to collect the data
 
