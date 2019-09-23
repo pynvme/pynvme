@@ -1,11 +1,30 @@
 Install
 =======
 
-Users can install and use pynvme in commodity computers.
+Quick Start
+-----------
+
+Normally, users can build pynvme by simply running *install.sh*. It generates the pynvme python package *nvme.cpython-37m-x86_64-linux-gnu.so*. This is the recommended method to compile pynvme.
+
+.. code-block:: shell
+
+   git clone https://github.com/cranechu/pynvme
+   cd pynvme
+   ./install.sh
+   
+Users then can import the package and write NVMe test scripts:
+
+.. code-block:: python
+
+   import nvme as d
+   nvme0 = d.Controller(b"01:00.0")  
+   
+We wil describe more details of installation below. 
 
 System Requirement
 ------------------
 
+Users can install and use pynvme in commodity computers with some requirements:
 
 #. CPU: x86_64.
 #. OS: Linux.
@@ -20,68 +39,92 @@ System Requirement
 Source Code
 -----------
 
-Fetch pynvme source code from GitHub, and simply run *install.sh* to build pynvme. *install.sh* generates the pynvme python package *nvme.cpython-37m-x86_64-linux-gnu.so*.
+We clone the pynvme source code from GitHub. We recommend to checkout the latest stable release. 
 
 .. code-block:: shell
 
    git clone https://github.com/cranechu/pynvme
    cd pynvme
-   git checkout tags/1.3  # opetional, checkout the latest stable release
-   ./install.sh
+   git checkout tags/1.3
 
-Now, it is ready to `start vscode <#vscode>`_. Or, you can continue to refer to detailed installation instructions below.
-
+   
 Prerequisites
 -------------
 
-First, to fetch all required dependencies source code and packages.
+Then, we need to fetch all required dependencies source code and packages.
 
 .. code-block:: shell
 
+   # fedora-like
+   sudo dnf install -y make redhat-rpm-config python3-devel python3-pip
+
+   # ubuntu-like
+   sudo apt install -y python3-setuptools python3-dev python3-pip 
+
+   # get SPDK and its submodules
    git submodule update --init --recursive
-   sudo dnf install python3-pip -y # Ubuntu: sudo apt-get install python3-pip
 
-Build
------
+   # install SPDK required packages
+   sudo ./spdk/scripts/pkgdep.sh
 
-Compile the SPDK, and then pynvme.
+   # install pynvme required python package
+   sudo python3 -m pip install -r requirements.txt
+
+   
+SPDK
+----
+
+We need to compile and test SPDK first. 
 
 .. code-block:: shell
 
-   cd spdk; ./configure --without-isal; cd ..   # configurate SPDK
-   make spdk                                    # compile SPDK
-   make                                         # compile pynvme
+   # use the latest pynvme-modified SPDK
+   cd spdk
+   git checkout pynvme_1.3
 
-Now, you can find the generated binary file like: nvme.cpython-37m-x86_64-linux-gnu.so
+   # configurate SPDK
+   ./configure --without-isal;
+
+   # compile SPDK
+   cd ..   
+   make spdk
+
+   # compile pynvme
+   make
+
+Now, we can find a generated binary file like: *nvme.cpython-37m-x86_64-linux-gnu.so*.
 
 Test
 ----
-
-Setup SPDK runtime environment to remove kernel NVMe driver and enable SPDK NVMe driver. Now, we can run tests!
-
-Before moving forward, check and backup your data in the NVMe SSD to be tested. It is always recommended to attach just one piece of NVMe SSD in your system to avoid mistakes.
+                
+After compilation, let's first verify if SPDK works in your platform with SPDK applications. Before moving forward, check and backup your data in the NVMe SSD.
 
 .. code-block:: shell
 
-   # backup your data in NVMe SSD before testing
+   # setup SPDK runtime environment             
    make setup
-   make test
-   make test TESTS=scripts
-   make test TESTS=scripts/demo_test.py
-   make test TESTS=scripts/utility_test.py::test_download_firmware
 
-By default, it runs tests in driver_test.py. However, these are tests of pynvme itself, instead of SSD drives. Your DUT drive may fail in some test cases. Please add your tests in *scripts* directory.
-Test logs are saved in file *test.log*. When you submit issues, please kindly attach this test.log file.
+   # compile the application
+   cd spdk/examples/nvme/identify
+   sudo make
 
-After test, you may wish to bring kernel NVMe driver back like this:
+   # run the application
+   sudo ./identify
+
+This application lists identify data of your NVMe SSD. If it works, let's move ahead to run pynvme tests!
+
+.. code-block:: shell
+
+   cd ~/pynvme
+   make setup
+   make test TESTS="driver_test.py::test_ioworker_iops_multiple_queue[1]"
+
+After the test, we can find the file *test.log* in pynvme directory, which keeps more debug logs than that in the standard output. When you meet any problem, please submit issues with this *test.log*. 
+
+*make setup* allocates hugepages and reserves NVMe devices for SPDK runtime environment. When you want to release memory and NVMe devices back to kernel, execute this command:
 
 .. code-block:: shell
 
    make reset
 
-User can find pynvme documents in README.md, or use help() in python:
-
-.. code-block:: shell
-
-   sudo python3 -c "import nvme; help(nvme)"  # press q to quit
-
+OK! Pynvme is ready now. 

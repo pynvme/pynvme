@@ -37,11 +37,12 @@ In following chapters, we will explain the design and usage of pynvme, and soon 
 .. toctree::
    :maxdepth: 2
    :caption: Table of Contents
-          
+
+   intro
    install
-   vscode
-   tutorial
-   features
    pytest
+   vscode
+   features
+   examples
    development
    api

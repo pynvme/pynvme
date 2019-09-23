@@ -135,24 +135,18 @@ cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
 
 
 cdef class Buffer(object):
-    """Buffer class allocated in DPDK memzone,so can be used by DMA. Data in buffer is clear to 0 in initialization.
+    """Buffer allocates memory in DPDK, so we can get its physical address for DMA. Data in buffer is clear to 0 in initialization.
 
-    # Attributes
-        size (int): the size (in bytes) of the buffer. Default: 4096
-        name (str): the name of the buffer. Default: 'buffer'
-        pvalue (int): data pattern value. Default: 0
-            Different pattern type has different value definition:
-            0: 1-bit pattern: 0 for all-zero data, 1 for all-one data
-            32: 32-bit pattern: 32-bit value of the pattern 
-            0xbeef: random data: random data compression percentage rate
-            else: not supported
-        ptype (int): data pattern type. Default: 0
-            0: 1-bit pattern
-            32: 32-bit pattern 
-            0xbeef: random data
-            else: not supported
+    Notice
+        Different pattern type has different value definition:
+        ptype    | pvalue
+        ------------------------------------------------------
+        0        | 0 for all-zero data, 1 for all-one data
+        32       | 32-bit value of the repeated data pattern 
+        0xbeef   | random data compression percentage rate
+        others   | not supported
 
-    Examples:
+    # Examples
 ```python
         >>> b = Buffer(1024, 'example')
         >>> b[0] = 0x5a
@@ -225,13 +219,15 @@ cdef class Buffer(object):
         
     @property
     def phys_addr(self):
+        """physical address of the buffer"""
+        
         return self.phys_addr
 
     def dump(self, size=None):
         """get the buffer content
 
-        # Attributes
-            size: the size of the buffer to print,. Default: None, means to print the whole buffer
+        # Parameters
+            size (int): the size of the buffer to print. Default: None, means to print the whole buffer
         """
         if self.ptr and self.size:
             # 0 size means print the whole buffer
@@ -243,7 +239,7 @@ cdef class Buffer(object):
     def data(self, byte_end, byte_begin=None, type=int):
         """get field in the buffer. Little endian for integers.
 
-        # Attributes
+        # Parameters
             byte_end (int): the end byte number of this field, which is specified in NVMe spec. Included.
             byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
             type (type): the type of the field. It should be int or str. Default: int, convert to integer python object
@@ -292,7 +288,7 @@ cdef class Buffer(object):
     def set_dsm_range(self, index, lba, lba_count):
         """set dsm ranges in the buffer, for dsm/deallocation (a.ka trim) commands
 
-        # Attributes
+        # Parameters
             index (int): the index of the dsm range to set
             lba (int): the start lba of the range
             lba_count (int): the lba count of the range
@@ -305,7 +301,7 @@ cdef class Buffer(object):
 cdef class Subsystem(object):
     """Subsystem class. Prefer to use fixture "subsystem" in test scripts.
 
-    # Attributes
+    # Parameters
         nvme (Controller): the nvme controller object of that subsystem
     """
 
@@ -317,7 +313,7 @@ cdef class Subsystem(object):
     def power_cycle(self, sec=10):
         """power off and on in seconds
 
-        # Attributes
+        # Parameters
             sec (int): the seconds between power off and power on
         """
 
@@ -333,7 +329,7 @@ cdef class Subsystem(object):
     def shutdown_notify(self, abrupt=False):
         """notify nvme subsystem a shutdown event through register cc.chn
 
-        # Attributes
+        # Parameters
             abrupt (bool): it will be an abrupt shutdown (return immediately) or clean shutdown (wait shutdown completely)
         """
 
@@ -368,7 +364,7 @@ cdef class Subsystem(object):
 cdef class Pcie(object):
     """Pcie class. Prefer to use fixture "pcie" in test scripts
 
-    # Attributes
+    # Parameters
         nvme (Controller): the nvme controller object of that subsystem
     """
 
@@ -403,7 +399,7 @@ cdef class Pcie(object):
     def register(self, offset, byte_count):
         """access registers in pcie config space, and get its integer value.
 
-        # Attributes
+        # Parameters
             offset (int): the offset (in bytes) of the register in the config space
             byte_count (int): the size (in bytes) of the register
 
@@ -418,12 +414,11 @@ cdef class Pcie(object):
     def cap_offset(self, cap_id):
         """get the offset of a capability
 
-        # Attributes
+        # Parameters
             cap_id (int): capability id
 
         # Returns
-            (int): the offset of the register
-            or None if the capability is not existed
+            (int): the offset of the register, or None if the capability is not existed
         """
 
         next_offset = self.register(0x34, 1)
@@ -473,12 +468,12 @@ class NvmeDeletionError(Exception):
 cdef class Controller(object):
     """Controller class. Prefer to use fixture "nvme0" in test scripts.
 
-    # Attributes
-        addr (bytes): the bus/device/function address of the DUT, for example:
-                      b'01:00.0' (PCIe BDF address);
+    # Parameters
+        addr (bytes): the bus/device/function address of the DUT, for example: \
+                      b'01:00.0' (PCIe BDF address),  \
                       b'127.0.0.1' (TCP IP address).
 
-    Example:
+    # Example
 ```python
         >>> n = Controller(b'01:00.0')
         >>> hex(n[0])     # CAP register
@@ -532,7 +527,7 @@ cdef class Controller(object):
         self._create()
 
     def _create(self):
-        # tcp or pci?
+        # tcp or pci address
         addr = self._bdf.decode('utf-8')
         port = 0
         if ':' not in addr:
@@ -564,6 +559,7 @@ cdef class Controller(object):
         
     def enable_hmb(self):
         """enable HMB function"""
+        
         hmb_size = self.id_data(275, 272)
         if hmb_size:
             self.hmb_buf = Buffer(4096*hmb_size)
@@ -577,6 +573,7 @@ cdef class Controller(object):
 
     def disable_hmb(self):
         """disable HMB function """
+        
         self.setfeatures(0x0d, 0).waitdone()
 
     @property
@@ -622,7 +619,7 @@ cdef class Controller(object):
     def timeout(self, msec):
         """set new timeout time for this controller
 
-        # Attributes
+        # Parameters
             msec (int): milli-seconds of timeout value
         """
 
@@ -658,7 +655,7 @@ cdef class Controller(object):
     def cmdlog(self, count=0):
         """print recent commands and their completions.
 
-        # Attributes
+        # Parameters
             count (int): the number of commands to print. Default: 0, to print the whole cmdlog
         """
 
@@ -667,7 +664,7 @@ cdef class Controller(object):
     def reset(self):
         """controller reset: cc.en 1 => 0 => 1
 
-        # Notices
+        Notice
             Test scripts should delete all io qpairs before reset!
         """
         
@@ -690,7 +687,7 @@ cdef class Controller(object):
     def cmdname(self, opcode):
         """get the name of the admin command
 
-        # Attributes
+        # Parameters
             opcode (int): the opcode of the admin command
 
         # Returns
@@ -704,7 +701,7 @@ cdef class Controller(object):
     def supports(self, opcode):
         """check if the admin command is supported
 
-        # Attributes
+        # Parameters
             opcode (int): the opcode of the admin command
 
         # Returns
@@ -719,11 +716,11 @@ cdef class Controller(object):
     def waitdone(self, expected=1):
         """sync until expected commands completion
 
-        # Attributes
-            expected (int): expected commands to complete. Default: 1
-
-        # Notices
+        Notice
             Do not call this function in commands callback functions.
+
+        # Parameters
+            expected (int): expected commands to complete. Default: 1
         """
 
         reaped = 0
@@ -760,7 +757,7 @@ cdef class Controller(object):
     def abort(self, cid, sqid=0, cb=None):
         """abort admin commands
 
-        # Attributes
+        # Parameters
             cid (int): command id of the command to be aborted
             sqid (int): sq id of the command to be aborted. Default: 0, to abort the admin command
             cb (function): callback function called at completion. Default: None
@@ -784,7 +781,7 @@ cdef class Controller(object):
     def identify(self, buf, nsid=0, cns=1, cb=None):
         """identify admin command
 
-        # Attributes
+        # Parameters
             buf (Buffer): the buffer to hold the identify data
             nsid (int): nsid field in the command. Default: 0
             cns (int): cns field in the command. Default: 1
@@ -809,7 +806,7 @@ cdef class Controller(object):
     def id_data(self, byte_end, byte_begin=None, type=int, nsid=0, cns=1):
         """get field in controller identify data
 
-        # Attributes
+        # Parameters
             byte_end (int): the end byte number of this field, which is specified in NVMe spec. Included.
             byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
             type (type): the type of the field. It should be int or str. Default: int, convert to integer python object
@@ -826,7 +823,7 @@ cdef class Controller(object):
                     sel=0, buf=None, cb=None):
         """getfeatures admin command
 
-        # Attributes
+        # Parameters
             fid (int): feature id
             cdw11 (int): cdw11 in the command. Default: 0
             sel (int): sel field in the command. Default: 0
@@ -852,7 +849,7 @@ cdef class Controller(object):
                     sv=0, buf=None, cb=None):
         """setfeatures admin command
 
-        # Attributes
+        # Parameters
             fid (int): feature id
             cdw11 (int): cdw11 in the command. Default: 0
             sv (int): sv field in the command. Default: 0
@@ -878,7 +875,7 @@ cdef class Controller(object):
     def getlogpage(self, lid, buf, size=None, offset=0, nsid=0xffffffff, cb=None):
         """getlogpage admin command
 
-        # Attributes
+        # Parameters
             lid (int): Log Page Identifier
             buf (Buffer): buffer to hold the log page
             size (int): size (in byte) of data to get from the log page,. Default: None, means the size is the same of the buffer
@@ -915,7 +912,10 @@ cdef class Controller(object):
     def format(self, lbaf=0, ses=0, nsid=1, cb=None):
         """format admin command
 
-        # Attributes
+        Notice
+            This Controller.format only send the admin command. Use Namespace.format to maintain pynvme internal data! 
+
+        # Parameters
             lbaf (int): lbaf (lba format) field in the command. Default: 0
             ses (int): ses field in the command. Default: 0, no secure erase
             nsid (int): nsid field in the command. Default: 1
@@ -944,7 +944,7 @@ cdef class Controller(object):
     def sanitize(self, option=2, pattern=0, cb=None):
         """sanitize admin command
 
-        # Attributes
+        # Parameters
             option (int): sanitize option field in the command
             pattern (int): pattern field in the command for overwrite method. Default: 0x5aa5a55a
             cb (function): callback function called at completion. Default: None
@@ -973,7 +973,7 @@ cdef class Controller(object):
     def dst(self, stc=1, nsid=0xffffffff, cb=None):
         """device self test (DST) admin command
 
-        # Attributes
+        # Parameters
             stc (int): selftest code (stc) field in the command
             nsid (int): nsid field in the command. Default: 0xffffffff
             cb (function): callback function called at completion. Default: None
@@ -997,7 +997,7 @@ cdef class Controller(object):
     def fw_download(self, buf, offset, size=None, cb=None):
         """firmware download admin command
 
-        # Attributes
+        # Parameters
             buf (Buffer): the buffer to hold the firmware data
             offset (int): offset field in the command
             size (int): size field in the command. Default: None, means the size of the buffer
@@ -1024,7 +1024,7 @@ cdef class Controller(object):
     def fw_commit(self, slot, action, cb=None):
         """firmware commit admin command
 
-        # Attributes
+        # Parameters
             slot (int): firmware slot field in the command
             action (int): action field in the command
             cb (function): callback function called at completion. Default: None
@@ -1053,7 +1053,7 @@ cdef class Controller(object):
     def downfw(self, filename, slot=0, action=1):
         """firmware download utility: by 4K, and activate in next reset
 
-        # Attributes
+        # Parameters
             filename (str): the pathname of the firmware binary file to download
             slot (int): firmware slot field in the command. Default: 0, decided by device
             cb (function): callback function called at completion. Default: None
@@ -1075,7 +1075,7 @@ cdef class Controller(object):
 
         Not suggested to use this command in scripts because driver manages to send and monitor aer commands. Scripts should register an aer callback function if it wants to handle aer, and use the fixture aer.
 
-        # Attributes
+        # Parameters
             cb (function): callback function called at completion. Default: None
 
         # Returns
@@ -1101,7 +1101,7 @@ cdef class Controller(object):
         When aer is triggered, the python callback function will
         be called. It is unregistered by aer fixture when test finish.
 
-        # Attributes
+        # Parameters
             func (function): callback function called at aer completion
         """
 
@@ -1115,7 +1115,7 @@ cdef class Controller(object):
 
         This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands.
 
-        # Attributes
+        # Parameters
             opcode (int): operate code of the command
             buf (Buffer): buffer of the command. Default: None
             nsid (int): nsid field of the command. Default: 0
@@ -1178,7 +1178,7 @@ class QpairDeletionError(Exception):
 cdef class Qpair(object):
     """Qpair class. IO SQ and CQ are combinded as qpairs.
 
-    # Attributes
+    # Parameters
         nvme (Controller): controller where to create the queue
         depth (int): SQ/CQ queue depth
         prio (int): when Weighted Round Robin is enabled, specify SQ priority here
@@ -1216,7 +1216,7 @@ cdef class Qpair(object):
     def cmdlog(self, count=0):
         """print recent IO commands and their completions in this qpair.
 
-        # Attributes
+        # Parameters
             count (int): the number of commands to print. Default: 0, to print the whole cmdlog
         """
 
@@ -1237,11 +1237,11 @@ cdef class Qpair(object):
     def waitdone(self, expected=1):
         """sync until expected commands completion
 
-        # Attributes
-            expected (int): expected commands to complete. Default: 1
-
-        # Notices
+        Notice
             Do not call this function in commands callback functions.
+
+        # Parameters
+            expected (int): expected commands to complete. Default: 1
         """
 
         reaped = 0
@@ -1276,7 +1276,7 @@ class NamespaceDeletionError(Exception):
 cdef class Namespace(object):
     """Namespace class. Prefer to use fixture "nvme0n1" in test scripts.
 
-    # Attributes
+    # Parameters
         nvme (Controller): controller where to create the queue
         nsid (int): nsid of the namespace
     """
@@ -1301,7 +1301,7 @@ cdef class Namespace(object):
     def close(self):
         """close namespace to release it resources in host memory.
 
-        Notice:
+        Notice
             Release resources explictly, del is not garentee to call __dealloc__.
             Fixture nvme0n1 uses this function, and prefer to use fixture in scripts, instead of calling this function directly.
         """
@@ -1327,7 +1327,7 @@ cdef class Namespace(object):
     def cmdname(self, opcode):
         """get the name of the IO command
 
-        # Attributes
+        # Parameters
             opcode (int): the opcode of the IO command
 
         # Returns
@@ -1341,7 +1341,7 @@ cdef class Namespace(object):
     def supports(self, opcode):
         """check if the IO command is supported
 
-        # Attributes
+        # Parameters
             opcode (int): the opcode of the IO command
 
         # Returns
@@ -1354,7 +1354,7 @@ cdef class Namespace(object):
     def id_data(self, byte_end, byte_begin=None, type=int):
         """get field in namespace identify data
 
-        # Attributes
+        # Parameters
             byte_end (int): the end byte number of this field, which is specified in NVMe spec. Included.
             byte_begin (int): the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
             type (type): the type of the field. It should be int or str. Default: int, convert to integer python object
@@ -1368,16 +1368,16 @@ cdef class Namespace(object):
     def format(self, data_size=512, meta_size=0, ses=0):
         """change the format of this namespace
 
-        # Attributes
+        Notice
+            this facility not only sends format admin command, but also updates driver to activate new format immediately
+
+        # Parameters
             data_size (int): data size. Default: 512
             meta_size (int): meta data size. Default: 0
             ses (int): ses field in the command. Default: 0, no secure erase
 
         # Returns
             (int or None): the lba format has the specified data size and meta data size
-
-        # Notices
-            this facility not only sends format admin command, but also updates driver to activate new format immediately
         """
 
         lbaf = self.get_lba_format(data_size, meta_size)
@@ -1393,7 +1393,7 @@ cdef class Namespace(object):
     def get_lba_format(self, data_size=512, meta_size=0):
         """find the lba format by its data size and meta data size
 
-        # Attributes
+        # Parameters
             data_size (int): data size. Default: 512
             meta_size (int): meta data size. Default: 0
 
@@ -1425,7 +1425,7 @@ cdef class Namespace(object):
 
         Each ioworker can run upto 24 hours.
 
-        # Attributes
+        # Parameters
             io_size (short): IO size, unit is LBA
             lba_align (short): IO alignment, unit is LBA
             lba_random (bool): True if sending IO with random starting LBA
@@ -1463,7 +1463,10 @@ cdef class Namespace(object):
     def read(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
         """read IO command
 
-        # Attributes
+        Notice
+            buf cannot be released before the command completes.
+
+        # Parameters
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the data buffer of the command, meta data is not supported.
             lba (int): the starting lba address, 64 bits
@@ -1476,9 +1479,6 @@ cdef class Namespace(object):
 
         # Raises
             SystemError: the read command fails
-
-        # Notices
-            buf cannot be released before the command completes.
         """
 
         assert buf is not None, "no buffer allocated"
@@ -1490,7 +1490,10 @@ cdef class Namespace(object):
     def write(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
         """write IO command
 
-        # Attributes
+        Notice
+            buf cannot be released before the command completes.
+
+        # Parameters
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the data buffer of the write command, meta data is not supported.
             lba (int): the starting lba address, 64 bits
@@ -1503,9 +1506,6 @@ cdef class Namespace(object):
 
         # Raises
             SystemError: the write command fails
-
-        # Notices
-            buf cannot be released before the command completes.
         """
 
         assert buf is not None, "no buffer allocated"
@@ -1519,7 +1519,10 @@ cdef class Namespace(object):
     def dsm(self, qpair, buf, range_count, attribute=0x4, cb=None):
         """data-set management IO command
 
-        # Attributes
+        Notice
+            buf cannot be released before the command completes.
+
+        # Parameters
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the buffer of the lba ranges. Use buffer.set_dsm_range to prepare the buffer.
             range_count (int): the count of lba ranges in the buffer
@@ -1531,9 +1534,6 @@ cdef class Namespace(object):
 
         # Raises
             SystemError: the command fails
-
-        # Notices
-            buf cannot be released before the command completes.
         """
 
         assert buf is not None, "no range prepared"
@@ -1551,7 +1551,10 @@ cdef class Namespace(object):
     def compare(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
         """compare IO command
 
-        # Attributes
+        Notice
+            buf cannot be released before the command completes.
+
+        # Parameters
             qpair (Qpair): use the qpair to send this command
             buf (Buffer): the data buffer of the command, meta data is not supported.
             lba (int): the starting lba address, 64 bits
@@ -1564,9 +1567,6 @@ cdef class Namespace(object):
 
         # Raises
             SystemError: the command fails
-
-        # Notices
-            buf cannot be released before the command completes.
         """
 
         assert buf is not None, "no buffer allocated"
@@ -1581,7 +1581,7 @@ cdef class Namespace(object):
     def flush(self, qpair, cb=None):
         """flush IO command
 
-        # Attributes
+        # Parameters
             qpair (Qpair): use the qpair to send this command
             cb (function): callback function called at completion. Default: None
 
@@ -1600,7 +1600,7 @@ cdef class Namespace(object):
     def write_uncorrectable(self, qpair, lba, lba_count=1, cb=None):
         """write uncorrectable IO command
 
-        # Attributes
+        # Parameters
             qpair (Qpair): use the qpair to send this command
             lba (int): the starting lba address, 64 bits
             lba_count (int): the lba count of this command, 16 bits. Default: 1
@@ -1625,7 +1625,7 @@ cdef class Namespace(object):
     def write_zeroes(self, qpair, lba, lba_count=1, io_flags=0, cb=None):
         """write zeroes IO command
 
-        # Attributes
+        # Parameters
             qpair (Qpair): use the qpair to send this command
             lba (int): the starting lba address, 64 bits
             lba_count (int): the lba count of this command, 16 bits. Default: 1
@@ -1673,7 +1673,7 @@ cdef class Namespace(object):
 
         This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands.
 
-        # Attributes
+        # Parameters
             opcode (int): operate code of the command
             qpair (Qpair): qpair used to send this command
             buf (Buffer): buffer of the command. Default: None
@@ -1963,16 +1963,12 @@ class _IOWorker(object):
 def config(verify, fua_read=False, fua_write=False):
     """config driver global setting
 
-    # Attributes
+    # Parameters
         verify (bool): enable inline checksum verification of read
         fua_read (bool): enable FUA of read. Default: False
         fua_write (bool): enable FUA of write. Default: False
-
-    # Returns
-        None
     """
 
-    # TODO: implement FUA in driver.c
     return d.driver_config((verify << 0) |
                            (fua_read << 1) |
                            (fua_write << 2))

@@ -4,7 +4,7 @@ Development
 Files
 -----
 
-Here is a brief introduction on source code files.
+Here is a brief introduction on key source code files.
 
 .. list-table::
    :header-rows: 1
@@ -47,7 +47,7 @@ Debug
 
    #. core dump: sudo coredumpctl debug
    #. generate core dump in dead loop: CTRL-\
-   #. test within gdb
+   #. test within gdb (e.g. realgud with Emacs)
       
       .. code-block:: shell
                       

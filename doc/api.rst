@@ -9,30 +9,24 @@ Buffer
 
    Buffer(self, /, *args, **kwargs)
 
-Buffer class allocated in DPDK memzone,so can be used by DMA. Data in buffer is clear to 0 in initialization.
+Buffer allocates memory in DPDK, so we can get its physical address for DMA. Data in buffer is clear to 0 in initialization.
 
-**Attributes**
+Notice
+    Different pattern type has different value definition:
+
+.. code-block::
+
+   ptype    | pvalue
+   ------------------------------------------------------
+   0        | 0 for all-zero data, 1 for all-one data
+   32       | 32-bit value of the repeated data pattern
+   0xbeef   | random data compression percentage rate
+   others   | not supported
 
 
-* `size (int)`: the size (in bytes) of the buffer. Default: 4096
-* `name (str)`: the name of the buffer. Default: 'buffer'
-* `pvalue (int)`: data pattern value. Default: 0
-* ``Different pattern type has different value definition``\ :
-* `0`: 1-bit pattern: 0 for all-zero data, 1 for all-one data
-* `32`: 32-bit pattern: 32-bit value of the pattern
-* `0xbeef`: random data: random data compression percentage rate
-* ``else``\ : not supported
-* `ptype (int)`: data pattern type. Default: 0
-* ``0``\ : 1-bit pattern
-* ``32``\ : 32-bit pattern
-* ``0xbeef``\ : random data
-* 
-  ``else``\ : not supported
+**Examples**
 
-* 
-  ``Examples``\ :
-
-  .. code-block:: python
+.. code-block:: python
 
        >>> b = Buffer(1024, 'example')
        >>> b[0] = 0x5a
@@ -73,12 +67,12 @@ data
 
 get field in the buffer. Little endian for integers.
 
-**Attributes**
+**Parameters**
 
 
-* ``byte_end (int)``\ : the end byte number of this field, which is specified in NVMe spec. Included.
-* `byte_begin (int)`: the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
-* `type (type)`: the type of the field. It should be int or str. Default: int, convert to integer python object
+* **byte_end (int)**\ : the end byte number of this field, which is specified in NVMe spec. Included.
+* **byte_begin (int)**\ : the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
+* **type (type)**\ : the type of the field. It should be int or str. Default: int, convert to integer python object
 
 **Returns**
 
@@ -93,10 +87,15 @@ dump
 
 get the buffer content
 
-**Attributes**
+**Parameters**
 
 
-* `size`: the size of the buffer to print,. Default: None, means to print the whole buffer
+* **size (int)**\ : the size of the buffer to print. Default: None, means to print the whole buffer
+
+phys_addr
+^^^^^^^^^
+
+physical address of the buffer
 
 set_dsm_range
 ^^^^^^^^^^^^^
@@ -107,12 +106,12 @@ set_dsm_range
 
 set dsm ranges in the buffer, for dsm/deallocation (a.ka trim) commands
 
-**Attributes**
+**Parameters**
 
 
-* ``index (int)``\ : the index of the dsm range to set
-* ``lba (int)``\ : the start lba of the range
-* ``lba_count (int)``\ : the lba count of the range
+* **index (int)**\ : the index of the dsm range to set
+* **lba (int)**\ : the start lba of the range
+* **lba_count (int)**\ : the lba count of the range
 
 config
 ------
@@ -123,19 +122,12 @@ config
 
 config driver global setting
 
-**Attributes**
+**Parameters**
 
 
-* ``verify (bool)``\ : enable inline checksum verification of read
-* `fua_read (bool)`: enable FUA of read. Default: False
-* `fua_write (bool)`: enable FUA of write. Default: False
-
-**Returns**
-
-.. code-block::
-
-   None
-
+* **verify (bool)**\ : enable inline checksum verification of read
+* **fua_read (bool)**\ : enable FUA of read. Default: False
+* **fua_write (bool)**\ : enable FUA of write. Default: False
 
 Controller
 ----------
@@ -146,21 +138,14 @@ Controller
 
 Controller class. Prefer to use fixture "nvme0" in test scripts.
 
-**Attributes**
+**Parameters**
 
 
-* `addr (bytes)`: the bus/device/function address of the DUT, for example:
-* 
-  ``b'01``\ :00.0' (PCIe BDF address);
+* **addr (bytes)**\ : the bus/device/function address of the DUT, for example:                       b'01:00.0' (PCIe BDF address),                        b'127.0.0.1' (TCP IP address).
 
-  .. code-block::
+**Example**
 
-                 b'127.0.0.1' (TCP IP address).
-
-* 
-  ``Example``\ :
-
-  .. code-block:: python
+.. code-block:: python
 
        >>> n = Controller(b'01:00.0')
        >>> hex(n[0])     # CAP register
@@ -201,12 +186,12 @@ abort
 
 abort admin commands
 
-**Attributes**
+**Parameters**
 
 
-* ``cid (int)``\ : command id of the command to be aborted
-* `sqid (int)`: sq id of the command to be aborted. Default: 0, to abort the admin command
-* `cb (function)`: callback function called at completion. Default: None
+* **cid (int)**\ : command id of the command to be aborted
+* **sqid (int)**\ : sq id of the command to be aborted. Default: 0, to abort the admin command
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -226,10 +211,10 @@ asynchorous event request admin command.
 
 Not suggested to use this command in scripts because driver manages to send and monitor aer commands. Scripts should register an aer callback function if it wants to handle aer, and use the fixture aer.
 
-**Attributes**
+**Parameters**
 
 
-* `cb (function)`: callback function called at completion. Default: None
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -252,10 +237,10 @@ cmdlog
 
 print recent commands and their completions.
 
-**Attributes**
+**Parameters**
 
 
-* `count (int)`: the number of commands to print. Default: 0, to print the whole cmdlog
+* **count (int)**\ : the number of commands to print. Default: 0, to print the whole cmdlog
 
 cmdname
 ^^^^^^^
@@ -266,10 +251,10 @@ cmdname
 
 get the name of the admin command
 
-**Attributes**
+**Parameters**
 
 
-* ``opcode (int)``\ : the opcode of the admin command
+* **opcode (int)**\ : the opcode of the admin command
 
 **Returns**
 
@@ -293,12 +278,12 @@ downfw
 
 firmware download utility: by 4K, and activate in next reset
 
-**Attributes**
+**Parameters**
 
 
-* ``filename (str)``\ : the pathname of the firmware binary file to download
-* `slot (int)`: firmware slot field in the command. Default: 0, decided by device
-* `cb (function)`: callback function called at completion. Default: None
+* **filename (str)**\ : the pathname of the firmware binary file to download
+* **slot (int)**\ : firmware slot field in the command. Default: 0, decided by device
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -311,12 +296,12 @@ dst
 
 device self test (DST) admin command
 
-**Attributes**
+**Parameters**
 
 
-* ``stc (int)``\ : selftest code (stc) field in the command
-* `nsid (int)`: nsid field in the command. Default: 0xffffffff
-* `cb (function)`: callback function called at completion. Default: None
+* **stc (int)**\ : selftest code (stc) field in the command
+* **nsid (int)**\ : nsid field in the command. Default: 0xffffffff
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -343,13 +328,16 @@ format
 
 format admin command
 
-**Attributes**
+Notice
+    This Controller.format only send the admin command. Use Namespace.format to maintain pynvme internal data!
+
+**Parameters**
 
 
-* `lbaf (int)`: lbaf (lba format) field in the command. Default: 0
-* `ses (int)`: ses field in the command. Default: 0, no secure erase
-* `nsid (int)`: nsid field in the command. Default: 1
-* `cb (function)`: callback function called at completion. Default: None
+* **lbaf (int)**\ : lbaf (lba format) field in the command. Default: 0
+* **ses (int)**\ : ses field in the command. Default: 0, no secure erase
+* **nsid (int)**\ : nsid field in the command. Default: 1
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -367,12 +355,12 @@ fw_commit
 
 firmware commit admin command
 
-**Attributes**
+**Parameters**
 
 
-* ``slot (int)``\ : firmware slot field in the command
-* ``action (int)``\ : action field in the command
-* `cb (function)`: callback function called at completion. Default: None
+* **slot (int)**\ : firmware slot field in the command
+* **action (int)**\ : action field in the command
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -390,13 +378,13 @@ fw_download
 
 firmware download admin command
 
-**Attributes**
+**Parameters**
 
 
-* ``buf (Buffer)``\ : the buffer to hold the firmware data
-* ``offset (int)``\ : offset field in the command
-* `size (int)`: size field in the command. Default: None, means the size of the buffer
-* `cb (function)`: callback function called at completion. Default: None
+* **buf (Buffer)**\ : the buffer to hold the firmware data
+* **offset (int)**\ : offset field in the command
+* **size (int)**\ : size field in the command. Default: None, means the size of the buffer
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -414,14 +402,14 @@ getfeatures
 
 getfeatures admin command
 
-**Attributes**
+**Parameters**
 
 
-* ``fid (int)``\ : feature id
-* `cdw11 (int)`: cdw11 in the command. Default: 0
-* `sel (int)`: sel field in the command. Default: 0
-* `buf (Buffer)`: the buffer to hold the feature data. Default: None
-* `cb (function)`: callback function called at completion. Default: None
+* **fid (int)**\ : feature id
+* **cdw11 (int)**\ : cdw11 in the command. Default: 0
+* **sel (int)**\ : sel field in the command. Default: 0
+* **buf (Buffer)**\ : the buffer to hold the feature data. Default: None
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -439,15 +427,15 @@ getlogpage
 
 getlogpage admin command
 
-**Attributes**
+**Parameters**
 
 
-* ``lid (int)``\ : Log Page Identifier
-* ``buf (Buffer)``\ : buffer to hold the log page
-* `size (int)`: size (in byte) of data to get from the log page,. Default: None, means the size is the same of the buffer
-* ``offset (int)``\ : the location within a log page
-* `nsid (int)`: nsid field in the command. Default: 0xffffffff
-* `cb (function)`: callback function called at completion. Default: None
+* **lid (int)**\ : Log Page Identifier
+* **buf (Buffer)**\ : buffer to hold the log page
+* **size (int)**\ : size (in byte) of data to get from the log page,. Default: None, means the size is the same of the buffer
+* **offset (int)**\ : the location within a log page
+* **nsid (int)**\ : nsid field in the command. Default: 0xffffffff
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -465,12 +453,12 @@ id_data
 
 get field in controller identify data
 
-**Attributes**
+**Parameters**
 
 
-* ``byte_end (int)``\ : the end byte number of this field, which is specified in NVMe spec. Included.
-* `byte_begin (int)`: the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
-* `type (type)`: the type of the field. It should be int or str. Default: int, convert to integer python object
+* **byte_end (int)**\ : the end byte number of this field, which is specified in NVMe spec. Included.
+* **byte_begin (int)**\ : the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
+* **type (type)**\ : the type of the field. It should be int or str. Default: int, convert to integer python object
 
 **Returns**
 
@@ -485,13 +473,13 @@ identify
 
 identify admin command
 
-**Attributes**
+**Parameters**
 
 
-* ``buf (Buffer)``\ : the buffer to hold the identify data
-* `nsid (int)`: nsid field in the command. Default: 0
-* `cns (int)`: cns field in the command. Default: 1
-* `cb (function)`: callback function called at completion. Default: None
+* **buf (Buffer)**\ : the buffer to hold the identify data
+* **nsid (int)**\ : nsid field in the command. Default: 0
+* **cns (int)**\ : cns field in the command. Default: 1
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -518,10 +506,10 @@ It is recommended to use fixture aer(func) in pytest scripts.
 When aer is triggered, the python callback function will
 be called. It is unregistered by aer fixture when test finish.
 
-**Attributes**
+**Parameters**
 
 
-* ``func (function)``\ : callback function called at aer completion
+* **func (function)**\ : callback function called at aer completion
 
 reset
 ^^^^^
@@ -532,12 +520,8 @@ reset
 
 controller reset: cc.en 1 => 0 => 1
 
-**Notices**
-
-.. code-block::
-
-   Test scripts should delete all io qpairs before reset!
-
+Notice
+    Test scripts should delete all io qpairs before reset!
 
 sanitize
 ^^^^^^^^
@@ -548,12 +532,12 @@ sanitize
 
 sanitize admin command
 
-**Attributes**
+**Parameters**
 
 
-* ``option (int)``\ : sanitize option field in the command
-* `pattern (int)`: pattern field in the command for overwrite method. Default: 0x5aa5a55a
-* `cb (function)`: callback function called at completion. Default: None
+* **option (int)**\ : sanitize option field in the command
+* **pattern (int)**\ : pattern field in the command for overwrite method. Default: 0x5aa5a55a
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -573,13 +557,13 @@ send generic admin commands.
 
 This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands.
 
-**Attributes**
+**Parameters**
 
 
-* ``opcode (int)``\ : operate code of the command
-* `buf (Buffer)`: buffer of the command. Default: None
-* `nsid (int)`: nsid field of the command. Default: 0
-* `cb (function)`: callback function called at completion. Default: None
+* **opcode (int)**\ : operate code of the command
+* **buf (Buffer)**\ : buffer of the command. Default: None
+* **nsid (int)**\ : nsid field of the command. Default: 0
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -597,14 +581,14 @@ setfeatures
 
 setfeatures admin command
 
-**Attributes**
+**Parameters**
 
 
-* ``fid (int)``\ : feature id
-* `cdw11 (int)`: cdw11 in the command. Default: 0
-* `sv (int)`: sv field in the command. Default: 0
-* `buf (Buffer)`: the buffer to hold the feature data. Default: None
-* `cb (function)`: callback function called at completion. Default: None
+* **fid (int)**\ : feature id
+* **cdw11 (int)**\ : cdw11 in the command. Default: 0
+* **sv (int)**\ : sv field in the command. Default: 0
+* **buf (Buffer)**\ : the buffer to hold the feature data. Default: None
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -622,10 +606,10 @@ supports
 
 check if the admin command is supported
 
-**Attributes**
+**Parameters**
 
 
-* ``opcode (int)``\ : the opcode of the admin command
+* **opcode (int)**\ : the opcode of the admin command
 
 **Returns**
 
@@ -647,17 +631,13 @@ waitdone
 
 sync until expected commands completion
 
-**Attributes**
+Notice
+    Do not call this function in commands callback functions.
+
+**Parameters**
 
 
-* `expected (int)`: expected commands to complete. Default: 1
-
-**Notices**
-
-.. code-block::
-
-   Do not call this function in commands callback functions.
-
+* **expected (int)**\ : expected commands to complete. Default: 1
 
 DotDict
 -------
@@ -677,11 +657,11 @@ Namespace
 
 Namespace class. Prefer to use fixture "nvme0n1" in test scripts.
 
-**Attributes**
+**Parameters**
 
 
-* ``nvme (Controller)``\ : controller where to create the queue
-* ``nsid (int)``\ : nsid of the namespace
+* **nvme (Controller)**\ : controller where to create the queue
+* **nsid (int)**\ : nsid of the namespace
 
 capacity
 ^^^^^^^^
@@ -697,7 +677,7 @@ close
 
 close namespace to release it resources in host memory.
 
-Notice:
+Notice
     Release resources explictly, del is not garentee to call **dealloc**.
     Fixture nvme0n1 uses this function, and prefer to use fixture in scripts, instead of calling this function directly.
 
@@ -710,10 +690,10 @@ cmdname
 
 get the name of the IO command
 
-**Attributes**
+**Parameters**
 
 
-* ``opcode (int)``\ : the opcode of the IO command
+* **opcode (int)**\ : the opcode of the IO command
 
 **Returns**
 
@@ -728,15 +708,18 @@ compare
 
 compare IO command
 
-**Attributes**
+Notice
+    buf cannot be released before the command completes.
+
+**Parameters**
 
 
-* ``qpair (Qpair)``\ : use the qpair to send this command
-* ``buf (Buffer)``\ : the data buffer of the command, meta data is not supported.
-* ``lba (int)``\ : the starting lba address, 64 bits
-* `lba_count (int)`: the lba count of this command, 16 bits. Default: 1
-* `io_flags (int)`: io flags defined in NVMe specification, 16 bits. Default: 0
-* `cb (function)`: callback function called at completion. Default: None
+* **qpair (Qpair)**\ : use the qpair to send this command
+* **buf (Buffer)**\ : the data buffer of the command, meta data is not supported.
+* **lba (int)**\ : the starting lba address, 64 bits
+* **lba_count (int)**\ : the lba count of this command, 16 bits. Default: 1
+* **io_flags (int)**\ : io flags defined in NVMe specification, 16 bits. Default: 0
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -746,13 +729,6 @@ compare IO command
 
 
 * ``SystemError``\ : the command fails
-
-**Notices**
-
-.. code-block::
-
-   buf cannot be released before the command completes.
-
 
 dsm
 ^^^
@@ -763,14 +739,17 @@ dsm
 
 data-set management IO command
 
-**Attributes**
+Notice
+    buf cannot be released before the command completes.
+
+**Parameters**
 
 
-* ``qpair (Qpair)``\ : use the qpair to send this command
-* ``buf (Buffer)``\ : the buffer of the lba ranges. Use buffer.set_dsm_range to prepare the buffer.
-* ``range_count (int)``\ : the count of lba ranges in the buffer
-* `attribute (int)`: attribute field of the command. Default: 0x4, as deallocation/trim
-* `cb (function)`: callback function called at completion. Default: None
+* **qpair (Qpair)**\ : use the qpair to send this command
+* **buf (Buffer)**\ : the buffer of the lba ranges. Use buffer.set_dsm_range to prepare the buffer.
+* **range_count (int)**\ : the count of lba ranges in the buffer
+* **attribute (int)**\ : attribute field of the command. Default: 0x4, as deallocation/trim
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -781,13 +760,6 @@ data-set management IO command
 
 * ``SystemError``\ : the command fails
 
-**Notices**
-
-.. code-block::
-
-   buf cannot be released before the command completes.
-
-
 flush
 ^^^^^
 
@@ -797,11 +769,11 @@ flush
 
 flush IO command
 
-**Attributes**
+**Parameters**
 
 
-* ``qpair (Qpair)``\ : use the qpair to send this command
-* `cb (function)`: callback function called at completion. Default: None
+* **qpair (Qpair)**\ : use the qpair to send this command
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -821,23 +793,19 @@ format
 
 change the format of this namespace
 
-**Attributes**
+Notice
+    this facility not only sends format admin command, but also updates driver to activate new format immediately
+
+**Parameters**
 
 
-* `data_size (int)`: data size. Default: 512
-* `meta_size (int)`: meta data size. Default: 0
-* `ses (int)`: ses field in the command. Default: 0, no secure erase
+* **data_size (int)**\ : data size. Default: 512
+* **meta_size (int)**\ : meta data size. Default: 0
+* **ses (int)**\ : ses field in the command. Default: 0, no secure erase
 
 **Returns**
 
 ``(int or None)``\ : the lba format has the specified data size and meta data size
-
-**Notices**
-
-.. code-block::
-
-   this facility not only sends format admin command, but also updates driver to activate new format immediately
-
 
 get_lba_format
 ^^^^^^^^^^^^^^
@@ -848,11 +816,11 @@ get_lba_format
 
 find the lba format by its data size and meta data size
 
-**Attributes**
+**Parameters**
 
 
-* `data_size (int)`: data size. Default: 512
-* `meta_size (int)`: meta data size. Default: 0
+* **data_size (int)**\ : data size. Default: 512
+* **meta_size (int)**\ : meta data size. Default: 0
 
 **Returns**
 
@@ -867,12 +835,12 @@ id_data
 
 get field in namespace identify data
 
-**Attributes**
+**Parameters**
 
 
-* ``byte_end (int)``\ : the end byte number of this field, which is specified in NVMe spec. Included.
-* `byte_begin (int)`: the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
-* `type (type)`: the type of the field. It should be int or str. Default: int, convert to integer python object
+* **byte_end (int)**\ : the end byte number of this field, which is specified in NVMe spec. Included.
+* **byte_begin (int)**\ : the begin byte number of this field, which is specified in NVMe spec. It can be omitted if begin is the same as end when the field has only 1 byte. Included. Default: None, means only get 1 byte defined in byte_end
+* **type (type)**\ : the type of the field. It should be int or str. Default: int, convert to integer python object
 
 **Returns**
 
@@ -897,25 +865,25 @@ is limited by maximum IO queues that DUT can provide.
 
 Each ioworker can run upto 24 hours.
 
-**Attributes**
+**Parameters**
 
 
-* ``io_size (short)``\ : IO size, unit is LBA
-* ``lba_align (short)``\ : IO alignment, unit is LBA
-* ``lba_random (bool)``\ : True if sending IO with random starting LBA
-* ``read_percentage (int)``\ : sending read/write mixed IO, 0 means write only, 100 means read only
-* `time (int)`: specified maximum time of the IOWorker in seconds, up to 24*3600. Default:0, means no limit
-* `qdepth (int)`: queue depth of the Qpair created by the IOWorker, up to 1024. Default: 64
-* `region_start (long)`: sending IO in the specified LBA region, start. Default: 0
-* `region_end (long)`: sending IO in the specified LBA region, end but not include. Default: 0xffff_ffff_ffff_ffff
-* `iops (int)`: specified maximum IOPS. IOWorker throttles the sending IO speed. Default: 0, means no limit
-* `io_count (long)`: specified maximum IO counts to send. Default: 0, means no limit
-* `lba_start (long)`: the LBA address of the first command. Default: 0, means start from region_start
-* `qprio (int)`: SQ priority. Default: 0, as Round Robin arbitration
-* `pvalue (int)`: data pattern value. Refer to class Buffer. Default: 0
-* `ptype (int)`: data pattern type. Refer to class Buffer. Default: 0
-* `output_io_per_second (list)`: list to hold the output data of io_per_second. Default: None, not to collect the data
-* `output_percentile_latency (dict)`: dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in ms. Default: None, not to collect the data
+* **io_size (short)**\ : IO size, unit is LBA
+* **lba_align (short)**\ : IO alignment, unit is LBA
+* **lba_random (bool)**\ : True if sending IO with random starting LBA
+* **read_percentage (int)**\ : sending read/write mixed IO, 0 means write only, 100 means read only
+* **time (int)**\ : specified maximum time of the IOWorker in seconds, up to 24*3600. Default:0, means no limit
+* **qdepth (int)**\ : queue depth of the Qpair created by the IOWorker, up to 1024. Default: 64
+* **region_start (long)**\ : sending IO in the specified LBA region, start. Default: 0
+* **region_end (long)**\ : sending IO in the specified LBA region, end but not include. Default: 0xffff_ffff_ffff_ffff
+* **iops (int)**\ : specified maximum IOPS. IOWorker throttles the sending IO speed. Default: 0, means no limit
+* **io_count (long)**\ : specified maximum IO counts to send. Default: 0, means no limit
+* **lba_start (long)**\ : the LBA address of the first command. Default: 0, means start from region_start
+* **qprio (int)**\ : SQ priority. Default: 0, as Round Robin arbitration
+* **pvalue (int)**\ : data pattern value. Refer to class Buffer. Default: 0
+* **ptype (int)**\ : data pattern type. Refer to class Buffer. Default: 0
+* **output_io_per_second (list)**\ : list to hold the output data of io_per_second. Default: None, not to collect the data
+* **output_percentile_latency (dict)**\ : dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in ms. Default: None, not to collect the data
 
 **Returns**
 
@@ -938,15 +906,18 @@ read
 
 read IO command
 
-**Attributes**
+Notice
+    buf cannot be released before the command completes.
+
+**Parameters**
 
 
-* ``qpair (Qpair)``\ : use the qpair to send this command
-* ``buf (Buffer)``\ : the data buffer of the command, meta data is not supported.
-* ``lba (int)``\ : the starting lba address, 64 bits
-* `lba_count (int)`: the lba count of this command, 16 bits. Default: 1
-* `io_flags (int)`: io flags defined in NVMe specification, 16 bits. Default: 0
-* `cb (function)`: callback function called at completion. Default: None
+* **qpair (Qpair)**\ : use the qpair to send this command
+* **buf (Buffer)**\ : the data buffer of the command, meta data is not supported.
+* **lba (int)**\ : the starting lba address, 64 bits
+* **lba_count (int)**\ : the lba count of this command, 16 bits. Default: 1
+* **io_flags (int)**\ : io flags defined in NVMe specification, 16 bits. Default: 0
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -956,13 +927,6 @@ read IO command
 
 
 * ``SystemError``\ : the read command fails
-
-**Notices**
-
-.. code-block::
-
-   buf cannot be released before the command completes.
-
 
 send_cmd
 ^^^^^^^^
@@ -975,14 +939,14 @@ send generic IO commands.
 
 This is a generic method. Scripts can use this method to send all kinds of commands, like Vendor Specific commands, and even not existed commands.
 
-**Attributes**
+**Parameters**
 
 
-* ``opcode (int)``\ : operate code of the command
-* ``qpair (Qpair)``\ : qpair used to send this command
-* `buf (Buffer)`: buffer of the command. Default: None
-* `nsid (int)`: nsid field of the command. Default: 0
-* `cb (function)`: callback function called at completion. Default: None
+* **opcode (int)**\ : operate code of the command
+* **qpair (Qpair)**\ : qpair used to send this command
+* **buf (Buffer)**\ : buffer of the command. Default: None
+* **nsid (int)**\ : nsid field of the command. Default: 0
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -997,10 +961,10 @@ supports
 
 check if the IO command is supported
 
-**Attributes**
+**Parameters**
 
 
-* ``opcode (int)``\ : the opcode of the IO command
+* **opcode (int)**\ : the opcode of the IO command
 
 **Returns**
 
@@ -1015,15 +979,18 @@ write
 
 write IO command
 
-**Attributes**
+Notice
+    buf cannot be released before the command completes.
+
+**Parameters**
 
 
-* ``qpair (Qpair)``\ : use the qpair to send this command
-* ``buf (Buffer)``\ : the data buffer of the write command, meta data is not supported.
-* ``lba (int)``\ : the starting lba address, 64 bits
-* ``lba_count (int)``\ : the lba count of this command, 16 bits
-* `io_flags (int)`: io flags defined in NVMe specification, 16 bits. Default: 0
-* `cb (function)`: callback function called at completion. Default: None
+* **qpair (Qpair)**\ : use the qpair to send this command
+* **buf (Buffer)**\ : the data buffer of the write command, meta data is not supported.
+* **lba (int)**\ : the starting lba address, 64 bits
+* **lba_count (int)**\ : the lba count of this command, 16 bits
+* **io_flags (int)**\ : io flags defined in NVMe specification, 16 bits. Default: 0
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -1034,13 +1001,6 @@ write IO command
 
 * ``SystemError``\ : the write command fails
 
-**Notices**
-
-.. code-block::
-
-   buf cannot be released before the command completes.
-
-
 write_uncorrectable
 ^^^^^^^^^^^^^^^^^^^
 
@@ -1050,13 +1010,13 @@ write_uncorrectable
 
 write uncorrectable IO command
 
-**Attributes**
+**Parameters**
 
 
-* ``qpair (Qpair)``\ : use the qpair to send this command
-* ``lba (int)``\ : the starting lba address, 64 bits
-* `lba_count (int)`: the lba count of this command, 16 bits. Default: 1
-* `cb (function)`: callback function called at completion. Default: None
+* **qpair (Qpair)**\ : use the qpair to send this command
+* **lba (int)**\ : the starting lba address, 64 bits
+* **lba_count (int)**\ : the lba count of this command, 16 bits. Default: 1
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -1076,14 +1036,14 @@ write_zeroes
 
 write zeroes IO command
 
-**Attributes**
+**Parameters**
 
 
-* ``qpair (Qpair)``\ : use the qpair to send this command
-* ``lba (int)``\ : the starting lba address, 64 bits
-* `lba_count (int)`: the lba count of this command, 16 bits. Default: 1
-* `io_flags (int)`: io flags defined in NVMe specification, 16 bits. Default: 0
-* `cb (function)`: callback function called at completion. Default: None
+* **qpair (Qpair)**\ : use the qpair to send this command
+* **lba (int)**\ : the starting lba address, 64 bits
+* **lba_count (int)**\ : the lba count of this command, 16 bits. Default: 1
+* **io_flags (int)**\ : io flags defined in NVMe specification, 16 bits. Default: 0
+* **cb (function)**\ : callback function called at completion. Default: None
 
 **Returns**
 
@@ -1103,10 +1063,10 @@ Pcie
 
 Pcie class. Prefer to use fixture "pcie" in test scripts
 
-**Attributes**
+**Parameters**
 
 
-* ``nvme (Controller)``\ : the nvme controller object of that subsystem
+* **nvme (Controller)**\ : the nvme controller object of that subsystem
 
 cap_offset
 ^^^^^^^^^^
@@ -1117,15 +1077,14 @@ cap_offset
 
 get the offset of a capability
 
-**Attributes**
+**Parameters**
 
 
-* ``cap_id (int)``\ : capability id
+* **cap_id (int)**\ : capability id
 
 **Returns**
 
-``(int)``\ : the offset of the register
-    or None if the capability is not existed
+``(int)``\ : the offset of the register, or None if the capability is not existed
 
 register
 ^^^^^^^^
@@ -1136,11 +1095,11 @@ register
 
 access registers in pcie config space, and get its integer value.
 
-**Attributes**
+**Parameters**
 
 
-* ``offset (int)``\ : the offset (in bytes) of the register in the config space
-* ``byte_count (int)``\ : the size (in bytes) of the register
+* **offset (int)**\ : the offset (in bytes) of the register in the config space
+* **byte_count (int)**\ : the size (in bytes) of the register
 
 **Returns**
 
@@ -1164,12 +1123,12 @@ Qpair
 
 Qpair class. IO SQ and CQ are combinded as qpairs.
 
-**Attributes**
+**Parameters**
 
 
-* ``nvme (Controller)``\ : controller where to create the queue
-* ``depth (int)``\ : SQ/CQ queue depth
-* ``prio (int)``\ : when Weighted Round Robin is enabled, specify SQ priority here
+* **nvme (Controller)**\ : controller where to create the queue
+* **depth (int)**\ : SQ/CQ queue depth
+* **prio (int)**\ : when Weighted Round Robin is enabled, specify SQ priority here
 
 cmdlog
 ^^^^^^
@@ -1180,10 +1139,10 @@ cmdlog
 
 print recent IO commands and their completions in this qpair.
 
-**Attributes**
+**Parameters**
 
 
-* `count (int)`: the number of commands to print. Default: 0, to print the whole cmdlog
+* **count (int)**\ : the number of commands to print. Default: 0, to print the whole cmdlog
 
 waitdone
 ^^^^^^^^
@@ -1194,17 +1153,13 @@ waitdone
 
 sync until expected commands completion
 
-**Attributes**
+Notice
+    Do not call this function in commands callback functions.
+
+**Parameters**
 
 
-* `expected (int)`: expected commands to complete. Default: 1
-
-**Notices**
-
-.. code-block::
-
-   Do not call this function in commands callback functions.
-
+* **expected (int)**\ : expected commands to complete. Default: 1
 
 Subsystem
 ---------
@@ -1215,10 +1170,10 @@ Subsystem
 
 Subsystem class. Prefer to use fixture "subsystem" in test scripts.
 
-**Attributes**
+**Parameters**
 
 
-* ``nvme (Controller)``\ : the nvme controller object of that subsystem
+* **nvme (Controller)**\ : the nvme controller object of that subsystem
 
 power_cycle
 ^^^^^^^^^^^
@@ -1229,10 +1184,10 @@ power_cycle
 
 power off and on in seconds
 
-**Attributes**
+**Parameters**
 
 
-* ``sec (int)``\ : the seconds between power off and power on
+* **sec (int)**\ : the seconds between power off and power on
 
 reset
 ^^^^^
@@ -1252,7 +1207,7 @@ shutdown_notify
 
 notify nvme subsystem a shutdown event through register cc.chn
 
-**Attributes**
+**Parameters**
 
 
-* ``abrupt (bool)``\ : it will be an abrupt shutdown (return immediately) or clean shutdown (wait shutdown completely)
+* **abrupt (bool)**\ : it will be an abrupt shutdown (return immediately) or clean shutdown (wait shutdown completely)
