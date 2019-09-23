@@ -144,7 +144,7 @@ cdef class Buffer(object):
         ptype (int): data pattern type. Default: 0
 
     # data patterns
-```
+```markdown
         |ptype    | pvalue                                     |
         |---------|--------------------------------------------|
         |0        | 0 for all-zero data, 1 for all-one data    |

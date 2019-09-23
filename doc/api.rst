@@ -21,7 +21,7 @@ Buffer allocates memory in DPDK, so we can get its physical address for DMA. Dat
 
 **data patterns**
 
-.. code-block::
+.. code-block:: markdown
 
        |ptype    | pvalue                                     |
        |---------|--------------------------------------------|
