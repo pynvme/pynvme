@@ -3,6 +3,20 @@ VSCode
 
 The pynvme works with VSCode! And pytest too! User can deveop and run test scripts in this excellent IDE. 
 
+Layout
+------
+
+.. image:: pic/vscode_area.png
+   :target: pic/vscode_area.png
+   :alt: vscode screenshot
+
+A. Activity Bar: you can select the last Test icon for pytest and pynvme extentions.
+#. pytest panel: collects all test files and cases in scripts directory.
+#. pynvme panel: displays all active qpairs in all controllers. Click qpair to open or refresh its cmdlog viewer.
+#. editor: edit test scripts here.
+#. cmdlog viewer: displays the latest 128 command and completion dwords in one qpair.
+#. log viewer: displays pytest log.
+
 Setup
 -----
 
@@ -42,18 +56,5 @@ Setup
       import nvme as d    # import pynvme's python package
 
 
-#. Now, we can debug and run test scripts in VSCode!
+Now, we can edit, debug and run test scripts in VSCode! It time to learn pynvme features and how we write scripts based on pynvme. 
 
-Layout
-------
-
-.. image:: pic/vscode_area.png
-   :target: pic/vscode_area.png
-   :alt: vscode screenshot
-
-A. Activity Bar: you can select the last Test icon for pytest and pynvme extentions.
-#. pytest panel: collects all test files and cases in scripts directory.
-#. pynvme panel: displays all active qpairs in all controllers. Click qpair to open or refresh its cmdlog viewer.
-#. editor: edit test scripts here.
-#. cmdlog viewer: displays the latest 128 command and completion dwords in one qpair.
-#. log viewer: displays pytest log.

@@ -1,21 +1,48 @@
 Features
 ========
 
-#. access PCI configuration space
-#. access NVMe registers in BAR space
-#. send any NVMe admin/IO commands
-#. callback functions are supported
-#. MSIx interrupt is supported
-#. transparent checksum verification for each LBA
-#. IOWorker generates high-performance IO
-#. integrated with pytest
-#. integrated with VSCode
-#. test multiple controllers, namespaces and qpairs simultaneously
-#. test NVMe over TCP targets
-#. timeout
+Users can pynvme to operate NVMe controllers, namespaces, PCI devices, data buffers and etc.
+
+Buffer
+------
+
 #. data pattern
 
-by classes, methods
+
+Controller
+----------
+
+#. send any NVMe admin/IO commands
+#. callback functions are supported
+   #. MSIx interrupt is supported
+#. test NVMe over TCP targets
+#. timeout
+
+multi
+
+
+Qpair
+-----
+
+Namespace
+---------
+
+#. transparent checksum verification for each LBA
+#. IOWorker generates high-performance IO
+#. test multiple controllers, namespaces and qpairs simultaneously
+
+PCIe
+----
+
+#. access PCI configuration space
+#. access NVMe registers in BAR space
+
+
+Power
+-----
+
+Reset
+-----
 
 
 Pynvme writes and reads data in buffer to NVMe device LBA space. In order to verify the data integrity, it injects LBA address and version information into the write data buffer, and check with them after read completion. Furthermore, Pynvme computes and verifies CRC32 of each LBA on the fly. Both data buffer and LBA CRC32 are stored in host memory, so ECC memory are recommended if you are considering serious tests.
