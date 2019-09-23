@@ -137,20 +137,21 @@ cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
 cdef class Buffer(object):
     """Buffer allocates memory in DPDK, so we can get its physical address for DMA. Data in buffer is clear to 0 in initialization.
 
-    Notice
-        Different pattern type has different value definition.
-        ptype    | pvalue
-        ------------------------------------------------------
-        0        | 0 for all-zero data, 1 for all-one data
-        32       | 32-bit value of the repeated data pattern 
-        0xbeef   | random data compression percentage rate
-        others   | not supported
-
     # Parameters
         size (int): the size (in bytes) of the buffer. Default: 4096
         name (str): the name of the buffer. Default: 'buffer'
         pvalue (int): data pattern value. Default: 0
         ptype (int): data pattern type. Default: 0
+
+    # data patterns
+```markdown
+        |ptype    | pvalue|
+        |---------|--------------------------------------------|
+        |0        | 0 for all-zero data, 1 for all-one data|
+        |32       | 32-bit value of the repeated data pattern |
+        |0xbeef   | random data compression percentage rate|
+        |others   | not supported|
+```
 
     # Examples
 ```python

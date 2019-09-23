@@ -11,19 +11,6 @@ Buffer
 
 Buffer allocates memory in DPDK, so we can get its physical address for DMA. Data in buffer is clear to 0 in initialization.
 
-Notice
-    Different pattern type has different value definition.
-
-.. code-block::
-
-   ptype    | pvalue
-   ------------------------------------------------------
-   0        | 0 for all-zero data, 1 for all-one data
-   32       | 32-bit value of the repeated data pattern
-   0xbeef   | random data compression percentage rate
-   others   | not supported
-
-
 **Parameters**
 
 
@@ -31,6 +18,17 @@ Notice
 * **name (str)**\ : the name of the buffer. Default: 'buffer'
 * **pvalue (int)**\ : data pattern value. Default: 0
 * **ptype (int)**\ : data pattern type. Default: 0
+
+**data patterns**
+
+.. code-block:: markdown
+
+       |ptype    | pvalue|
+       |---------|--------------------------------------------|
+       |0        | 0 for all-zero data, 1 for all-one data|
+       |32       | 32-bit value of the repeated data pattern |
+       |0xbeef   | random data compression percentage rate|
+       |others   | not supported|
 
 **Examples**
 
