@@ -319,7 +319,6 @@ cdef class Subsystem(object):
 
         # use S3/suspend to power off nvme device, and use rtc to power on again
         logging.info("power off nvme device for %d seconds" % sec)
-        subprocess.call("sudo echo deep > /sys/power/mem_sleep", shell=True)
         subprocess.call("sudo rtcwake -m mem -s %d 1>/dev/null 2>/dev/null" % sec, shell=True)
         logging.info("power is back")
 
