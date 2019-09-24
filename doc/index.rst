@@ -35,7 +35,7 @@ In following chapters, we will explain the design and usage of pynvme, and soon 
 
          
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Table of Contents
    :hidden:
       
