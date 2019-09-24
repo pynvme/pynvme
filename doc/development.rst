@@ -34,6 +34,16 @@ Here is a brief introduction on key source code files.
    * - install.sh
      - build pynvme for the first time
 
+Repository
+----------
+
+Our offical repository is at: https://github.com/cranechu/pynvme. We built pynvme based on SPDK/DPDK. And in order to extend them with test-purpose features, we forked SPDK and DPDK respectively at:
+
+- SPDK: https://github.com/cranechu/spdk
+- DPDK: https://github.com/cranechu/dpdk
+
+The pynvme modified code is in the branch of pynvme_1.x. We will regularly (e.g. every 6-month) rebase pynvme modifications to latest stable SPDK/DPDK release. 
+
 Debug
 -----
 

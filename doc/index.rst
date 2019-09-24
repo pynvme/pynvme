@@ -35,9 +35,10 @@ In following chapters, we will explain the design and usage of pynvme, and soon 
 
          
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Table of Contents
-
+   :hidden:
+      
    intro
    install
    pytest
