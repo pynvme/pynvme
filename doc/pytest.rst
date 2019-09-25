@@ -1,7 +1,7 @@
 Pytest
 ======
 
-The `pytest <https://pytest.org/en/latest/>`_ framework helps developers writing test scripts from simple to complex. Pynvme can be integrated with pytest.
+The `pytest <https://pytest.org/en/latest/>`_ framework helps developers writing test scripts from simple to complex. Pynvme is integrated with pytest to write simpler and safer scripts.
 
 Fixtures
 --------
@@ -40,11 +40,18 @@ In the following example, the fixture *nvme0n1* initializes the namespace for th
                              read_percentage=0, time=2):
            pass
 
-           
+We no longer need to repeat nvme0n1 creation in every test case as usual way:
+
+.. code-block:: python
+
+   nvme0 = d.Controller(b'01:00.0')
+   nvme0n1 = d.Namespace(nvme0, 1)
+
+   
 Execution
 ---------
 
-With pytest, we execute tests in following ways.
+With pytest, we can execute tests in flexible ways, like these: 
 
 .. code-block:: shell
 
@@ -64,12 +71,12 @@ With pytest, we execute tests in following ways.
 
 .. code-block:: shell
 
-   sudo python3 -B -m pytest driver_test.py::test_ioworker_simplified_context --pciaddr=01:00.0
+   sudo python3 -B -m pytest driver_test.py::test_ioworker_simplified_context --pciaddr=03:00.0
 
-We can also actually specify the NVMe over TCP target in the same test:
+We can even specify the IP address of NVMe over TCP target for the same test case:
 
 .. code-block:: shell
 
    sudo python3 -B -m pytest driver_test.py::test_ioworker_simplified_context --pciaddr=10.24.48.17
 
-Pynvme supports both PCIe and TCP NVMe devices. 
+Yes, pynvme supports both PCIe and TCP NVMe devices! 

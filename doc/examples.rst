@@ -1,7 +1,7 @@
 Examples
 ========
 
-In this chapter, we will learn pynvme scripts with examples.
+In this chapter, we will review several typical NVMe test scripts. 
 
 Ex1: hello world
 ----------------

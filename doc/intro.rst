@@ -8,7 +8,7 @@ Storage is important to client computers, data centers and enterprise servers. N
 
 Testing in Agile development is very differnt from traditional development life cycle. It is no longer a standalone stage of the project. Instead, it is an important everyday practice in each stage of the project. So, we need a solid tool to support the NVMe testing. But, do we have the one?
 
-We have great tools to test IO, for example, FIO and IOMeter. But IO is just a part of the storage features. We have some commencial softwares to test overall functions of NVMe devices, but they are not flexible to development, debug, and maintain test scdripts. The testing infrustructure tool is always a frustrating item in the backlogs.
+We have great tools to test IO, for example, FIO and IOMeter. But IO is just a part of the storage features. We have some commencial softwares to test overall functions of NVMe devices, but they are not flexible to development, debug, and maintain test scripts. The testing infrustructure tool is always a frustrating **TODO** item in the backlogs.
 
 Requirement
 -----------

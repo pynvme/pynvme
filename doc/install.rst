@@ -12,19 +12,19 @@ Normally, users can build pynvme by simply running *install.sh*. It generates th
    cd pynvme
    ./install.sh
    
-Users then can import the package and write NVMe test scripts:
+Users then can import the package for NVMe test scripts:
 
 .. code-block:: python
 
    import nvme as d
    nvme0 = d.Controller(b"01:00.0")  
    
-We wil describe more details of installation below. 
+We wil describe more details of installation below, in case *install.sh* cannot give you the expected package binary file. 
 
-System Requirement
-------------------
+System Requirements
+------------------_
 
-Users can install and use pynvme in commodity computers with some requirements:
+Users can install and use pynvme in most of the commodity computers with some requirements:
 
 #. CPU: x86_64.
 #. OS: Linux.
@@ -51,7 +51,7 @@ We clone the pynvme source code from GitHub. We recommend to checkout the latest
 Prerequisites
 -------------
 
-Then, we need to fetch all required dependencies source code and packages.
+Then, we need to fetch all required dependencies. 
 
 .. code-block:: shell
 
@@ -67,7 +67,7 @@ Then, we need to fetch all required dependencies source code and packages.
    # install SPDK required packages
    sudo ./spdk/scripts/pkgdep.sh
 
-   # install pynvme required python package
+   # install python packages required by pynvme
    sudo python3 -m pip install -r requirements.txt
 
    
@@ -78,7 +78,7 @@ We need to compile and test SPDK first.
 
 .. code-block:: shell
 
-   # use the latest pynvme-modified SPDK
+   # use the according pynvme-modified SPDK code
    cd spdk
    git checkout pynvme_1.3
 
