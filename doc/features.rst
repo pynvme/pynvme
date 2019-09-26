@@ -1,12 +1,12 @@
 Features
 ========
 
-Users can pynvme to operate NVMe controllers, namespaces, PCI devices, data buffers and etc.
+By pynvme, Users can operate NVMe controllers, namespaces, PCI devices, data buffers and etc. We will dive into the details of these classes. 
 
 Buffer
 ------
 
-In order to read and write data to NVMe devices, users need to allocate and provide the `Buffer` to these IO commands. In this example, it allocates a 512-byte buffer, and get identify data of the controller. We can also give a name to the buffer. 
+In order to transfer data with NVMe devices, users need to allocate and provide the `Buffer` to IO commands. In this example, it allocates a 512-byte buffer, and get identify data of the controller in this buffer. We can also give a name to the buffer. 
 
 .. code-block:: python
 
@@ -14,13 +14,14 @@ In order to read and write data to NVMe devices, users need to allocate and prov
    nvme.identify(buf).waitdone()
    # now, the buf contains the identify data
    print(buf[0:4])
+   del buf
 
-Do not delete the `Buffer` before the commands who are using it complete, otherwise you memory would be corrupted.
+Delete the `Buffer` after the commands complete, who are using the buffer. 
 
 data pattern
 ^^^^^^^^^^^^
 
-Users can identify the data pattern of the buffer. Pynvme supports following different data patterns by specify argument `pvalue` and `ptype`.
+Users can identify the data pattern of the `Buffer`. Pynvme supports following different data patterns by argument `pvalue` and `ptype`.
 
 .. list-table::
    :header-rows: 1
@@ -41,7 +42,7 @@ Users can identify the data pattern of the buffer. Pynvme supports following dif
      - 0xbeef
      - compression percentage rate
 
-Pynvme fills the buffer according to the pattern specified during the `Buffer` initialization. Users can also specify argument `pvalue` and `ptype` in IOWorker in the same manner.
+Users can also specify argument `pvalue` and `ptype` in `Namespace.ioworker()` in the same manner.
 
 Controller
 ----------
@@ -57,30 +58,30 @@ To operate the NVMe controller, users need to create the `Controller` object in 
    import nvme as d
    nvme0 = d.Controller(b'01:00.0')
 
-It uses Bus:Device:Function address to specify a PCIe DUT. We can also provide the IP address to create a controller of NVMe over TCP target. 
+It uses Bus:Device:Function address to specify a PCIe DUT. We can also provide the IP address to create the controller for the NVMe over TCP target. 
 
-We can access NVMe register in BAR space by its offset:
+We can access NVMe registers dwords in BAR space by its offset:
 
 .. code-block:: python
 
-   hex(nvme0[0x1c])  # CSTS register, e.g.: '0x1'
+   csts = nvme0[0x1c]  # CSTS register, e.g.: '0x1'
 
 Admin Commands
 ^^^^^^^^^^^^^^
 
-We can send admin commands like this:
+We can send NVMe Admin Commands like this:
 
 .. code-block:: python
 
    nvme0.getfeatures(7)
 
-Pynvme sends the commands asynchronously, and so we need to sync and wait the commands complete by API Controller.waitdone().
+Pynvme sends the commands asynchronously, and so we need to sync and wait the commands complete by API `Controller.waitdone()``.
 
 .. code-block:: python
 
    nvme0.waitdone(1)
 
-Most of the time, we can send and reap one admin command in this form:
+Most of the time, we can send and reap one Admin Command in this form:
 
 .. code-block:: python
 
@@ -93,13 +94,20 @@ After one command completes, pynvme calls the callback we specified for that com
 
 .. code-block:: python
 
-       def write_cb(cdw0, status1):
-           nvme0n1.read(qpair, read_buf, 0, 1)
-       nvme0n1.write(qpair, data_buf, 0, 1, cb=write_cb).waitdone(2)
-
-In the above example, the waitdone function call reaps two commands. One is the write command, the other the read command which was sent in write command's callback function. The function call waitdone() polls commands Completion Queue, and the callback functions are called within waitdone() function call. 
+   def getfeatures_cb(cdw0, status1):
+       logging.info(status1)
+   nvme0.getfeatures(7, cb=getfeatures_cb).waitdone()
 
 Pynvme provides two arguments to python callback functions: *cdw0* of the Completion Queue Entry, and the *status1*. The argument *status1* is a 16-bit integer, which includes both **Phase Tag** and Status Field.
+   
+.. code-block:: python
+                
+   def write_cb(cdw0, status1):
+       nvme0n1.read(qpair, read_buf, 0, 1)
+   nvme0n1.write(qpair, data_buf, 0, 1, cb=write_cb).waitdone(2)
+
+In the above example, the waitdone() function-call reaps two commands. One is the write command, and the other is the read command which was sent in the write command's callback function. The function-call waitdone() polls commands Completion Queue, and the callback functions are called within this waitdone() function. 
+
 
 Identify Data
 ^^^^^^^^^^^^^
@@ -118,45 +126,59 @@ Pynvme provides an API Controller.id_data() to get a field of the identify data:
 
    logging.info("model number: %s" % nvme0.id_data(63, 24, str))
 
+It retrieves bytes from 24 to 63, and intepret them as a `str` object. If the third argument is ommited, they are inteprted as an `int`.
+
+.. code-block:: python
+                
+    logging.info("vid: 0x%x" % nvme0.id_data(1, 0))
+
 Generic Commands
 ^^^^^^^^^^^^^^^^
 
-We can send most of the admin commands listed in NVMe specification. Besides that, we can also send Vendor Specific admin commands, as well as any legal and illegal admin commands, through the generic API: Controller.send_cmd(): 
+We can send most of the Admin Commands listed in the NVMe specification. Besides that, we can also send Vendor Specific Admin Commands, as well as any legal and illegal Admin Commands, through the generic API `Controller.send_cmd()`: 
 
 .. code-block:: python
 
    nvme0.send_cmd(0xff).waitdone()
 
+We can specify more arguments for the generic Admin Commands, as well as the callback function:
+
+.. code-block:: python
+
+    def getfeatures_cb_2(cdw0, status1):
+        logging.info(status1)
+    nvme0.send_cmd(0xa, nsid=1, cdw10=7, cb=getfeatures_cb_2).waitdone()
+    
 Utitity Functions
 ^^^^^^^^^^^^^^^^^
 
-By writing NVMe register CC.EN, we can reset the controller. Pynvme implemented it in API Controller.reset().
+By writing NVMe register `CC.EN`, we can reset the controller. Pynvme implemented it in the API `Controller.reset()`.
 
 .. code-block:: python
 
    nvme0.reset()
 
-Controller also provides more APIs for usual operations. For example, we can upgrade firmware in the script likt this way: 
+Controller also provides more APIs for usual operations. For example, we can upgrade firmware in the script likt this: 
 
 .. code-block:: python
 
    nvme0.downfw('path/to/firmware_image_file')
 
-Please note that, these utility APIs (`id_data`, `reset`, `downfw`, and etc) are not NVMe admin commands, so we do not need to reap them in Controller.waitdone(). 
+Please note that, these utility APIs (`id_data`, `reset`, `downfw`, and etc) are not NVMe Admin Commands, so we do not need to reap them by `Controller.waitdone()`. 
 
 Asynchorous Event Request
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-NVMe Admin command AER is somewhat special. Pynvme driver sends some AER commands during Controller initialization. When some error or event happens, one AER command completes to notify host driver for the unexpected error or event. And pynvme driver notifies the scripts by an aer callback function. In the example below, we use the pytest fixture `aer` to define the AER callback function. When an AER triggered by NVMe devices, this callback function will be called by pynvme. 
+NVMe Admin command AER is somewhat special. Pynvme driver sends some AER commands during the Controller initialization. When an error or event happen, one AER command completes to notify host driver for the unexpected error or event, and resend one more AER command. Then, pynvme driver notifies the scripts by AER command's callback function. In the example below, we use the pytest fixture `aer` to define the AER callback function. When an AER command completion is triggered by the NVMe device, this callback function will be called with arguments `cdw0` and `status1`, which is the same as the usual command's callback function.
 
 .. code-block:: python
+   :emphasize-lines: 5-7
 
    def test_sanitize(nvme0, nvme0n1, buf, aer):
        if nvme0.id_data(331, 328) == 0:
-           warnings.warn("sanitize operation is not supported")
-           return
+           pytest.skip("sanitize operation is not supported")
 
-       def cb(cdw0, status):
+       def cb(cdw0, status1):
            logging.info("aer cb in script: 0x%x, 0x%x" % (cdw0, status))
        aer(cb)
 
@@ -172,10 +194,11 @@ NVMe Admin command AER is somewhat special. Pynvme driver sends some AER command
            nvme0.getlogpage(0x81, buf, 20).waitdone()
            time.sleep(1)
 
-For NVMe Admin command Sanitize, an AER command should be completed. We can find the log information printed in the AER callback function below. 
+For NVMe Admin command Sanitize, an AER command should be triggered. We can find the log information printed in the AER's callback function. Here is the output of the aboe test function. 
 
 .. code-block:: shell
-
+   :emphasize-lines: 18, 26
+                     
    cwd: /home/cranechu/pynvme/
    cmd: sudo python3 -B -m pytest --color=yes --pciaddr=01:00.0 'scripts/utility_test.py::test_sanitize'
 
@@ -207,12 +230,12 @@ For NVMe Admin command Sanitize, an AER command should be completed. We can find
    -- Docs: https://docs.pytest.org/en/latest/warnings.html
    ============================== 1 passed, 1 warnings in 8.28 seconds ===============================
 
-Besides the log inforamtion printed in the AER callback function, we can also find an UserWarning for the AER notification. So, even if aer and aer callback function is not provided in scripts, pynvme can still highlight those unexpected errors and events. 
+Besides the log inforamtion printed in the AER callback function, we can also find an UserWarning for the AER notification. So, even if AER and AER callback function is not provided in scripts, pynvme can still highlight those unexpected errors and events. 
 
 Timeout
 ^^^^^^^
 
-The timeout is configurable, and the default time is 10 seconds. Users can change the timeout for those expected long-time commands.
+The timeout is configurable, and the default time is 10 seconds. Users can change the timeout setting for those expected long-time consumming commands.
 
 .. code-block:: python
 
@@ -223,7 +246,7 @@ The timeout is configurable, and the default time is 10 seconds. Users can chang
 Mutliple Controllers
 ^^^^^^^^^^^^^^^^^^^^
 
-Users can creates as many controllers as they have, even mixed PCIe devcies with NVMe over TCP targets.
+Users can create as many controllers as they have, even mixed PCIe devcies with NVMe over TCP targets.
 
 .. code-block:: python
 
