@@ -1479,7 +1479,7 @@ static uint64_t ioworker_send_one_lba(struct ioworker_args* args,
     ret = ioworker_send_one_lba_random(args);
   }
 
-  return ALIGN_DOWN(ret, args->lba_align);
+  return ALIGN_UP(ret, args->lba_align);
 }
 
 static int ioworker_send_one(struct spdk_nvme_ns* ns,
@@ -1497,7 +1497,8 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
                 ctx, lba_starting, lba_count);
 
   assert(ctx->data_buf != NULL);
-
+  assert(lba_starting <= args->region_end);
+  
   ret = ns_cmd_read_write(is_read, ns, qpair,
                           ctx->data_buf, ctx->data_buf_len,
                           lba_starting, lba_count,
@@ -1511,7 +1512,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   }
 
   //sent one io cmd successfully
-  gctx->sequential_lba += args->lba_align;
+  gctx->sequential_lba += args->lba_size;
   gctx->io_count_sent ++;
   ctx->is_read = is_read;
   _gettimeofday(&ctx->time_sent);
