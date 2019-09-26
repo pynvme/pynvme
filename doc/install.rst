@@ -4,7 +4,7 @@ Install
 Quick Start
 -----------
 
-Normally, users can build pynvme by simply running *install.sh*. It generates the pynvme python package *nvme.cpython-37m-x86_64-linux-gnu.so*. This is the recommended method to compile pynvme.
+Normally, users can build pynvme by simply running *install.sh*. It generates the pynvme Python package *nvme.cpython-37m-x86_64-linux-gnu.so*. This is the recommended method to compile pynvme.
 
 .. code-block:: shell
 
@@ -19,10 +19,10 @@ Users then can import the package for NVMe test scripts:
    import nvme as d
    nvme0 = d.Controller(b"01:00.0")  
    
-We wil describe more details of installation below, in case *install.sh* cannot give you the expected package binary file. 
+We will describe more details of installation below, in case *install.sh* cannot give you the expected package binary file. 
 
 System Requirements
-------------------_
+-------------------
 
 Users can install and use pynvme in most of the commodity computers with some requirements:
 
@@ -82,7 +82,7 @@ We need to compile and test SPDK first.
    cd spdk
    git checkout pynvme_1.3
 
-   # configurate SPDK
+   # configure SPDK
    ./configure --without-isal;
 
    # compile SPDK

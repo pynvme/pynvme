@@ -16,7 +16,7 @@ In order to transfer data with NVMe devices, users need to allocate and provide 
    print(buf[0:4])
    del buf
 
-Delete the `Buffer` after the commands complete, who are using the buffer. 
+Delete the `Buffer` after the commands complete.
 
 data pattern
 ^^^^^^^^^^^^
@@ -39,7 +39,7 @@ Users can identify the data pattern of the `Buffer`. Pynvme supports following d
      - 1
      - 32-bit data
    * - random data
-     - 0xbeef
+     - 0xBEEF
      - compression percentage rate
 
 Users can also specify argument `pvalue` and `ptype` in `Namespace.ioworker()` in the same manner.
@@ -126,7 +126,7 @@ Pynvme provides an API Controller.id_data() to get a field of the identify data:
 
    logging.info("model number: %s" % nvme0.id_data(63, 24, str))
 
-It retrieves bytes from 24 to 63, and intepret them as a `str` object. If the third argument is ommited, they are inteprted as an `int`.
+It retrieves bytes from 24 to 63, and interpret them as a `str` object. If the third argument is omitted, they are interpreted as an `int`.
 
 .. code-block:: python
                 
@@ -149,7 +149,7 @@ We can specify more arguments for the generic Admin Commands, as well as the cal
         logging.info(status1)
     nvme0.send_cmd(0xa, nsid=1, cdw10=7, cb=getfeatures_cb_2).waitdone()
     
-Utitity Functions
+Utility Functions
 ^^^^^^^^^^^^^^^^^
 
 By writing NVMe register `CC.EN`, we can reset the controller. Pynvme implemented it in the API `Controller.reset()`.
@@ -158,7 +158,7 @@ By writing NVMe register `CC.EN`, we can reset the controller. Pynvme implemente
 
    nvme0.reset()
 
-Controller also provides more APIs for usual operations. For example, we can upgrade firmware in the script likt this: 
+Controller also provides more APIs for usual operations. For example, we can upgrade firmware in the script like this: 
 
 .. code-block:: python
 
@@ -166,10 +166,22 @@ Controller also provides more APIs for usual operations. For example, we can upg
 
 Please note that, these utility APIs (`id_data`, `reset`, `downfw`, and etc) are not NVMe Admin Commands, so we do not need to reap them by `Controller.waitdone()`. 
 
-Asynchorous Event Request
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Timeout
+^^^^^^^
 
-NVMe Admin command AER is somewhat special. Pynvme driver sends some AER commands during the Controller initialization. When an error or event happen, one AER command completes to notify host driver for the unexpected error or event, and resend one more AER command. Then, pynvme driver notifies the scripts by AER command's callback function. In the example below, we use the pytest fixture `aer` to define the AER callback function. When an AER command completion is triggered by the NVMe device, this callback function will be called with arguments `cdw0` and `status1`, which is the same as the usual command's callback function.
+The timeout is configurable, and the default time is 10 seconds. Users can change the timeout setting for those expected long-time consuming commands.
+
+.. code-block:: python
+
+    nvme0.timeout=30000  # the unit is milli-second
+    nvme0.format().waitdone()  # format may take long time
+    nvme0.timeout=10000  # recover to usual timeout configuration
+
+
+Asynchronous Event Request
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+NVMe Admin Command AER is somewhat special - they are not applicable to timeout. Pynvme driver sends some AER commands during the Controller initialization. When an error or event happen, one AER command completes to notify host driver for the unexpected error or event, and resend one more AER command. Then, pynvme driver notifies the scripts by AER command's callback function. In the example below, we use the pytest fixture `aer` to define the AER callback function. When an AER command completion is triggered by the NVMe device, this callback function will be called with arguments `cdw0` and `status1`, which is the same as the usual command's callback function.
 
 .. code-block:: python
    :emphasize-lines: 5-7
@@ -194,7 +206,7 @@ NVMe Admin command AER is somewhat special. Pynvme driver sends some AER command
            nvme0.getlogpage(0x81, buf, 20).waitdone()
            time.sleep(1)
 
-For NVMe Admin command Sanitize, an AER command should be triggered. We can find the log information printed in the AER's callback function. Here is the output of the aboe test function. 
+For NVMe Admin command Sanitize, an AER command should be triggered. We can find the log information printed in the AER's callback function. Here is the output of the above test function. 
 
 .. code-block:: shell
    :emphasize-lines: 18, 26
@@ -230,23 +242,12 @@ For NVMe Admin command Sanitize, an AER command should be triggered. We can find
    -- Docs: https://docs.pytest.org/en/latest/warnings.html
    ============================== 1 passed, 1 warnings in 8.28 seconds ===============================
 
-Besides the log inforamtion printed in the AER callback function, we can also find an UserWarning for the AER notification. So, even if AER and AER callback function is not provided in scripts, pynvme can still highlight those unexpected errors and events. 
+Besides the log information printed in the AER callback function, we can also find an UserWarning for the AER notification. So, even if AER and AER callback function is not provided in scripts, pynvme can still highlight those unexpected errors and events. 
 
-Timeout
-^^^^^^^
-
-The timeout is configurable, and the default time is 10 seconds. Users can change the timeout setting for those expected long-time consumming commands.
-
-.. code-block:: python
-
-    nvme0.timeout=30000  # the unit is milli-second
-    nvme0.format().waitdone()  # format may take long-time to complete
-    nvme0.timeout=10000
-
-Mutliple Controllers
+Multiple Controllers
 ^^^^^^^^^^^^^^^^^^^^
 
-Users can create as many controllers as they have, even mixed PCIe devcies with NVMe over TCP targets.
+Users can create as many controllers as they have, even mixed PCIe devices with NVMe over TCP targets.
 
 .. code-block:: python
 
@@ -254,24 +255,24 @@ Users can create as many controllers as they have, even mixed PCIe devcies with 
    nvme1 = d.Controller(b'03:00.0')
    nvme2 = d.Controller(b'10.24.48.17')
    nvme3 = d.Controller(b'127.0.0.1:4420')
-   for n in (nvme0, nvme1, nvm2, nvm3):
+   for n in (nvme0, nvme1, nvme2, nvme3):
        logging.info("model number: %s" % n.id_data(63, 24, str))
 
 Qpair
 -----
 
-In pynvme, we combine a Submission Queue and a Completion Queue as a Qpair. The Admin `Qpair` is created within the `Controller` object implicitly. However, we need to create IO `Qpair` explicitly for IO commands. We can specify the queue depth in the scripts. 
+In pynvme, we combine a Submission Queue and a Completion Queue as a Qpair. The Admin `Qpair` is created within the `Controller` object implicitly. However, we need to create IO `Qpair` explicitly for IO commands. We can specify the queue depth for IO Qpairs. 
 
 .. code-block:: python
 
    qpair = d.Qpair(nvme0, 10)
 
-Similar to Admin commands, we use Qpair.waitdone() to wait IO commands completed.
+Similar to Admin Commands, we use `Qpair.waitdone()` to wait IO commands complete.
 
 Interrupts
 ^^^^^^^^^^
 
-Pynvme creates the IO Completion Queues with interrupt enabled. However, pynvme does not check the interrupt signals. We can check interrupt signals through a set of API Qpair.msix_*(). Here is an example. 
+Pynvme creates the IO Completion Queues with interrupt enabled. However, pynvme does not check the interrupt signals on IO Qpairs. We can check interrupt signals through a set of API `Qpair.msix_*()` in the scripts. Here is an example. 
 
 .. code-block:: python
 
@@ -283,24 +284,22 @@ Pynvme creates the IO Completion Queues with interrupt enabled. However, pynvme 
    assert q.msix_isset()
    q.waitdone()
 
-Interrupt is supported only for testing. Pynvme still reaps completions by polling, without the interrupt signal. Users can check the interrupt signal in test scripts when they need to test this part of function. The interrupt of Admin Qpair of the Controller is handles in a different way by pynvme, pynvme does check the interrupt signal in each Controller.waitdone() function call. Only when the interrupt of Admin commands is presented, pynvme would reap Admin Commands. Interrupts associated with the Admin Completion Queue should not be delayed (specified in 7.5 Interrupts, NVMe specification 1.4).
+Interrupt is supported only for testing. Pynvme still reaps completions by polling, without checking the interrupt signals. Users can check the interrupt signal in test scripts when they need to test this function of the DUT. The interrupt of Admin Qpair of the Controller is handled in a different way by pynvme: pynvme does check the interrupt signals in each time of `Controller.waitdone()` function call. Only when the interrupt of Admin Commands is presented, pynvme would reap Admin Commands. Interrupts associated with the Admin Completion Queue cannot be delayed by coalescing (specified in 7.5 Interrupts, NVMe specification 1.4).
 
 Cmdlog
 ^^^^^^
 
-Pynvme traces recent thousands of commands in the cmdlog, as well as the completion entries. The cmdlog traces each qpair's commands and status. Pynvme supports up to 16 qpairs (including the admin qpair of the controller). API Qpair.cmdlog() lists the cmdlog of the Qpair. With pynvme's VSCode plugin, users can get the cmdlog in IDE's GUI. 
+Pynvme traces recent thousands of commands in the cmdlog, as well as the completion dwords, for each Qpair. API `Qpair.cmdlog()` lists the cmdlog of the Qpair. With pynvme's VSCode plugin, users can also get the cmdlog in IDE's GUI windows. 
 
 Notice
 ^^^^^^
 
-Qpair instance is created based on Controller instance. So, user creates qpair after the controller. In the other side, user should free qpair before the controller. But without explicit code, Python may not garbage collect these objects in the right order. 
-
-We recommend to use pytest in your tests. The fixture nvme0 is defined as session scope, and so it is always created before any Qpair, and deleted after any Qpair. 
+The Qpair object is created on a Controller object. So, users create the Qpair after the Controller. On the other side, users should free Qpair before the Controller. Without explicit `del` in Python scripts, Python may not garbage collect these objects in the right order. We recommend to use pytest in your tests. The fixture `nvme0` is defined as session scope, and so the Controller is always created before any Qpair, and deleted after any Qpair. 
 
 Namespace
 ---------
 
-We can create a `Namespace` and attach it to a `Controller`:
+We can create a Namespace and attach it to a Controller:
 
 .. code-block:: python
 
@@ -310,22 +309,19 @@ We can create a `Namespace` and attach it to a `Controller`:
    :target: ./pic/controller.png
    :alt: NVMe Controller from NVMe spec
 
-For most Client NVMe SSD, we only need to use the fixture `nvme0n1` to declare the single namespace. Similarly, pynvme supports callback functions of IO commands.
-
-Generic Commands
-^^^^^^^^^^^^^^^^
+For most Client NVMe SSD, we only need to use the fixture `nvme0n1` to declare the single namespace. Pynvme also supports callback functions of IO commands.
 
 .. code-block:: python
 
    def test_invalid_io_command_0xff(nvme0n1):
        logging.info("controller0 namespace size: %d" % nvme0n1.id_data(7, 0))
 
-As you see, we use API Namespace.id_data() to get a field of namespace identify data.
+As you see, we use API `Namespace.id_data()` to get a field of namespace identify data.
 
 IO Commands
 ^^^^^^^^^^^
 
-With `Namepace`, `Qpair`, and `Buffer`, we can send IO commnads to NVMe devices. 
+With `Namespace`, `Qpair`, and `Buffer`, we can send IO commands to NVMe devices. 
 
 .. code-block:: python
 
@@ -334,12 +330,25 @@ With `Namepace`, `Qpair`, and `Buffer`, we can send IO commnads to NVMe devices.
        qpair = d.Qpair(nvme0, 16)
        nvme0n1.write(qpair, buf, 0).waitdone()
 
-Pynvme inserts LBA and calculates CRC data against each LBA block data to write. On the other side, pynvme checks LBA and CRC at reading, to verify the data integrity on the fly with ultra-low CPU cost. 
+Pynvme inserts LBA and calculates CRC data for each LBA to write. On the other side, pynvme checks LBA and CRC data for each LBA to read. It verifies the data integrity on the fly with ultra-low CPU cost. 
+
+Generic Commands
+^^^^^^^^^^^^^^^^
+
+We can also send any IO commands through generic commands API `Namespace.send_cmd()`:
+
+.. code-block:: python
+
+    nvme0n1.send_cmd(5|(1<<8), q, b, 1, 8, 0, 0)
+    nvme0n1.send_cmd(1|(1<<9), q, b, 1, 8, 0, 0)
+    q.waitdone(2)
+
+It is actually a fused operation of compare and write in the above script.
 
 IOWorker
 ^^^^^^^^
 
-It is inconvenient and expensive to send each IO command in Python scripts. Pynvme provides the low-cost high-performance `IOWorker` to send IOes in separated process. IOWorkers make full use of multi-core CPU to improve IO test performance and stress. Scripts create the `IOWorker` object by API Namespace.ioworker(), and start it. Then scripts can do anything else, and finally call close() method to wait the IOWorker completed and get the result data. Here is an IOWorker to randomly write 4K data for 2 seconds.
+It is inconvenient and expensive to send each IO command in Python scripts. Pynvme provides the low-cost high-performance `IOWorker` to send IOs in separated process. IOWorkers make full use of multi-core CPU to improve IO test performance and stress. Scripts create the `IOWorker` object by API `Namespace.ioworker()`, and start it. Then scripts can do anything else, and finally close it to wait the IOWorker completed and get the result data. Each IOWorker occupies one Qpair. Here is an IOWorker to randomly write 4K data for 2 seconds.
 
 .. code-block:: python
 
@@ -371,7 +380,7 @@ The IOWorker result data includes these information:
      - int
      - error code of the IOWorker
 
-We can start as many ioworkers as the IO Qpairs the NVMe device has.
+We can start as many ioworkers as the Qpairs the NVMe device supports at the same time.
 
 .. code-block:: python
 
@@ -404,6 +413,7 @@ We can start as many ioworkers as the IO Qpairs the NVMe device has.
 We can even start IOWorkers on different Namespaces:
 
 .. code-block:: python
+   :emphasize-lines: 7
 
    def test_two_namespace_ioworkers(nvme0n1, nvme0):
        nvme1 = d.Controller(b'03:00.0')
@@ -431,7 +441,7 @@ And we can do other operations, accompanied with IOWorkers. In this example, the
                logging.info("temperature: %0.2f degreeC" % k2c(ktemp))
                time.sleep(1)
 
-The performance of `IOWorker` is super high and super consistent. We can use it to test performance. For example, we can get the 4K read IOPS in the following script.
+The performance of `IOWorker` is super high and super consistent. We can use it extensively in performance tests and stress tests. For example, we can get the 4K read IOPS in the following script.
 
 .. code-block:: python
 
@@ -457,6 +467,7 @@ Furthermore, we can also test IOPS consistency, latency QoS and distribution wit
 IOWorker can accurately control the IO speed by the parameter `iops`. Here is an example test script: 
 
 .. code-block:: python
+   :emphasize-lines: 6
 
    def test_ioworker_output_io_per_second(nvme0n1, nvme0):
        output_io_per_second = []
@@ -464,21 +475,21 @@ IOWorker can accurately control the IO speed by the parameter `iops`. Here is an
                         lba_random=True, qdepth=16,
                         read_percentage=0, time=7,
                         iops=1234,
-                        output_io_per_second=output_io_per_second).start().cIlose()
+                        output_io_per_second=output_io_per_second).start().close()
        logging.info(output_io_per_second)
        assert len(output_io_per_second) == 7
        assert output_io_per_second[0] != 0
        assert output_io_per_second[-1] >= 1233
        assert output_io_per_second[-1] <= 1235
 
-The result of the IOWorker shows that it takes 7 seconds, and it sends 1234 IOes in each second. In this way, we can measure the latency againt different IOPS pressure. 
+The result of the IOWorker shows that it takes 7 seconds, and it sends 1234 IOs in each second. In this way, we can measure the latency against different IOPS pressure. 
 
 Data Verify
 ^^^^^^^^^^^
 
-As we mentioned earlier that pynvme verifies data integrity on the fly of data IO. However, the controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). For example, when two IOWorkers write the same LBA simultanously, the order of these writes is not defined. Similarly, in a read/write mixed IOWorker, when both read and write IO happen on the same LBA, their order is also not defined. So, it is impossible for any host driver to determine the data content of read.
+We mentioned earlier that pynvme verifies data integrity on the fly of data IO. However, the controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). For example, when two IOWorkers write the same LBA simultaneously, the order of these writes is not defined. Similarly, in a read/write mixed IOWorker, when both read and write IO happen on the same LBA, their order is also not defined. So, it is impossible for any host driver to determine the data content of read.
 
-So, how we verify the data integrity in test scripts? We need to construct confliction-free IOWorkers with dedicated consideration. When we need to check the data integrity, and ensure that no data confliction could happen, we can specify the fixture `verify` to enable this pynvme feature.
+So, how we verify the data integrity in test scripts? We need to construct conflict-free IOWorkers with dedicated consideration. When we need to check the data integrity, and ensure that no data conflict could happen, we can specify the fixture `verify` to enable this feature.
 
 .. code-block:: python
 
@@ -493,14 +504,14 @@ So, how we verify the data integrity in test scripts? We need to construct confl
                         region_start=0, region_end=100000
                         read_percentage=100, time=2).start().close()
 
-To avoid data confliction, we can start IOWorkers one after another. Otherwise, when we have to start multiple IOWorkers in parallel, we can separate them to different LBA regions. 
+To avoid data conflict, we can start IOWorkers one after another. Otherwise, when we have to start multiple IOWorkers in parallel, we can separate them to different LBA regions. 
 
-Another consideration on data verify is the memory space. During Namespace initialization, only if pynvme can allocate enough memory to hold the CRC data for each LBA, the data verify feature is enabled on this Namespace. Otherwise, the assert verify in above example should fail. Take a 512GB namespace for an example, it needs at least 4GB memory space for CRC data.
+Another consideration on data verify is the memory space. During Namespace initialization, only if pynvme can allocate enough memory to hold the CRC data for each LBA, the data verify feature is enabled on this Namespace. Otherwise, the data verify feature cannot be enabled. Take a 512GB namespace for an example, it needs at least 4GB memory space for CRC data.
 
 Trim
 ^^^^
 
-Dataset Management (e.g. deallocate, or trim) is another commonly used IO command. It needs a prepared data buffer to identify LBA ranges to trim. Users can use API Buffer.set_dsm_range() for that. 
+Dataset Management (e.g. deallocate, or trim) is another commonly used IO command. It needs a prepared data buffer to specify LBA ranges to trim. Users can use API `Buffer.set_dsm_range()` for that. 
 
 .. code-block:: python
 
@@ -522,7 +533,7 @@ For those PCIe NVMe devices, we can access its PCI configuration space.
    pcie = d.Pcie(nvme0)
    hex(pcie[0:4])  # Byte 0/1/2/3
 
-Users can locate a specific capability by API Pcie.cap_offset(cap_id).    
+Users can locate a specific capability by API `Pcie.cap_offset(cap_id)`.
 
 .. code-block:: python
 
@@ -532,14 +543,14 @@ Users can locate a specific capability by API Pcie.cap_offset(cap_id).
 Power
 -----
 
-Without any special hardware, pynvme makes use of S3 power state to power off the PCIe NVMe devices, and use RTC to wake and power on PCIe NVMe devices. We implemented it in API Subsystem.power_cycle().
+Without any special hardware, pynvme makes use of S3 power state to power off the PCIe NVMe devices, and use RTC to wake and power it on. We implemented this process in API `Subsystem.power_cycle()`.
 
 .. code-block:: python
 
    subsystem = d.Subsystem(nvme0)
    subsystem.power_cycle(15)  # power off, sleep for 15 seconds, and power on
 
-We can check if the hardware and OS supoprts S3 power state in the command line:
+We can check if the hardware and OS supports S3 power state in the command line:
 
 .. code-block:: shell
 
@@ -551,15 +562,14 @@ We can check if the hardware and OS supoprts S3 power state in the command line:
 Reset
 -----
 
-We have Controller.reset() to reset controller by its CC.EN register. We can also reset the NVMe device as a PCIe device:
+We have `Controller.reset()` to reset controller by its CC.EN register. We can also reset the NVMe device as a PCIe device:
 
 .. code-block:: python
 
    pcie.reset()
 
-At last, we can reset the subsystem by writing NVMe register NSSR.NSSRC in API Subsystem.reset()
+At last, we can reset the subsystem by writing NVMe register NSSR.NSSRC in API `Subsystem.reset()`.
 
-
-In the next chapter, let's read more real pynvme test scripts for find how we use pynvme in practical NVMe test.
+In the next chapter, let's read more real pynvme test scripts to find how we use pynvme in practical NVMe testing.
 
 In the last chapter, we can refer to the API document along with your script development. VSCode can also show you the online docstring when editing the code. 

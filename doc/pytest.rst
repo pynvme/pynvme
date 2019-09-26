@@ -28,7 +28,7 @@ Pytest's fixture is a powerful way to create and free resources in the test. Pyn
      - the object of first Namespace of the controller
    * - verify
      - function
-     - declare this fixture in test cases where data crc is to be verified.
+     - declare this fixture in test cases where data CRC is to be verified.
 
 In the following example, the fixture *nvme0n1* initializes the namespace for the test. Then, we can use it to start an ioworker directly. Super intuitive! 
 

@@ -1,12 +1,12 @@
 Development
 ===========
 
-You are always warmly welcomed to join us to develop pynvme, as well as the test scripts, together! Here are some fundermental information for pynvme development.
+You are always warmly welcomed to join us to develop pynvme, as well as the test scripts, together! Here are some fundamental information for pynvme development.
 
 Files
 -----
 
-Pynvme make use a bunch of 3-rd party tools. Here is a collection of key source code and configuration files and directories.
+Pynvme makes use a bunch of 3-rd party tools. Here is a collection of key source code and configuration files and directories.
 
 .. list-table::
    :header-rows: 1
@@ -48,7 +48,7 @@ Pynvme make use a bunch of 3-rd party tools. Here is a collection of key source 
 Repository
 ----------
 
-Our offical repository is at: https://github.com/cranechu/pynvme. We built pynvme based on SPDK/DPDK. In order to extend them with test-purpose features, we forked SPDK and DPDK respectively at:
+Our official repository is at: https://github.com/cranechu/pynvme. We built pynvme based on SPDK/DPDK. In order to extend them with test-purpose features, we forked SPDK and DPDK respectively at:
 
 - SPDK: https://github.com/cranechu/spdk
 - DPDK: https://github.com/cranechu/dpdk
@@ -69,10 +69,10 @@ Debug
    #. driver: spdk_log_set_print_level in driver.c, for SPDK related logs. Set it to SPDK_LOG_DEBUG for more debug output, while it makes very heavy overhead. 
    #. scripts: log_cli_level in pytest.ini, for python/pytest scripts.
 
-#. gdb: when driver crashes or any misbehaviours happen, use can collect debug information through gdb.
+#. gdb: when driver crashes or any unexpected behave observed, we can collect debug information through gdb.
 
    #. core dump: sudo coredumpctl debug
-   #. generate core dump in dead loop: CTRL-\
+   #. generate core dump in dead loop: CTRL-\\
    #. test within gdb (e.g. realgud with Emacs)
       
       .. code-block:: shell

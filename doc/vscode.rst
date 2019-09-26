@@ -10,7 +10,7 @@ Layout
    :target: pic/vscode_area.png
    :alt: vscode screenshot
 
-A. Activity Bar: you can select the last Test icon for pytest and pynvme extentions.
+A. Activity Bar: you can select the last Test icon for pytest and pynvme extensions.
 #. pytest panel: collects all test files and cases in scripts directory.
 #. pynvme panel: displays all active qpairs in all controllers. Click qpair to open or refresh its cmdlog viewer.
 #. editor: edit test scripts here.
@@ -22,7 +22,7 @@ Setup
 
 #. First of all, install vscode here: https://code.visualstudio.com/
 
-#. Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configurate the user account to run sudo without a password.
+#. Root user is not recommended in vscode, so just use your ordinary non-root user. It is required to configure the user account to run sudo without a password.
 
    .. code-block:: shell
 
@@ -34,7 +34,7 @@ Setup
 
       code --install-extension pynvme-console-1.x.x.vsix
 
-#. Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function, which can be found by lspci shell command) of your DUT device.
+#. Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function listed in `lspci` command) of your DUT device.
 
    .. code-block:: shell
 
