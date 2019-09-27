@@ -93,9 +93,7 @@ info:
 
 setup: reset
 	-xhost +local:		# enable GUI with root/sudo
-	-ulimit -n 2048
 	-sudo chmod 777 /tmp
-	-sudo echo deep > /sys/power/mem_sleep
 	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh  	# use UIO only
 
 cython_lib:

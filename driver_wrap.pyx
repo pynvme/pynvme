@@ -1989,8 +1989,11 @@ if os.geteuid() == 0:
 
     _reentry_flag_init()
 
-    # disable ASLR in kernel
+    # config runtime: disable ASLR, 8T drive, S3
+    subprocess.call("ulimit -n 10000", shell=True)
+    subprocess.call("echo deep > /sys/power/mem_sleep", shell=True)
     subprocess.call("echo 0 > /proc/sys/kernel/randomize_va_space", shell=True)
+    
     # spawn only limited data from parent process
     _mp = multiprocessing.get_context("spawn")
 
