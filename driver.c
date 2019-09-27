@@ -1942,6 +1942,7 @@ static void rpc_list_qpair_content(struct spdk_json_write_ctx *w,
   spdk_json_write_named_uint32(w, "qid", q->id+1);  // 0 means octal
   spdk_json_write_named_uint32(w, "outstanding", MIN(os, 100));
   spdk_json_write_named_uint64(w, "qpair", (uint64_t)q);
+  spdk_json_write_named_string(w, "model", q->ctrlr->cdata.mn);
 
   spdk_json_write_object_end(w);
 }
