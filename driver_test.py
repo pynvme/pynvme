@@ -547,6 +547,30 @@ def test_dsm_trim_and_read(nvme0, nvme0n1):
     nvme0n1.dsm(q, buf, 1).waitdone()
 
 
+def test_timeout_command_completion(nvme0, nvme0n1):
+    def format_timeout_cb(cdw0, status1):
+        # timeout command, cpl all 1
+        assert cdw0 == 0xffffffff
+        assert status1 == 0xffff
+        
+    # 512GB DUT format takes long time
+    assert nvme0.timeout == 10000
+    nvme0.timeout=10
+    with pytest.warns(UserWarning, match="drive timeout:"):
+        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1, cb=format_timeout_cb).waitdone()
+    assert nvme0.timeout == 10
+    
+    def format_non_timeout_cb(cdw0, status1):
+        # timeout command, cpl all 1
+        assert cdw0 != 0xffffffff
+        assert status1 != 0xffff
+        
+    # 512GB DUT format takes long time
+    nvme0.timeout = 10000
+    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1, cb=format_non_timeout_cb).waitdone()
+    assert nvme0.timeout == 10000
+
+    
 def test_set_timeout(nvme0, nvme0n1):
     # 512GB DUT format takes long time
     logging.info("format all namespace")

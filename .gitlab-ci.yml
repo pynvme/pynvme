@@ -30,6 +30,6 @@ stress_test:
     expire_in: 1 yrs
   script:
     - make $MAKE_TARGET
-    - cat test.log | grep "455 passed, 1 skipped" || exit -1
+    - cat test.log | grep "456 passed, 1 skipped" || exit -1
     - make $MAKE_TARGET
-    - cat test.log | grep "455 passed, 1 skipped" || exit -1
+    - cat test.log | grep "456 passed, 1 skipped" || exit -1
