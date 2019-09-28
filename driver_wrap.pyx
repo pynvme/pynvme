@@ -325,9 +325,9 @@ cdef class Subsystem(object):
         """
 
         # use S3/suspend to power off nvme device, and use rtc to power on again
-        logging.info("power off nvme device for %d seconds" % sec)
+        logging.debug("power off nvme device for %d seconds" % sec)
         subprocess.call("sudo rtcwake -m mem -s %d 1>/dev/null 2>/dev/null" % sec, shell=True)
-        logging.info("power is back")
+        logging.debug("power is back")
 
         #reset driver
         self._nvme.reset()
@@ -363,7 +363,6 @@ cdef class Subsystem(object):
         # nssr.nssrc: nvme subsystem reset
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
         self._nvme[0x20] = 0x4E564D65  # "NVMe"
-        time.sleep(1)
         self._nvme._reinit()
 
 

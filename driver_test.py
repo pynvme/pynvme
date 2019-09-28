@@ -662,8 +662,7 @@ def test_sanitize_basic(nvme0, nvme0n1):
 
     nvme0.identify(buf).waitdone()
     if buf.data(331, 328) == 0:
-        warnings.warn("sanitize operation is not supported")
-        return
+        pytest.skip("sanitize operation is not supported")
 
     logging.info("supported sanitize operation: %d" % buf.data(331, 328))
     nvme0.sanitize().waitdone()
@@ -990,7 +989,6 @@ def test_read_limited_retry(nvme0n1, nvme0):
     nvme0n1.read(q, buf, 0, 8, 1<<31).waitdone()
 
 
-@pytest.mark.skip(reason="limited support")
 def test_subsystem_reset(nvme0, subsystem):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
@@ -1103,33 +1101,60 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     #assert latency2 < 0.01
 
 
-def test_power_cycle_with_ioworker_clean(nvme0n1, nvme0, subsystem):
+def test_power_cycle_with_ioworker_dirty(nvme0n1, nvme0, subsystem):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
         nvme0.getlogpage(2, buf, 512).waitdone()
         logging.info("power cycles: %d" % buf.data(115, 112))
+        logging.info("unsafe shutdowns: %d" % buf.data(159, 144))
         return buf.data(115, 112)
 
-    import time
-    start_time = time.time()
+    # read and power cycle
     powercycle = get_power_cycles(nvme0)
-
-    subsystem.power_cycle(15)
     with nvme0n1.ioworker(io_size=256, lba_align=256,
                           lba_random=False, qdepth=64,
-                          read_percentage=0, time=3):
+                          read_percentage=100, time=5):
         pass
-
-    subsystem.power_cycle(15)
+    start_time = time.time()
+    subsystem.power_cycle(10)
+    init_time_read = time.time()-start_time
+    assert get_power_cycles(nvme0) == powercycle+1
+    
+    # write and power cycle
+    powercycle = get_power_cycles(nvme0)
     with nvme0n1.ioworker(io_size=256, lba_align=256,
                           lba_random=False, qdepth=64,
-                          read_percentage=0, time=3):
+                          read_percentage=0, time=5):
         pass
+    start_time = time.time()
+    subsystem.power_cycle(10)
+    init_time_write = time.time()-start_time
+    assert get_power_cycles(nvme0) == powercycle+1
 
-    assert get_power_cycles(nvme0) == powercycle+2
-    assert time.time()-start_time >= 10
+    # init time after dirty write should be longer
+    logging.info("read init time %f, write init time %f" %
+                 (init_time_read, init_time_write))
+    assert init_time_write > init_time_read
 
+    # write and clean power cycle
+    powercycle = get_power_cycles(nvme0)
+    with nvme0n1.ioworker(io_size=256, lba_align=256,
+                          lba_random=False, qdepth=64,
+                          read_percentage=0, time=5):
+        pass
+    subsystem.shutdown_notify()
+    start_time = time.time()
+    subsystem.power_cycle(10)
+    init_time_write_clean = time.time()-start_time
+    assert get_power_cycles(nvme0) == powercycle+1
 
+    # dirty init time should be longer than clean init time
+    logging.info("clean init time %f, dirty init time %f" %
+                 (init_time_write_clean, init_time_write))
+    assert init_time_write > init_time_write_clean
+    
+    
+    
 def test_subsystem_power_cycle(nvme0, subsystem):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
@@ -1152,6 +1177,7 @@ def test_subsystem_power_cycle_without_notify(nvme0, nvme0n1, subsystem, delay):
         buf = d.Buffer(512)
         nvme0.getlogpage(2, buf, 512).waitdone()
         logging.info("power cycles: %d" % buf.data(115, 112))
+        logging.info("unsafe shutdowns: %d" % buf.data(159, 144))
         return buf.data(115, 112)
 
     import time
@@ -1176,6 +1202,7 @@ def test_subsystem_power_cycle_with_notify(nvme0, nvme0n1, subsystem, abrupt):
         nvme0.getlogpage(2, buf, 512).waitdone()
         p = buf.data(127, 112)
         logging.info("power cycles: %d" % p)
+        logging.info("unsafe shutdowns: %d" % buf.data(159, 144))
         return p
 
     import time
