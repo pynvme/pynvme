@@ -292,13 +292,15 @@ def test_get_lba_format(nvme0n1):
     assert nvme0n1.get_lba_format() < 16
 
 
-def test_enable_and_disable_hmb(nvme0):
+def test_enable_and_disable_hmb():
+    nvme0 = d.Controller(b'03:00.0')
+    
     # setfeatures on hmb
     hmb_size = nvme0.id_data(275, 272)
     hmb_list_buf = d.Buffer(4096)
 
     if hmb_size == 0:
-        return
+        pytest.skip("hmb is not supported")
 
     # for hmb setfeatures commands
     buf = d.Buffer(4096)
@@ -989,17 +991,19 @@ def test_read_limited_retry(nvme0n1, nvme0):
     nvme0n1.read(q, buf, 0, 8, 1<<31).waitdone()
 
 
-@pytest.mark.skip("dut not supported")
-def test_subsystem_reset(nvme0, subsystem):
-    def get_power_cycles(nvme0):
+def test_subsystem_reset():
+    nvme1 = d.Controller(b'03:00.0')
+    subsystem = d.Subsystem(nvme1)
+    
+    def get_power_cycles(nvme1):
         buf = d.Buffer(512)
-        nvme0.getlogpage(2, buf, 512).waitdone()
+        nvme1.getlogpage(2, buf, 512).waitdone()
         logging.info("power cycles: %d" % buf.data(115, 112))
         return buf.data(115, 112)
 
-    powercycle = get_power_cycles(nvme0)
+    powercycle = get_power_cycles(nvme1)
     subsystem.reset()
-    assert powercycle == get_power_cycles(nvme0)
+    assert powercycle == get_power_cycles(nvme1)
 
 
 def test_io_qpair_msix_interrupt_all(nvme0, nvme0n1):
