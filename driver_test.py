@@ -989,6 +989,7 @@ def test_read_limited_retry(nvme0n1, nvme0):
     nvme0n1.read(q, buf, 0, 8, 1<<31).waitdone()
 
 
+@pytest.mark.skip("dut not supported")
 def test_subsystem_reset(nvme0, subsystem):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
