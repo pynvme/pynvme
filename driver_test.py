@@ -99,7 +99,7 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     
     logging.info("controller0 namespace size: %d" % nvme0n1.id_data(7, 0))
     logging.info("controller1 namespace size: %d" % nvme1n1.id_data(7, 0))
-    assert nvme0n1.id_data(7, 0) == nvme1n1.id_data(7, 0)
+    assert nvme0n1.id_data(7, 0) != nvme1n1.id_data(7, 0)
 
     q1 = d.Qpair(nvme0, 32)
     q2 = d.Qpair(nvme1, 64)
@@ -1972,14 +1972,15 @@ def test_ioworker_timeout_command(nvme0, nvme0n1):
 def test_reentry_waitdone_io_qpair(nvme0, nvme0n1):
     b = d.Buffer(512)
     q = d.Qpair(nvme0, 10)
+
     def read_cb(cdw0, status):
-        nvme0n1.read(q, b, 0, 1).waitdone()
+        nvme0n1.read(q, b, 1, 1).waitdone()
     with pytest.warns(UserWarning, match="ASSERT: cannot re-entry waitdone()"):
-        nvme0n1.read(q, b, 0, 1, cb=read_cb).waitdone()
+        nvme0n1.read(q, b, 2, 1, cb=read_cb).waitdone()
 
     def read_cb_2(cdw0, status):
-        nvme0n1.read(q, b, 0, 1)
-    nvme0n1.read(q, b, 0, 1, cb=read_cb_2).waitdone(2)
+        nvme0n1.read(q, b, 3, 1)
+    nvme0n1.read(q, b, 4, 1, cb=read_cb_2).waitdone(3)
 
 
 def test_ioworker_test_end(nvme0n1):
