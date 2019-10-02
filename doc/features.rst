@@ -169,7 +169,7 @@ Please note that, these utility APIs (`id_data`, `reset`, `downfw`, and etc) are
 Timeout
 ^^^^^^^
 
-The timeout is configurable, and the default time is 10 seconds. Users can change the timeout setting for those expected long-time consuming commands.
+The timeout duration is configurable, and the default time is 10 seconds. Users can change the timeout setting for those expected long-time consuming commands.
 
 .. code-block:: python
 
@@ -177,6 +177,7 @@ The timeout is configurable, and the default time is 10 seconds. Users can chang
     nvme0.format().waitdone()  # format may take long time
     nvme0.timeout=10000  # recover to usual timeout configuration
 
+When a command timeout happens, pynvme notifies user scripts in two ways. First, pynvme will throw a timeout warning. Second, pynvme completes (not abort) the command by itself with an all-1 completion dwords returned.     
 
 Asynchronous Event Request
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
