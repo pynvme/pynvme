@@ -375,12 +375,17 @@ cdef class Pcie(object):
 
     cdef d.pcie * _pcie
     cdef Controller _nvme
+    cdef unsigned short vid
+    cdef unsigned short did
 
     def __cinit__(self, Controller nvme):
         self._nvme = nvme
         self._pcie = d.pcie_init(nvme._ctrlr)
         if self._pcie is NULL:
             raise SystemError()
+        
+        self.vid = self.register(0, 2)
+        self.did = self.register(2, 2)
 
     def __getitem__(self, index):
         """access pcie config space by bytes."""
@@ -437,9 +442,8 @@ cdef class Pcie(object):
 
     def reset(self):
         """reset this pcie device"""
-
-        vid = self.register(0, 2)
-        did = self.register(2, 2)
+        vid = self.vid
+        did = self.did
         vdid = '%04x %04x' % (vid, did)
         nvme = 'nvme'
         spdk = 'uio_pci_generic'
