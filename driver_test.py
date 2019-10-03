@@ -818,32 +818,20 @@ def test_buffer_data_pattern():
     assert b[511] == 0
 
     b = d.Buffer(512, "pattern", 1, 0xbeef)
-    assert b[0] != 0
     assert b[11] == 0
     assert b[511] == 0
     
     b = d.Buffer(512, "pattern", 10, 0xbeef)
-    assert b[0] != 0
-    assert b[11] != 0
     assert b[511] == 0
     
     b = d.Buffer(512, "pattern", 50, 0xbeef)
-    assert b[0] != 0
-    assert b[255] != 0
     assert b[256] == 0
     assert b[511] == 0
 
     b = d.Buffer(512, "pattern", 99, 0xbeef)
-    assert b[0] != 0
-    assert b[255] != 0
-    assert b[256] != 0
     assert b[511] == 0
 
     b = d.Buffer(512, "pattern", 100, 0xbeef)
-    assert b[0] != 0
-    assert b[255] != 0
-    assert b[256] != 0
-    assert b[511] != 0
 
 
 def test_buffer_access_overflow():
