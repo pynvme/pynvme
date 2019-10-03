@@ -69,6 +69,7 @@ doc: cython_lib
 	cd doc; make clean; make html
 
 reset:
+	sudo rm -rf /run/dpdk
 	sudo ./spdk/scripts/setup.sh cleanup
 	sudo ./spdk/scripts/setup.sh reset
 	-sudo rm -f /var/tmp/pynvme.sock*

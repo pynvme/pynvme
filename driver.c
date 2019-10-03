@@ -1561,8 +1561,6 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 
   //check args
   assert(args->read_percentage <= 100);
-  assert(args->io_count != 0 || args->seconds != 0);
-  assert(args->seconds < 24*3600ULL);
   assert(args->lba_size != 0);
   assert(args->region_start < args->region_end);
   assert(args->qdepth <= CMD_LOG_DEPTH/2);

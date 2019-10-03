@@ -483,7 +483,10 @@ IOWorker can accurately control the IO speed by the parameter `iops`. Here is an
        assert output_io_per_second[-1] >= 1233
        assert output_io_per_second[-1] <= 1235
 
-The result of the IOWorker shows that it takes 7 seconds, and it sends 1234 IOs in each second. In this way, we can measure the latency against different IOPS pressure. 
+The result of the IOWorker shows that it takes 7 seconds, and it sends 1234 IOs in each second. In this way, we can measure the latency against different IOPS pressure.
+
+We can create an ioworker upto 24 hours.
+
 
 Data Verify
 ^^^^^^^^^^^

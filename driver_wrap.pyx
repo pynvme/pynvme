@@ -1460,6 +1460,8 @@ cdef class Namespace(object):
         assert qdepth>=2 and qdepth<=1023, "support qdepth upto 1023"
         assert qdepth <= (self._nvme.cap & 0xffff) + 1, "qdepth is larger than specification"
         assert region_start < region_end, "region end is not included"
+        assert io_count != 0 or time != 0
+        assert time < 24*3600ULL
 
         pciaddr = self._bdf
         nsid = self._nsid
@@ -1806,7 +1808,7 @@ class _IOWorker(object):
         # transfer output table back: driver => script
         if self.output_io_per_second is not None:
             assert len(self.output_io_per_second) == 0
-            self.output_io_per_second += output_io_per_second
+            self.output_io_per_second += output_io_per_second[:rets['mseconds']//1000]
             rets['iops_consistency'] = self.iops_consistency()
 
         # transfer output table back: driver => script
@@ -1879,9 +1881,13 @@ class _IOWorker(object):
             memset(&rets, 0, sizeof(rets))
             assert lba_size < 0x10000, "io_size is a 16bit-field in commands"
 
+            if seconds == 0:
+                # collect upto 24hr IOPS data
+                seconds = 24*3600
+            
             # create array for output data: io counter per second
             if output_io_per_second is not None:
-                assert seconds != 0, "need time duration to collect io counter per second data"
+                # need time duration to collect io counter per second data
                 args.io_counter_per_second = <unsigned int*>PyMem_Malloc(seconds*sizeof(unsigned int))
                 memset(args.io_counter_per_second, 0, seconds*sizeof(unsigned int))
 
