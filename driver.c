@@ -2016,6 +2016,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
 
   assert(q);
   assert(q->ctrlr);
+  assert(q->pynvme_cmdlog);
   
   w = spdk_jsonrpc_begin_result(request);
   if (w == NULL)
@@ -2024,9 +2025,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
   }
 
   // find the cmdlog
-  char cmdlog_name[64];
-  _cmdlog_uname(q, cmdlog_name, sizeof(cmdlog_name));
-  struct cmd_log_table_t* cmdlog = spdk_memzone_lookup(cmdlog_name);
+  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;
   struct cmd_log_entry_t* table = cmdlog->table;
   uint32_t index = cmdlog->tail_index;
   uint32_t seq = 1;
