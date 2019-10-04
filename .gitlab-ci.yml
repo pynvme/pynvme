@@ -41,4 +41,4 @@ manual_test:
     when: always
     expire_in: 3 yrs
   script:
-    - make $MAKE_TARGET TESTS=$SCRIPT_PATH pciaddr=$DUT_PCIADDR
+    - make test TESTS=$SCRIPT_PATH
