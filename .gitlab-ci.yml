@@ -29,5 +29,5 @@ stress_test:
     when: always
     expire_in: 1 yrs
   script:
-    - make $MAKE_TARGET $SCRIPT_PATH $DUT_PCIADDR
+    - make $MAKE_TARGET TESTS=$SCRIPT_PATH pciaddr=$DUT_PCIADDR
     - cat test.log | grep "457 passed" || exit -1
