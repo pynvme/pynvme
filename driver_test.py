@@ -1302,6 +1302,19 @@ def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
                          output_percentile_latency=output_percentile_latency).start().close()
     logging.info(output_percentile_latency)
     logging.info(r)
+    heavy_latency_average = r.latency_average_us
+
+    # latency against iops
+    output_percentile_latency = dict.fromkeys([10, 50, 90, 99, 99.9, 99.99, 99.999, 99.99999])
+    logging.info(output_percentile_latency)
+    r = nvme0n1.ioworker(io_size=8, lba_align=8,
+                         lba_random=False, qdepth=2,
+                         iops=1, 
+                         read_percentage=100, time=10,
+                         output_percentile_latency=output_percentile_latency).start().close()
+    logging.info(output_percentile_latency)
+    logging.info(r)
+    assert r.latency_average_us < heavy_latency_average
 
     output_io_per_second = []
     r = nvme0n1.ioworker(io_size=8, lba_align=8,

@@ -51,3 +51,6 @@ def test_steady_iops_latency(nvme0n1, readp):
     logging.info(io_per_second)
     logging.info(w.iops_consistency(90))
     logging.info(percentile_latency)
+
+    # latency against iops
+    # r.latency_average_us
