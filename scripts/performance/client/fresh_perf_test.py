@@ -1,7 +1,7 @@
 import pytest
-import logging
-
 import nvme as d
+
+import logging
 
 
 rand = True
