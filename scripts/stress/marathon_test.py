@@ -3,7 +3,7 @@ import pytest
 import logging
 import nvme as d
 
-def test_write_and_read_to_eol(nvme0, nvme0n1: d.Namespace, verify):
+def test_write_and_read_to_eol(nvme0, subsystem, nvme0n1: d.Namespace, verify):
     assert verify
     
     # format drive
@@ -22,8 +22,13 @@ def test_write_and_read_to_eol(nvme0, nvme0n1: d.Namespace, verify):
         logging.info("full drive write %d seconds" % write_duration)
         assert write_duration < 1800
 
+        # power cycle
+        subsystem.power_cycle(15)
+        
         # read part of drive
         read_time = 1800-write_duration
         nvme0n1.ioworker(io_size, io_size, False, 100, read_time, region_end=lba_count//100).start().close()
         logging.info(f"loop {i} finish")
         
+        # power cycle
+        subsystem.power_cycle(15)
