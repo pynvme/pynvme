@@ -1421,7 +1421,8 @@ cdef class Namespace(object):
                  region_start=0, region_end=0xffff_ffff_ffff_ffff,
                  iops=0, io_count=0, lba_start=0, qprio=0,
                  pvalue=0, ptype=0, 
-                 output_io_per_second=None, output_percentile_latency=None):
+                 output_io_per_second=None,
+                 output_percentile_latency=None):
         """workers sending different read/write IO on different CPU cores.
 
         User defines IO characteristics in parameters, and then the ioworker
@@ -1450,7 +1451,7 @@ cdef class Namespace(object):
             pvalue (int): data pattern value. Refer to data pattern in class `Buffer`. Default: 0
             ptype (int): data pattern type. Refer to data pattern in class `Buffer`. Default: 0
             output_io_per_second (list): list to hold the output data of io_per_second. Default: None, not to collect the data
-            output_percentile_latency (dict): dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in ms. Default: None, not to collect the data
+            output_percentile_latency (dict): dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in micro-second. Default: None, not to collect the data
 
         # Returns
             ioworker object

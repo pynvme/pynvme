@@ -5,7 +5,7 @@ import time
 import logging
 
 
-TEST_SCALE = 10                                                     #10, 1
+TEST_SCALE = 10  #10, 1
 
 
 def do_power_cycle(dirty, subsystem, nvme0n1, nvme0):
