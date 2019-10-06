@@ -1421,6 +1421,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
   if (gctx->flag_finish != true)
   {
     STAILQ_INSERT_TAIL(&gctx->pending_io_list, ctx, next);
+    gctx->io_count_sent ++;
   }
 }
 
@@ -1500,7 +1501,6 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
 
   //sent one io cmd successfully
   gctx->sequential_lba += args->lba_size;
-  gctx->io_count_sent ++;
   ctx->is_read = is_read;
   _gettimeofday(&ctx->time_sent);
   return 0;
@@ -1587,7 +1587,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   }
   if (args->io_count < args->qdepth)
   {
-    args->qdepth = args->io_count;
+    args->qdepth = args->io_count+1;
   }
 
   // reserve one depth in the queue
@@ -1625,6 +1625,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     // set time to send it right now
     _gettimeofday(&io_ctx[i].time_sent);
     STAILQ_INSERT_TAIL(&gctx.pending_io_list, &io_ctx[i], next);
+    gctx.io_count_sent ++;
   }
 
   // callbacks check the end condition and mark the flag. Check the
@@ -1642,7 +1643,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
                   gctx.io_count_sent, gctx.io_count_cplt,
                   gctx.flag_finish, head_io);
     
-    // check time and send all head io
+    // check time and send all pending io
     while (head_io && timercmp(&now, &head_io->time_sent, >))
     {
       STAILQ_REMOVE_HEAD(&gctx.pending_io_list, next);
