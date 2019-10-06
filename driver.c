@@ -1234,6 +1234,9 @@ struct ioworker_io_ctx {
   bool is_read;
   struct timeval time_sent;
   struct ioworker_global_ctx* gctx;
+
+  // next pending io
+	STAILQ_ENTRY(ioworker_io_ctx) next;
 };
 
 struct ioworker_global_ctx {
@@ -1251,15 +1254,13 @@ struct ioworker_global_ctx {
   uint64_t io_count_cplt;
   uint32_t last_sec;
   bool flag_finish;
+
+  // pending io list
+	STAILQ_HEAD(, ioworker_io_ctx)	pending_io_list;
 };
 
 #define ALIGN_UP(n, a)    (((n)%(a))?((n)+(a)-((n)%(a))):((n)))
 #define ALIGN_DOWN(n, a)  ((n)-((n)%(a)))
-
-static int ioworker_send_one(struct spdk_nvme_ns* ns,
-                             struct spdk_nvme_qpair *qpair,
-                             struct ioworker_io_ctx* ctx,
-                             struct ioworker_global_ctx* gctx);
 
 
 static inline void timeradd_second(struct timeval* now,
@@ -1287,29 +1288,13 @@ static bool ioworker_send_one_is_finish(struct ioworker_args* args,
 
   assert(c->io_count_sent < args->io_count);
   _gettimeofday(&now);
-  if (true == timercmp(&now, &c->due_time, >))
+  if (timercmp(&now, &c->due_time, >))
   {
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "ioworker finish, due time %ld us\n", c->due_time.tv_usec);
     return true;
   }
 
   return false;
-}
-
-static void ioworker_one_io_throttle(struct ioworker_global_ctx* gctx,
-                                     struct timeval* now)
-{
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "this io due at %ld.%06ld\n",
-                gctx->io_due_time.tv_sec, gctx->io_due_time.tv_usec);
-  if (true == timercmp(&gctx->io_due_time, now, >))
-  {
-    //delay usec to meet the IOPS prequisit
-    struct timeval diff;
-    timersub(&gctx->io_due_time, now, &diff);
-    usleep(timeval_to_us(&diff));
-  }
-
-  timeradd(&gctx->io_due_time, &gctx->io_delay_time, &gctx->io_due_time);
 }
 
 static uint32_t ioworker_get_duration(struct timeval* start)
@@ -1319,16 +1304,17 @@ static uint32_t ioworker_get_duration(struct timeval* start)
   uint32_t msec;
 
   _gettimeofday(&now);
-  if (!timercmp(&now, start, >))
+  if (timercmp(&now, start, >))
   {
-    SPDK_INFOLOG(SPDK_LOG_NVME, "%ld.%06ld\n", now.tv_sec, now.tv_usec);
-    SPDK_INFOLOG(SPDK_LOG_NVME, "%ld.%06ld\n", start->tv_sec, start->tv_usec);
-    assert(false);
+    timersub(&now, start, &diff);
+    msec = diff.tv_sec*1000ULL;
+    return msec + (diff.tv_usec+500)/1000ULL;
   }
-  
-  timersub(&now, start, &diff);
-  msec = diff.tv_sec*1000ULL;
-  return msec + (diff.tv_usec+500)/1000ULL;
+
+  // something wrong
+  SPDK_INFOLOG(SPDK_LOG_NVME, "%ld.%06ld\n", now.tv_sec, now.tv_usec);
+  SPDK_INFOLOG(SPDK_LOG_NVME, "%ld.%06ld\n", start->tv_sec, start->tv_usec);
+  assert(false);
 }
 
 static uint32_t ioworker_update_rets(struct ioworker_io_ctx* ctx,
@@ -1395,12 +1381,14 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
     args->io_counter_per_latency[MIN(US_PER_S-1, latency_us)] ++;
   }
 
-  // throttle IOPS by delay
+  // throttle IOPS by setting delay time and insert to pending list
   if (gctx->io_delay_time.tv_usec != 0)
   {
-    ioworker_one_io_throttle(gctx, &now);
+    timeradd(&gctx->io_due_time, &gctx->io_delay_time, &gctx->io_due_time);
+    ctx->time_sent = gctx->io_due_time;
   }
 
+  // check status
   if (true == nvme_cpl_is_error(cpl))
   {
     // terminate ioworker when any error happen
@@ -1417,7 +1405,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
   // update io counter per second when required
   if (args->io_counter_per_second != NULL)
   {
-    if (true == timercmp(&now, &gctx->time_next_sec, >))
+    if (timercmp(&now, &gctx->time_next_sec, >))
     {
       ioworker_update_io_count_per_second(gctx, args, rets);
     }
@@ -1432,8 +1420,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
 
   if (gctx->flag_finish != true)
   {
-    // send more io
-    ioworker_send_one(gctx->ns, gctx->qpair, ctx, gctx);
+    STAILQ_INSERT_TAIL(&gctx->pending_io_list, ctx, next);
   }
 }
 
@@ -1603,6 +1590,9 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     args->qdepth = args->io_count;
   }
 
+  // reserve one depth in the queue
+  args->qdepth -= 1;
+
   //init global ctx
   memset(&gctx, 0, sizeof(gctx));
   gctx.ns = ns;
@@ -1624,21 +1614,42 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 
   // sending the first batch of IOs, all remaining IOs are sending
   // in callbacks till end
+  STAILQ_INIT(&gctx.pending_io_list);
   for (unsigned int i=0; i<args->qdepth; i++)
   {
     io_ctx[i].data_buf_len = args->lba_size * sector_size;
     io_ctx[i].data_buf = buffer_init(io_ctx[i].data_buf_len, NULL,
                                      args->ptype, args->pvalue);
     io_ctx[i].gctx = &gctx;
-    ioworker_send_one(ns, qpair, &io_ctx[i], &gctx);
+
+    // set time to send it right now
+    _gettimeofday(&io_ctx[i].time_sent);
+    STAILQ_INSERT_TAIL(&gctx.pending_io_list, &io_ctx[i], next);
   }
 
   // callbacks check the end condition and mark the flag. Check the
   // flag here if it is time to stop the ioworker and return the
   // statistics data
+  struct ioworker_io_ctx* head_io = STAILQ_FIRST(&gctx.pending_io_list);
+  
   while (gctx.io_count_sent != gctx.io_count_cplt ||
-         gctx.flag_finish != true)
+         gctx.flag_finish != true ||
+         head_io != NULL)
   {
+    struct timeval now; _gettimeofday(&now);
+
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "sent %ld cplt %ld, finish %d, head %p\n",
+                  gctx.io_count_sent, gctx.io_count_cplt,
+                  gctx.flag_finish, head_io);
+    
+    // check time and send all head io
+    while (head_io && timercmp(&now, &head_io->time_sent, >))
+    {
+      STAILQ_REMOVE_HEAD(&gctx.pending_io_list, next);
+      ioworker_send_one(ns, qpair, head_io, &gctx);
+      head_io = STAILQ_FIRST(&gctx.pending_io_list);      
+    }
+
     //exceed 30 seconds more than the expected test time, abort ioworker
     if (ioworker_get_duration(&test_start) > (args->seconds+30)*1000ULL)
     {
@@ -1651,6 +1662,9 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 
     // collect completions
     spdk_nvme_qpair_process_completions(qpair, 0);
+
+    // update the head io after process completion
+    head_io = STAILQ_FIRST(&gctx.pending_io_list);
   }
 
   // final duration
@@ -1746,7 +1760,7 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
 
     // no timeval, empty slot, not print
     struct timeval tv = cmdlog->table[index].time_cmd;
-    if (timercmp(&tv, &(struct timeval){0}, !=))
+    if (timercmp(&tv, &(struct timeval){0}, >))
     {
       struct tm* time;
       char tmbuf[128];
@@ -2045,7 +2059,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
 
     // no timeval, empty slot, not print
     struct timeval time_cmd = table[index].time_cmd;
-    if (timercmp(&time_cmd, &(struct timeval){0}, !=))
+    if (timercmp(&time_cmd, &(struct timeval){0}, >))
     {
       // get the string of the op name
       const char* cmdname = cmd_name(table[index].cmd.opc, q->id==0?0:1);

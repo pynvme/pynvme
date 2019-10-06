@@ -1268,15 +1268,15 @@ def test_ioworker_maximum(nvme0n1):
 
 def test_ioworker_progress(nvme0, nvme0n1):
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
-
     with nvme0n1.ioworker(io_size=8, lba_align=16,
                           lba_random=False, qdepth=16,
                           read_percentage=100, time=5) as w:
         for i in range(5):
             time.sleep(1)
             # logging.info(w.progress)  #obsoleted
+    nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
 
-
+    
 def test_ioworker_simplified(nvme0n1):
     nvme0n1.ioworker(io_size=8, lba_align=16,
                      lba_random=True, qdepth=16,
@@ -1292,8 +1292,6 @@ def test_ioworker_simplified_context(nvme0n1):
 
 
 def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
-    nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
-    
     output_percentile_latency = dict.fromkeys([10, 50, 90, 99, 99.9, 99.99, 99.999, 99.99999])
     logging.info(output_percentile_latency)
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
@@ -1304,7 +1302,7 @@ def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
     logging.info(r)
     heavy_latency_average = r.latency_average_us
 
-    # latency against iops
+    # limit iops, should get smaller latency
     output_percentile_latency = dict.fromkeys([10, 50, 90, 99, 99.9, 99.99, 99.999, 99.99999])
     logging.info(output_percentile_latency)
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
