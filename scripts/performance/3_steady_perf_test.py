@@ -7,6 +7,7 @@ import logging
 
 rand = True
 seq = False
+TEST_SCALE = 100    #100, 10
 
 
 def do_fill_drive(rand, nvme0n1, region_end):
@@ -36,7 +37,7 @@ def test_random_write_small_region(nvme0n1):
     
 # iops: read/write/mixed
 # latency: read/write/mixed
-@pytest.mark.parametrize("readp", [100, 0, 67])
+@pytest.mark.parametrize("readp", [100, 90, 67, 50, 33, 10, 0])
 def test_steady_iops_latency(nvme0n1, readp):
     percentile_latency = dict.fromkeys([50, 90, 99, 99.9, 99.999])
     io_per_second = []
@@ -44,13 +45,24 @@ def test_steady_iops_latency(nvme0n1, readp):
     w = nvme0n1.ioworker(io_size=8, lba_align=8,
                          lba_random=rand, qdepth=64,
                          region_end=nvme0n1.id_data(7, 0)//5, 
-                         time=1000, read_percentage=readp,
+                         time=TEST_SCALE, read_percentage=readp,
                          output_percentile_latency=percentile_latency, 
                          output_io_per_second=io_per_second).start()
-    w.close()
+    r = w.close()
     logging.info(io_per_second)
     logging.info(w.iops_consistency(90))
     logging.info(percentile_latency)
-
+    max_iops = (r.io_count_read+r.io_count_write)*1000//r.mseconds
+    logging.info(max_iops)
+    
     # latency against iops
-    # r.latency_average_us
+    for iops_percentage in [20, 40, 60, 80, 100]:
+        iops = max_iops*iops_percentage//100
+        w = nvme0n1.ioworker(io_size=8, lba_align=8,
+                             lba_random=rand, qdepth=64,
+                             iops=iops, 
+                             region_end=nvme0n1.id_data(7, 0)//5, 
+                             time=TEST_SCALE, read_percentage=readp,
+                             output_percentile_latency=percentile_latency).start()
+        r = w.close()
+        logging.info("iops %d, latency %dus" % (iops, r.latency_average_us))
