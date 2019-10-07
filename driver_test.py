@@ -1552,7 +1552,7 @@ def test_ioworker_iops(nvme0n1):
     w.start()
     report = w.close()
     assert report['io_count_write'] < 1050
-    assert report['mseconds'] > 9999
+    assert report['mseconds'] > 9000
     assert time.time()-start_time > 9
     assert time.time()-start_time < 20
 
