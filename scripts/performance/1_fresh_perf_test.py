@@ -16,9 +16,9 @@ def do_ioworker(rand, read, ns):
     seconds = 10
     io_size = 8 if rand else 128 # 4K or 64K
     rp = 100 if read else 0 # read or write
-    
+
     r = ns.ioworker(io_size=io_size, lba_align=io_size,
-                    region_start=0, region_end=256*1024*8, # 1GB space
+                    region_end=(1<<30)//512, # 1GB space
                     lba_random=rand, qdepth=512,
                     read_percentage=rp, time=seconds).start().close()
 
@@ -38,8 +38,33 @@ def do_fill_drive(rand, nvme0n1):
                          lba_random=rand, qdepth=512,
                          io_count=io_count, read_percentage=0,
                          output_io_per_second=io_per_second).start().close()
-    logging.info(io_per_second)
+    return io_per_second
 
+
+def test_create_report_file(nvme0, nvme0n1, pcie):
+    import libpci
+    vid = pcie.register(0, 2)
+    vendor = libpci.LibPCI().lookup_vendor_name(vid)
+    
+    model = nvme0.id_data(63, 24, str)
+    fw = nvme0.id_data(71, 64, str)
+    capacity = str(nvme0n1.id_data(63, 48))
+    hmb = nvme0.id_data(275, 272) * 4
+    
+    qpairs = 0
+    def getfeatures_cb(cdw0, status):
+        nonlocal qpairs; qpairs = cdw0
+        qpairs = (cdw0&0xffff)+1
+    nvme0.getfeatures(7, cb=getfeatures_cb).waitdone()
+    
+    with open("report.csv", "w+") as f:
+        f.write("%s\n" % vendor)
+        f.write("%s\n" % model)
+        f.write("%s\n" % fw)
+        f.write("%s\n" % capacity)
+        f.write("%d\n" % hmb)
+        f.write("%d\n" % qpairs)
+    
 
 # empty read
 def test_empty_read_performance(nvme0n1):
@@ -48,28 +73,40 @@ def test_empty_read_performance(nvme0n1):
     logging.info(do_ioworker(rand, read, nvme0n1))
 
     
-# write/read 128K in 1GB, cdm
+# write/read in 1GB, cdm
 def test_1gb_read_write_performance(nvme0n1):
-    logging.info(do_ioworker(seq, write, nvme0n1))
-    logging.info(do_ioworker(rand, write, nvme0n1))
-    logging.info(do_ioworker(seq, read, nvme0n1))
-    logging.info(do_ioworker(rand, read, nvme0n1))
+    with open("report.csv", "a") as f:
+        f.write("%d\n" % do_ioworker(seq, write, nvme0n1))
+        f.write("%d\n" % do_ioworker(seq, read, nvme0n1))
+        f.write("%d\n" % do_ioworker(rand, write, nvme0n1))
+        f.write("%d\n" % do_ioworker(rand, read, nvme0n1))
 
 
 # full drive seq write
 def test_fill_drive_first_pass(nvme0n1):
-    do_fill_drive(seq, nvme0n1)
+    with open("report.csv", "a") as f:
+        io_per_sec = do_fill_drive(seq, nvme0n1)
+        f.write('\n'.join(io_per_sec))
+        f.write('\n')
 
     
 # random
-@pytest.mark.parametrize("repeat", range(2))
-def test_fill_drive_randome(nvme0n1, repeat):
-    do_fill_drive(rand, nvme0n1)
+def test_fill_drive_randome(nvme0n1):
+    with open("report.csv", "a") as f:
+        io_per_sec = do_fill_drive(rand, nvme0n1)
+        f.write('\n'.join(io_per_sec))
+        f.write('\n')
+        
+        # temperature, °C
+        import pytemperature
+        t = round(pytemperature.k2c(logpage_buf.data(2, 1)))
+        f.write('%d\n' % t)
 
-
+        
 # 2-pass full drive seq write
 @pytest.mark.parametrize("repeat", range(2))
 def test_fill_drive_after_random(nvme0n1, repeat):
-    do_fill_drive(seq, nvme0n1)
-
-    
+    with open("report.csv", "a") as f:
+        io_per_sec = do_fill_drive(seq, nvme0n1)
+        f.write('\n'.join(io_per_sec))
+        f.write('\n')
