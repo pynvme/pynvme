@@ -22,8 +22,9 @@ The pynvme is a python extension module. Users can test NVMe devices intuitively
 10. test multiple controllers, namespaces and qpairs simultaneously
 11. test NVMe over TCP targets
 
-## Docs:
-* Web: https://pynvme.readthedocs.io/
+## Links:
+* GitHub: https://github.com/cranechu/pynvme
+* Document: https://pynvme.readthedocs.io/
 * PDF: https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf
 * Presentation: SPDK PRC Summit 2019, Beijing.  
-  [02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf](doc/_static/02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf)
+  [02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf)
