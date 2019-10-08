@@ -38,7 +38,11 @@ def do_fill_drive(rand, nvme0n1):
                          lba_random=rand, qdepth=512,
                          io_count=io_count, read_percentage=0,
                          output_io_per_second=io_per_second).start().close()
-    return io_per_second
+
+    if not rand:
+        return [iops*io_size*512 for iops in io_per_second]
+    else:
+        return io_per_second
 
 
 def test_create_report_file(nvme0, nvme0n1, pcie):
@@ -84,29 +88,34 @@ def test_1gb_read_write_performance(nvme0n1):
 
 # full drive seq write
 def test_fill_drive_first_pass(nvme0n1):
+    io_per_sec = do_fill_drive(seq, nvme0n1)
+    io_per_sec = io_per_sec[:600]
     with open("report.csv", "a") as f:
-        io_per_sec = do_fill_drive(seq, nvme0n1)
-        f.write('\n'.join(io_per_sec))
-        f.write('\n')
-
+        for iops in io_per_sec:
+            f.write('%d\n' % iops)
     
 # random
-def test_fill_drive_randome(nvme0n1):
+def test_fill_drive_randome(nvme0n1, nvme0):
+    io_per_sec = do_fill_drive(rand, nvme0n1)
+    io_per_sec = io_per_sec[:600]
     with open("report.csv", "a") as f:
-        io_per_sec = do_fill_drive(rand, nvme0n1)
-        f.write('\n'.join(io_per_sec))
-        f.write('\n')
-        
-        # temperature, °C
+        for iops in io_per_sec:
+            f.write('%d\n' % iops)
+            
+        # add temperature, °C
         import pytemperature
+        logpage_buf = d.Buffer(512)
+        nvme0.getlogpage(2, logpage_buf).waitdone()
         t = round(pytemperature.k2c(logpage_buf.data(2, 1)))
+        logging.info(t)
         f.write('%d\n' % t)
 
         
 # 2-pass full drive seq write
 @pytest.mark.parametrize("repeat", range(2))
 def test_fill_drive_after_random(nvme0n1, repeat):
+    io_per_sec = do_fill_drive(seq, nvme0n1)
+    io_per_sec = io_per_sec[:600]
     with open("report.csv", "a") as f:
-        io_per_sec = do_fill_drive(seq, nvme0n1)
-        f.write('\n'.join(io_per_sec))
-        f.write('\n')
+        for iops in io_per_sec:
+            f.write('%d\n' % iops)
