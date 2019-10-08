@@ -5,8 +5,11 @@ import time
 import logging
 
 
+TEST_SCALE = 10    #1, 10
+
+
 # trim
-@pytest.mark.parametrize("repeat", range(10))
+@pytest.mark.parametrize("repeat", range(TEST_SCALE))
 @pytest.mark.parametrize("lba_count", [8, 8*1024, 0])  # 4K, 4M, all 
 def test_trim_time_one_range(nvme0, nvme0n1, lba_count, repeat):
     q = d.Qpair(nvme0, 8)
@@ -17,10 +20,11 @@ def test_trim_time_one_range(nvme0, nvme0n1, lba_count, repeat):
     
     start_time = time.time()
     nvme0n1.dsm(q, buf, 1).waitdone()
-    logging.info(time.time()-start_time)
+    with open("report.csv", "a") as f:
+        f.write('%d\n' % (time.time()-start_time))
 
 
-@pytest.mark.parametrize("repeat", range(10))
+@pytest.mark.parametrize("repeat", range(TEST_SCALE))
 @pytest.mark.parametrize("io_size", [1, 8, 64, 512, 4096])  # 4K, 4M, all 
 def test_trim_time_all_range_buffer(nvme0, nvme0n1, repeat, io_size):
     q = d.Qpair(nvme0, 8)
@@ -30,12 +34,14 @@ def test_trim_time_all_range_buffer(nvme0, nvme0n1, repeat, io_size):
     
     start_time = time.time()
     nvme0n1.dsm(q, buf, 1).waitdone()
-    logging.info(time.time()-start_time)
+    with open("report.csv", "a") as f:
+        f.write('%d\n' % (time.time()-start_time))
 
     
 # format
-@pytest.mark.parametrize("repeat", range(10))
+@pytest.mark.parametrize("repeat", range(TEST_SCALE))
 def test_format_time(nvme0n1, repeat):
     start_time = time.time()
     nvme0n1.format()
-    logging.info(time.time()-start_time)
+    with open("report.csv", "a") as f:
+        f.write('%d\n' % (time.time()-start_time))

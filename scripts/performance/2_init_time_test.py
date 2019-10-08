@@ -16,6 +16,7 @@ def do_power_cycle(dirty, subsystem, nvme0n1, nvme0):
         logging.info("notify time %.6f sec" % (time.time()-start_time))
 
     # boot again
+    csv_start = time.time()
     start_time = time.time()
     subsystem.power_cycle(10)
     logging.info("init time %.6f sec" % (time.time()-start_time-10))
@@ -27,6 +28,11 @@ def do_power_cycle(dirty, subsystem, nvme0n1, nvme0):
     lba = nvme0n1.id_data(7, 0) - 1
     nvme0n1.read(q, b, lba).waitdone()
     logging.info("media ready time %.6f sec" % (time.time()-start_time))
+
+    # report to csv
+    ready_time = time.time()-csv_start-10
+    with open("report.csv", "a") as f:
+        f.write('%.6f\n' % ready_time)
 
     
 # rand write clean boot time
