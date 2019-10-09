@@ -21,7 +21,7 @@ def test_trim_time_one_range(nvme0, nvme0n1, lba_count, repeat):
     start_time = time.time()
     nvme0n1.dsm(q, buf, 1).waitdone()
     with open("report.csv", "a") as f:
-        f.write('%d\n' % (time.time()-start_time))
+        f.write('%.6f\n' % (time.time()-start_time))
 
 
 @pytest.mark.parametrize("repeat", range(TEST_SCALE))
@@ -35,7 +35,7 @@ def test_trim_time_all_range_buffer(nvme0, nvme0n1, repeat, io_size):
     start_time = time.time()
     nvme0n1.dsm(q, buf, 1).waitdone()
     with open("report.csv", "a") as f:
-        f.write('%d\n' % (time.time()-start_time))
+        f.write('%.6f\n' % (time.time()-start_time))
 
     
 # format
@@ -44,4 +44,4 @@ def test_format_time(nvme0n1, repeat):
     start_time = time.time()
     nvme0n1.format()
     with open("report.csv", "a") as f:
-        f.write('%d\n' % (time.time()-start_time))
+        f.write('%.6f\n' % (time.time()-start_time))

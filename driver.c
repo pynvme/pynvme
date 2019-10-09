@@ -1014,6 +1014,7 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
   opts.qprio = prio;
   opts.io_queue_size = depth;
   opts.io_queue_requests = depth*2;
+	opts.delay_pcie_doorbell = false;
 
   qpair = spdk_nvme_ctrlr_alloc_io_qpair(ctrlr, &opts, sizeof(opts));
   if (qpair == NULL)
@@ -1646,8 +1647,8 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     // check time and send all pending io
     while (head_io && timercmp(&now, &head_io->time_sent, >))
     {
-      STAILQ_REMOVE_HEAD(&gctx.pending_io_list, next);
       ioworker_send_one(ns, qpair, head_io, &gctx);
+      STAILQ_REMOVE_HEAD(&gctx.pending_io_list, next);
       head_io = STAILQ_FIRST(&gctx.pending_io_list);      
     }
 

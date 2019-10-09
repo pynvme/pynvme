@@ -1090,8 +1090,12 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     q.waitdone()
     q.msix_clear()
 
-    #assert latency1 > 0.01
-    #assert latency2 < 0.01
+
+def test_ioworker_fast_complete(nvme0n1):
+    nvme0n1.ioworker(io_size=64, lba_align=64,
+                     lba_random=False, qdepth=64,
+                     region_end=512, io_count=128, 
+                     read_percentage=0).start().close()
 
 
 def test_power_cycle_with_ioworker_dirty(nvme0n1, nvme0, subsystem):
@@ -1109,7 +1113,7 @@ def test_power_cycle_with_ioworker_dirty(nvme0n1, nvme0, subsystem):
                           read_percentage=100, time=5):
         pass
     start_time = time.time()
-    subsystem.power_cycle(10)
+    subsystem.power_cycle(15)
     init_time_read = time.time()-start_time
     assert get_power_cycles(nvme0) == powercycle+1
     
@@ -1120,7 +1124,7 @@ def test_power_cycle_with_ioworker_dirty(nvme0n1, nvme0, subsystem):
                           read_percentage=0, time=5):
         pass
     start_time = time.time()
-    subsystem.power_cycle(10)
+    subsystem.power_cycle(15)
     init_time_write = time.time()-start_time
     assert get_power_cycles(nvme0) == powercycle+1
 
@@ -1137,7 +1141,7 @@ def test_power_cycle_with_ioworker_dirty(nvme0n1, nvme0, subsystem):
         pass
     subsystem.shutdown_notify()
     start_time = time.time()
-    subsystem.power_cycle(10)
+    subsystem.power_cycle(15)
     init_time_write_clean = time.time()-start_time
     assert get_power_cycles(nvme0) == powercycle+1
 
@@ -1301,13 +1305,14 @@ def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
     logging.info(output_percentile_latency)
     logging.info(r)
     heavy_latency_average = r.latency_average_us
+    max_iops = (r.io_count_read+r.io_count_write)*1000//r.mseconds
 
     # limit iops, should get smaller latency
     output_percentile_latency = dict.fromkeys([10, 50, 90, 99, 99.9, 99.99, 99.999, 99.99999])
     logging.info(output_percentile_latency)
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
-                         lba_random=False, qdepth=2,
-                         iops=1, 
+                         lba_random=False, qdepth=32,
+                         iops=max_iops//2, 
                          read_percentage=100, time=10,
                          output_percentile_latency=output_percentile_latency).start().close()
     logging.info(output_percentile_latency)

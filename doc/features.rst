@@ -563,6 +563,14 @@ We can check if the hardware and OS supports S3 power state in the command line:
    > sudo cat /sys/power/mem_sleep
    s2idle [deep]
 
+Scripts can send a notification to NVMe device before turn power off, and this is so-called clean power cycle in SSD testing:
+
+.. code-block:: python
+
+   subsystem = d.Subsystem(nvme0)
+   subsystem.shutdown_notify()
+   subsystem.power_cycle()
+
 Reset
 -----
 
