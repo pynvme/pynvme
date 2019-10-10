@@ -1013,7 +1013,7 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
   memset(&opts, 0, sizeof(opts));
   opts.qprio = prio;
   opts.io_queue_size = depth;
-  opts.io_queue_requests = depth*2;
+  opts.io_queue_requests = depth;
 	opts.delay_pcie_doorbell = false;
 
   qpair = spdk_nvme_ctrlr_alloc_io_qpair(ctrlr, &opts, sizeof(opts));
