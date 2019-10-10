@@ -774,7 +774,7 @@ static struct spdk_nvme_ctrlr* nvme_probe(char* traddr, unsigned int port)
   rc = spdk_nvme_probe(&trid, &cb_ctx, probe_cb, attach_cb, NULL);
   if (rc != 0 || cb_ctx.ctrlr == NULL)
   {
-    SPDK_ERRLOG("not found device: %s, rc %d, cb_ctx.ctrlr %p\n",
+    SPDK_WARNLOG("not found device: %s, rc %d, cb_ctx.ctrlr %p\n",
                 trid.traddr, rc, cb_ctx.ctrlr);
     return NULL;
   }
@@ -1019,7 +1019,7 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
   qpair = spdk_nvme_ctrlr_alloc_io_qpair(ctrlr, &opts, sizeof(opts));
   if (qpair == NULL)
   {
-    SPDK_ERRLOG("alloc io qpair fail\n");
+    SPDK_WARNLOG("alloc io qpair fail\n");
     return NULL;
   }
 
@@ -1556,7 +1556,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   // check io size
   if (args->lba_size*sector_size > ns->ctrlr->max_xfer_size)
   {
-    SPDK_ERRLOG("IO size is larger than max xfer size, %d\n",
+    SPDK_WARNLOG("IO size is larger than max xfer size, %d\n",
                 ns->ctrlr->max_xfer_size);
     rets->error = 0x0002;  // Invalid Field in Command
     free(io_ctx);
@@ -1656,7 +1656,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     if (ioworker_get_duration(&test_start) > (args->seconds+30)*1000ULL)
     {
       //ioworker timeout
-      SPDK_ERRLOG("ioworker timeout, io sent %ld, io cplt %ld, finish %d\n",
+      SPDK_WARNLOG("ioworker timeout, io sent %ld, io cplt %ld, finish %d\n",
                    gctx.io_count_sent, gctx.io_count_cplt, gctx.flag_finish);
       ret = -4;
       break;
@@ -1926,7 +1926,7 @@ static void* rpc_server(void* args)
   rc = spdk_rpc_listen("/var/tmp/pynvme.sock");
   if (rc != 0)
   {
-    SPDK_ERRLOG("rpc fail to get the sock \n");
+    SPDK_WARNLOG("rpc fail to get the sock \n");
     return NULL;
   }
 
@@ -2007,7 +2007,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
 
 	if (params == NULL)
   {
-    SPDK_ERRLOG("no parameters\n");
+    SPDK_WARNLOG("no parameters\n");
     spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
                                      "Invalid parameters");
     return;
@@ -2016,7 +2016,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
   if (spdk_json_decode_array(params, spdk_json_decode_uint64,
                              &q, 1, &count, sizeof(uint64_t)))
   {
-    SPDK_ERRLOG("spdk_json_decode_object failed\n");
+    SPDK_WARNLOG("spdk_json_decode_object failed\n");
     spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
                                      "Invalid parameters");
     return;
@@ -2024,7 +2024,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
 
   if (count != 1)
   {
-    SPDK_ERRLOG("only 1 parameter required for qid\n");
+    SPDK_WARNLOG("only 1 parameter required for qid\n");
     spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
                                      "Invalid parameters");
     return;
