@@ -46,13 +46,15 @@ def do_fill_drive(rand, nvme0n1):
 
 
 def test_create_report_file(nvme0, nvme0n1, pcie):
+    nvme0n1.format(512)  # 512 sector size
+
     import libpci
     vid = pcie.register(0, 2)
     vendor = libpci.LibPCI().lookup_vendor_name(vid)
     
     model = nvme0.id_data(63, 24, str)
     fw = nvme0.id_data(71, 64, str)
-    capacity = str(nvme0n1.id_data(63, 48))
+    capacity = str(nvme0n1.id_data(7, 0)*512)
     hmb = nvme0.id_data(275, 272) * 4
     
     qpairs = 0
@@ -72,7 +74,6 @@ def test_create_report_file(nvme0, nvme0n1, pcie):
 
 # empty read
 def test_empty_read_performance(nvme0n1):
-    nvme0n1.format(512)  # 512 sector size
     logging.info(do_ioworker(seq, read, nvme0n1))
     logging.info(do_ioworker(rand, read, nvme0n1))
 
