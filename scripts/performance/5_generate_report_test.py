@@ -1,10 +1,11 @@
 import pytest
 import nvme as d
 
+import os
 import openpyxl
 
 def test_generate_report_xlsx():
-    wb = openpyxl.load_workbook(filename='scripts/performance/performance_report.xlsx')
+    wb = openpyxl.load_workbook(filename='scripts/performance/report_template.xlsx')
     sheet = wb['pynvme']
     line = 0
 
@@ -22,4 +23,5 @@ def test_generate_report_xlsx():
             sheet['C%d' % line] = value
 
     # save the file
-    wb.save(filename='scripts/performance/performance_report.xlsx')
+    wb.save(filename='performance_report.xlsx')
+    os.remove("report.csv")

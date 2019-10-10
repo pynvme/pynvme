@@ -38,8 +38,7 @@ manual_test:
   artifacts:
     paths:
       - test.log
-      - report.csv
-      - scripts/performance/performance_report.xlsx
+      - performance_report.xlsx
     when: always
     expire_in: 5 yrs
   script:
