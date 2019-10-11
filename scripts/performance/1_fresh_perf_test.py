@@ -90,10 +90,12 @@ def test_1gb_read_write_performance(nvme0n1):
 # full drive seq write
 def test_fill_drive_first_pass(nvme0n1):
     io_per_sec = do_fill_drive(seq, nvme0n1)
-    io_per_sec = io_per_sec[:600]
+    io_per_sec = io_per_sec[:300]
     with open("report.csv", "a") as f:
         for iops in io_per_sec:
             f.write('%d\n' % iops)
+        for i in range(300):
+            f.write('0\n')
     
 # random
 def test_fill_drive_randome(nvme0n1, nvme0):

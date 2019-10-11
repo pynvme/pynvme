@@ -1495,7 +1495,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
                           ioworker_one_cb, ctx);
   if (ret != 0)
   {
-    SPDK_NOTICELOG("ioworker error happen in sending cmd\n");
+    SPDK_ERRLOG("ioworker error happen in sending cmd\n");
     gctx->flag_finish = true;
     return ret;
   }
