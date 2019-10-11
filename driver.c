@@ -48,14 +48,9 @@
 #include "spdk_internal/log.h"
 #include "spdk/lib/nvme/nvme_internal.h"
 #include "driver.h"
-
+#include "intr_mgt.h"
 
 #define US_PER_S              (1000ULL*1000ULL)
-#define MIN(X,Y)              ((X) < (Y) ? (X) : (Y))
-
-#ifndef BIT
-#define BIT(a)                (1UL << (a))
-#endif /* BIT */
 
 // the global configuration of the driver
 #define DCFG_VERIFY_READ      (BIT(0))
@@ -284,56 +279,12 @@ struct cmd_log_table_t {
   struct cmd_log_entry_t table[CMD_LOG_DEPTH];
   uint32_t head_index;
   uint32_t tail_index;
-  uint32_t msix_data;
-  uint32_t msix_enabled;
+  //uint32_t msg_data;
+  uint16_t intr_vec;
+  uint16_t intr_enabled;
   uint32_t dummy[28];
 };
 static_assert(sizeof(struct cmd_log_table_t)%64 == 0, "cacheline aligned");
-
-typedef volatile struct _msix_entry
-{
-  uint64_t msg_addr;
-  uint32_t msg_data;
-  uint32_t mask : 1;
-  uint32_t rsvd : 31;
-} msix_entry;
-
-
-void cmdlog_init_msix(struct spdk_nvme_qpair* q)
-{
-  uint64_t addr;
-  msix_entry* msix_table;
-  struct spdk_nvme_ctrlr* ctrlr;
-  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;
-  uint16_t qid = q->id;
-
-  assert(q != NULL);
-  assert(cmdlog != NULL);
-
-  ctrlr = q->ctrlr;
-  assert(ctrlr != NULL);
-
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "ctrlr %p\n", q->ctrlr);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "intc_ctrl %p\n", q->ctrlr->pynvme_intc_ctrl);
-  assert(q->ctrlr->pynvme_intc_ctrl != NULL);
-  msix_table = (msix_entry*)(ctrlr->pynvme_intc_ctrl->msix_table);
-  assert(msix_table != NULL);
-
-  addr = spdk_vtophys(&cmdlog->msix_data, NULL);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix table addr %p\n", msix_table);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "vec %d, msix data addr %lx\n", qid, addr);
-  
-  // fill the vector table
-  msix_table[qid].msg_addr = addr;
-  msix_table[qid].msg_data = 1;
-  msix_table[qid].mask = 0;
-  msix_table[qid].rsvd = 0;
-
-  // clear the interrupt  
-  cmdlog->msix_data = 0;
-  cmdlog->msix_enabled = true;
-}
-
 
 static void _cmdlog_uname(struct spdk_nvme_qpair* q, char* name, uint32_t len)
 {
@@ -492,157 +443,6 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
     }
   }
 }
-
-
-//// software MSIx INTC
-///////////////////////////////
-
-static uint8_t intc_find_msix(struct spdk_pci_device* pci)
-{
-  uint8_t cid = 0;
-  uint8_t next_offset = 0;
-
-  spdk_pci_device_cfg_read8(pci, &next_offset, 0x34);
-  while (next_offset != 0)
-  {
-    spdk_pci_device_cfg_read8(pci, &cid, next_offset);
-    if (cid == 0x11)
-    {
-      // find the msix capability
-      break;
-    }
-
-    spdk_pci_device_cfg_read8(pci, &next_offset, next_offset+1);
-  }
-
-  assert(next_offset != 0);
-  return next_offset;
-}
-
-
-#define INTC_CTRL_NAME   "intc_ctrl_name%p"
-
-void intc_init(struct spdk_nvme_ctrlr* ctrlr)
-{
-  char intc_name[64];
-  struct msix_ctrl* intc_ctrl;
-  struct spdk_pci_device* pci = spdk_nvme_ctrlr_get_pci_device(ctrlr);
-  uint8_t msix_base = 0;
-  uint16_t control = 0;
-  uint32_t bir_val = 0;
-  uint32_t bar_offset = 0;
-  uint32_t vector_num = 0;
-  int rc;
-	void *table_addr;
-	uint64_t phys_addr;
-  uint64_t size;
-
-  // interrupt only works with PCIe SSD
-  assert(ctrlr->trid.trtype == SPDK_NVME_TRANSPORT_PCIE);
-  
-  SPDK_INFOLOG(SPDK_LOG_NVME, "pci %p\n", pci);
-  
-  //find msix capability
-  msix_base = intc_find_msix(pci);
-  spdk_pci_device_cfg_read16(pci, &control, (msix_base + 2));
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix control: 0x%x\n", control);
-
-  vector_num = (control&0x7fff) + 1;
-  SPDK_INFOLOG(SPDK_LOG_NVME, "vector_num %d\n", vector_num);
-  
-  //find address of MSIX table.
-  spdk_pci_device_cfg_read32(pci, &bir_val, (msix_base + 4));
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix bir %x\n", bir_val);
-  bar_offset = bir_val & (~0x7);
-  bir_val = bir_val & 0x7;
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix bir %x, bar offset %x\n", bir_val, bar_offset);
-
-  //map bar phys_addr to virtual addr
-	rc = spdk_pci_device_map_bar(pci, bir_val, &table_addr, &phys_addr, &size);
-  assert(rc == 0);
-  
-  // collect intc information of this controller
-  snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
-  intc_ctrl = spdk_memzone_reserve(intc_name,
-                                   sizeof(struct msix_ctrl),
-                                   0,
-                                   0);
-  assert(intc_ctrl != NULL);
-  intc_ctrl->bir = bir_val;
-  intc_ctrl->bir_offset = bar_offset;
-  intc_ctrl->phys_addr = phys_addr;
-  intc_ctrl->vir_addr = (uintptr_t)table_addr;
-  intc_ctrl->size = size;
-  intc_ctrl->msix_table = table_addr + bar_offset;
-  
-  ctrlr->pynvme_intc_ctrl = intc_ctrl;
-  
-  // enable msix
-  control |= 0x8000;
-  spdk_pci_device_cfg_write16(pci, control, msix_base+2);
-}
-
-
-void intc_fini(struct spdk_nvme_ctrlr* ctrlr)
-{
-  char intc_name[64];
-  uint8_t msix_base;
-  uint16_t control;
-  struct spdk_pci_device* pci = spdk_nvme_ctrlr_get_pci_device(ctrlr);
-
-  // find msix capability
-  msix_base = intc_find_msix(pci);
-  spdk_pci_device_cfg_read16(pci, &control, msix_base+2);
-
-  // disable msix
-  control &= (~0x8000);
-  snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
-  spdk_memzone_free(intc_name);
-  ctrlr->pynvme_intc_ctrl = NULL;
-  
-  spdk_pci_device_cfg_write16(pci, control, msix_base+2);
-}
-
-
-void intc_clear(struct spdk_nvme_qpair* q)
-{
-  assert(q->trtype == SPDK_NVME_TRANSPORT_PCIE);  // interrupt on PCIe only
-  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;  
-  cmdlog->msix_data = 0;
-}
-
-
-bool intc_isset(struct spdk_nvme_qpair* q)
-{
-  assert(q->trtype == SPDK_NVME_TRANSPORT_PCIE);  // interrupt on PCIe only
-  struct cmd_log_table_t* cmdlog = q->pynvme_cmdlog;  
-  return cmdlog->msix_data != 0;
-}
-
-
-void intc_mask(struct spdk_nvme_qpair* q)
-{
-  // interrupt on PCIe only  
-  if (q->trtype == SPDK_NVME_TRANSPORT_PCIE)
-  {
-    assert(q->ctrlr->pynvme_intc_ctrl != NULL);  
-    msix_entry *msix_table = (msix_entry*)(q->ctrlr->pynvme_intc_ctrl->msix_table);
-    msix_table[q->id].mask = 1;
-  }
-}
-
-
-void intc_unmask(struct spdk_nvme_qpair* q)
-{
-  // interrupt on PCIe only  
-  if (q->trtype == SPDK_NVME_TRANSPORT_PCIE)
-  {  
-    assert(q->ctrlr->pynvme_intc_ctrl != NULL);  
-    msix_entry *msix_table = (msix_entry*)(q->ctrlr->pynvme_intc_ctrl->msix_table);
-    msix_table[q->id].mask = 0;
-  }
-}
-
 
 //// probe callbacks
 ///////////////////////////////
@@ -840,7 +640,7 @@ int nvme_fini(struct spdk_nvme_ctrlr* ctrlr)
         qpair_free(qpair);
       }
     }
-
+    intc_fini(ctrlr);
     //remove ctrlr from list
     struct ctrlr_entry* e;
     struct ctrlr_entry* tmp;
@@ -889,12 +689,13 @@ int nvme_get_reg64(struct spdk_nvme_ctrlr* ctrlr,
 int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
 {
   int32_t rc;
+  intr_ctrl_t* intr_ctrl = ctrlr->pynvme_intc_ctrl;
   struct cmd_log_table_t* cmdlog = ctrlr->adminq->pynvme_cmdlog;
 
   // check msix interrupt
-  if (cmdlog->msix_enabled)
+  if (cmdlog->intr_enabled)
   {
-    if (cmdlog->msix_data == 0)
+    if (intr_ctrl->msg_data[0] == 0)
     {
       // to check it again later
       return 0;
@@ -908,7 +709,7 @@ int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
   rc = spdk_nvme_ctrlr_process_admin_completions(ctrlr);
 
   // clear and un-mask the interrupt
-  cmdlog->msix_data = 0;
+  intr_ctrl->msg_data[0] = 0;
   intc_unmask(ctrlr->adminq);
 
   return rc;
