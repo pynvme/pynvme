@@ -44,7 +44,7 @@ include $(SPDK_ROOT_DIR)/mk/spdk.lib.mk
 pciaddr=$(shell lspci | grep 'Non-Volatile memory' | grep -o '..:..\..' | head -1)
 
 #reserve memory for driver
-memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%4)/2}')
+memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%8)/8*5}')
 
 #pytest test targets
 TESTS := driver_test.py
