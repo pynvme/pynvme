@@ -63,7 +63,7 @@ static bool msi_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt)
 
   //config msg address & msg data
   msg_addr = spdk_vtophys(&intr_info->msg_data[0], NULL);
-  SPDK_ERRLOG("msg physical addr value 0x%lx\n", msg_addr);
+  SPDK_INFOLOG(SPDK_LOG_NVME,"msg physical addr value 0x%lx\n", msg_addr);
   spdk_pci_device_cfg_write32(pci, (uint32_t)msg_addr, (msi_cap_base + 4));
   spdk_pci_device_cfg_write32(pci, (uint32_t)(msg_addr >> 32), (msi_cap_base + 8));
   //config msi intr msg data
@@ -151,7 +151,7 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
   msix_ctrl->size = size;
   msix_ctrl->msix_table = table_addr + bar_offset;
 
-  SPDK_ERRLOG("msix table addr 2 0x%lx\n", (uint64_t)table_addr);
+  SPDK_INFOLOG(SPDK_LOG_NVME,"msix table addr 2 0x%lx\n", (uint64_t)table_addr);
   //config msix table
   msix_table = (msix_entry *)(table_addr + bar_offset);
   SPDK_INFOLOG(SPDK_LOG_NVME, "msix table addr %lx\n", (uint64_t)msix_table);
@@ -271,17 +271,17 @@ bool intc_isset(struct spdk_nvme_qpair *q)
   //struct cmd_log_table_t* cmd_log = (struct cmd_log_table_t*)q->pynvme_cmdlog;
 
   vector_id = intc_get_vec(q);
-  SPDK_ERRLOG("vector id %d\n", vector_id);
+  SPDK_INFOLOG(SPDK_LOG_NVME, "vector id %d\n", vector_id);
   if (intr_ctrl->msix_en == 1)
   {
     //vector_id = intc_get_vec(q);//intr_ctrl->qpair_vec[q->id];
-    SPDK_ERRLOG("msix enable\n");
+    SPDK_INFOLOG(SPDK_LOG_NVME, "msix enable\n");
     ret = (intr_ctrl->msg_data[vector_id] != 0);
   }
   else if (intr_ctrl->msi_en == 1)
   {
     //vector_id = intr_ctrl->qpair_vec[q->id];
-    SPDK_ERRLOG("msi vector id %d\n", vector_id);
+    SPDK_INFOLOG(SPDK_LOG_NVME, "msi vector id %d\n", vector_id);
     ret = (vector_id == (intr_ctrl->msg_data[0] & 0xff));
   }
   return ret;
@@ -345,7 +345,7 @@ uint32_t intc_get_cmd_vec_info(struct spdk_nvme_qpair *q)
   if (intr_ctrl->msi_en 
       || intr_ctrl->msix_en)
   {
-    SPDK_ERRLOG("%s, vector id%d\n", __FUNCTION__, vector_id);
+    SPDK_INFOLOG(SPDK_LOG_NVME, "%s, vector id%d\n", __FUNCTION__, vector_id);
     vec_config = (0x3 | (vector_id << 16));
   }
 
