@@ -7,6 +7,9 @@
 #include "spdk/lib/nvme/nvme_internal.h"
 #include "spdk/env.h"
 
+
+#define INTC_CTRL_NAME   "intc_ctrl_name%p"
+
 //// software MSIx INTC
 ///////////////////////////////
 static uint8_t pcie_find_cap_base_addr(struct spdk_pci_device *pci, uint8_t cid)
@@ -210,6 +213,15 @@ static void intc_info_release(struct spdk_nvme_ctrlr* ctrlr)
   ctrlr->pynvme_intc_ctrl = NULL;
 }
 
+void* intc_lookup_ctrl(struct spdk_nvme_ctrlr* ctrlr)
+{
+  char intc_name[64];
+  
+  snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
+  return spdk_memzone_lookup(intc_name);
+  
+}
+
 void intc_fini(struct spdk_nvme_ctrlr *ctrlr)
 {
   uint8_t cap_base;
@@ -343,8 +355,9 @@ uint32_t intc_get_cmd_vec_info(struct spdk_nvme_qpair *q)
   if (intr_ctrl->msi_en || intr_ctrl->msix_en)
   {
     vector_id = intc_get_vec(q);
-    SPDK_INFOLOG(SPDK_LOG_NVME, "vector id%d\n", vector_id);
+    SPDK_INFOLOG(SPDK_LOG_NVME, "vector id: %d\n", vector_id);
   }
 
   return vector_id;
 }
+

@@ -34,14 +34,12 @@
 
 #include "spdk/nvme.h"
 
-#define MAX_CMD_LOG_QPAIR_COUNT (32)
-#define MAX_CMD_LOG_QPAIR_COUNT_SHIFT (5)
-#define INTC_CTRL_NAME   "intc_ctrl_name%p"
 #define MIN(X,Y)              ((X) < (Y) ? (X) : (Y))
 
 #ifndef BIT
 #define BIT(a)                (1UL << (a))
 #endif /* BIT */
+
 typedef struct spdk_nvme_qpair qpair;
 typedef struct spdk_nvme_ctrlr ctrlr;
 typedef struct spdk_nvme_ns namespace;

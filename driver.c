@@ -50,6 +50,10 @@
 #include "driver.h"
 #include "intr_mgt.h"
 
+
+#define MAX_CMD_LOG_QPAIR_COUNT (32)
+#define MAX_CMD_LOG_QPAIR_COUNT_SHIFT (5)
+
 #define US_PER_S              (1000ULL*1000ULL)
 
 // the global configuration of the driver
@@ -601,9 +605,7 @@ struct spdk_nvme_ctrlr* nvme_init(char * traddr, unsigned int port)
     // init intc table in secondary processes for PCIe SSD
     if (ctrlr->trid.trtype == SPDK_NVME_TRANSPORT_PCIE)
     {
-      char intc_name[64];
-      snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
-      ctrlr->pynvme_intc_ctrl = spdk_memzone_lookup(intc_name);
+      ctrlr->pynvme_intc_ctrl = intc_lookup_ctrl(ctrlr);
       assert(ctrlr->pynvme_intc_ctrl != NULL);
     }
   }
@@ -640,7 +642,7 @@ int nvme_fini(struct spdk_nvme_ctrlr* ctrlr)
         qpair_free(qpair);
       }
     }
-    intc_fini(ctrlr);
+
     //remove ctrlr from list
     struct ctrlr_entry* e;
     struct ctrlr_entry* tmp;
