@@ -273,7 +273,7 @@ Similar to Admin Commands, we use `Qpair.waitdone()` to wait IO commands complet
 Interrupts
 ^^^^^^^^^^
 
-Pynvme creates the IO Completion Queues with interrupt enabled. However, pynvme does not check the interrupt signals on IO Qpairs. We can check interrupt signals through a set of API `Qpair.msix_*()` in the scripts. Here is an example. 
+Pynvme creates the IO Completion Queues with interrupt (e.g. MSIx or MSI) enabled. However, pynvme does not check the interrupt signals on IO Qpairs. We can check interrupt signals through a set of API `Qpair.msix_*()` in the scripts. Here is an example. 
 
 .. code-block:: python
 
@@ -427,7 +427,7 @@ We can even start IOWorkers on different Namespaces:
                              read_percentage=0, time=100):
            pass
 
-And we can do other operations, accompanied with IOWorkers. In this example, the script monitors SMART temperature value while writing NVMe device in an IOWorker. 
+And we can also send other NVMe commands accompanied with IOWorkers. In this example, the script monitors SMART temperature value while writing NVMe device in an IOWorker. 
 
 .. code-block:: python
 
@@ -441,6 +441,17 @@ And we can do other operations, accompanied with IOWorkers. In this example, the
                ktemp = smart_log.data(2, 1)
                logging.info("temperature: %0.2f degreeC" % k2c(ktemp))
                time.sleep(1)
+
+However, pynvme does not support power_cycle or reset when IOWorkers are working. We have to close ioworkers first. 
+
+.. code-block:: python
+
+def test_power_cycle_dirty(nvme0n1, subsystem):
+    with nvme0n1.ioworker(io_size=256, lba_align=256,
+                          lba_random=False, qdepth=64,
+                          read_percentage=0, time=5):
+        pass
+    subsystem.power_cycle()
 
 The performance of `IOWorker` is super high and super consistent. We can use it extensively in performance tests and stress tests. For example, we can get the 4K read IOPS in the following script.
 
