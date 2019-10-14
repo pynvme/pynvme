@@ -295,7 +295,18 @@ Pynvme traces recent thousands of commands in the cmdlog, as well as the complet
 Notice
 ^^^^^^
 
-The Qpair object is created on a Controller object. So, users create the Qpair after the Controller. On the other side, users should free Qpair before the Controller. Without explicit `del` in Python scripts, Python may not garbage collect these objects in the right order. We recommend to use pytest in your tests. The fixture `nvme0` is defined as session scope, and so the Controller is always created before any Qpair, and deleted after any Qpair. 
+The Qpair object is created on a Controller object. So, users create the Qpair after the Controller. On the other side, users should free Qpair before the Controller. Without explicit `del` in Python scripts, Python may not garbage collect these objects in the right order. We recommend to use pytest in your tests. The fixture `nvme0` is defined as session scope, and so the Controller is always created before any Qpair, and deleted after any Qpair.
+
+Qpair objects may be reclaimed by Python Garbage Collection, when they are not used in the scripts. So, qpairs would be deleted implicitly. If you really want to keep qpairs alive, remember to keep their references as this example:
+
+.. code-block:: python
+
+   def test_create_many_qpairs(nvme0):
+       qlist = []  # container to reference all qpairs
+       for i in range(16):
+           qlist.append(d.Qpair(nvme0, 8))
+       del qlist   # delete all 16 qpairs
+
 
 Namespace
 ---------
