@@ -10,6 +10,7 @@
 
 #define INTC_CTRL_NAME   "intc_ctrl_name%p"
 
+
 //// software MSIx INTC
 ///////////////////////////////
 static uint8_t pcie_find_cap_base_addr(struct spdk_pci_device *pci, uint8_t cid)
@@ -177,6 +178,7 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
     msix_table[i].mask = 0;
     msix_table[i].rsvd = 0;
   }
+  
   // enable msix
   control |= 0x8000;
   spdk_pci_device_cfg_write16(pci, control, msix_base + 2);
@@ -200,8 +202,8 @@ void intc_init(struct spdk_nvme_ctrlr *ctrlr)
   if (!ret)
   {
     //TODO. disable intr
+    assert(false);
   }
-
 }
 
 static void intc_info_release(struct spdk_nvme_ctrlr* ctrlr)
@@ -218,8 +220,7 @@ void* intc_lookup_ctrl(struct spdk_nvme_ctrlr* ctrlr)
   char intc_name[64];
   
   snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
-  return spdk_memzone_lookup(intc_name);
-  
+  return spdk_memzone_lookup(intc_name);  
 }
 
 void intc_fini(struct spdk_nvme_ctrlr *ctrlr)
@@ -229,6 +230,10 @@ void intc_fini(struct spdk_nvme_ctrlr *ctrlr)
   struct spdk_pci_device *pci = spdk_nvme_ctrlr_get_pci_device(ctrlr);
   intr_ctrl_t *intr_ctrl = ctrlr->pynvme_intc_ctrl;
 
+  // interrupt is enabled on PCIe devices only
+  assert(q->trtype == SPDK_NVME_TRANSPORT_PCIE);
+  assert(intr_ctrl != NULL);
+  
   if (intr_ctrl->msix_en == 1)
   {
     // find msix capability
@@ -256,6 +261,10 @@ static uint16_t intc_get_vec(struct spdk_nvme_qpair* q)
   struct spdk_nvme_ctrlr* ctrlr = q->ctrlr;
   intr_ctrl_t* intr_ctrl = ctrlr->pynvme_intc_ctrl;
 
+  // interrupt is enabled on PCIe devices only
+  assert(q->trtype == SPDK_NVME_TRANSPORT_PCIE);
+  assert(intr_ctrl != NULL);
+  
   return (q->id % intr_ctrl->max_vec_num);
 }
 
@@ -263,6 +272,10 @@ void intc_clear(struct spdk_nvme_qpair* q)
 {
   struct spdk_nvme_ctrlr* ctrlr = q->ctrlr;
   intr_ctrl_t* intr_ctrl = ctrlr->pynvme_intc_ctrl;
+
+  // interrupt is enabled on PCIe devices only
+  assert(q->trtype == SPDK_NVME_TRANSPORT_PCIE);
+  assert(intr_ctrl != NULL);
 
   if (intr_ctrl->msix_en != 0)
   {
@@ -282,6 +295,9 @@ bool intc_isset(struct spdk_nvme_qpair *q)
   intr_ctrl_t* intr_ctrl = ctrlr->pynvme_intc_ctrl;
   //struct cmd_log_table_t* cmd_log = (struct cmd_log_table_t*)q->pynvme_cmdlog;
 
+  // interrupt is enabled on PCIe devices only
+  assert(q->trtype == SPDK_NVME_TRANSPORT_PCIE);
+  
   vector_id = intc_get_vec(q);
   SPDK_INFOLOG(SPDK_LOG_NVME, "vector id %d\n", vector_id);
   if (intr_ctrl->msix_en == 1)
@@ -308,19 +324,23 @@ void intc_mask(struct spdk_nvme_qpair *q)
   uint32_t vector_id;
   uint32_t raw_val = 0;
 
-  vector_id = intc_get_vec(q);
-  if (intr_ctrl->msix_en == 1)
+  // interrupt is enabled on PCIe devices only
+  if (q->trtype == SPDK_NVME_TRANSPORT_PCIE)
   {
-    msix_entry *msix_table = NULL;
-
-    msix_table = (msix_entry *)(intr_ctrl->msix_info.vir_addr + intr_ctrl->msix_info.bir_offset);
-    msix_table[vector_id].mask = 1;
-  }
-  else if (intr_ctrl->msi_en == 1)
-  {
-    nvme_get_reg32(q->ctrlr, offsetof(struct spdk_nvme_registers, intms), &raw_val);
-    raw_val |= BIT(vector_id);
-    nvme_set_reg32(q->ctrlr, offsetof(struct spdk_nvme_registers, intms), raw_val);
+    vector_id = intc_get_vec(q);
+    if (intr_ctrl->msix_en == 1)
+    {
+      msix_entry *msix_table = NULL;
+      
+      msix_table = (msix_entry *)(intr_ctrl->msix_info.vir_addr + intr_ctrl->msix_info.bir_offset);
+      msix_table[vector_id].mask = 1;
+    }
+    else if (intr_ctrl->msi_en == 1)
+    {
+      nvme_get_reg32(q->ctrlr, offsetof(struct spdk_nvme_registers, intms), &raw_val);
+      raw_val |= BIT(vector_id);
+      nvme_set_reg32(q->ctrlr, offsetof(struct spdk_nvme_registers, intms), raw_val);
+    }
   }
 }
 
@@ -332,17 +352,21 @@ void intc_unmask(struct spdk_nvme_qpair *q)
   uint32_t raw_val;
   msix_entry *msix_table = NULL;
 
-  vector_id = intc_get_vec(q);
-  if (intr_ctrl->msix_en == 1)
+  // interrupt is enabled on PCIe devices only
+  if (q->trtype == SPDK_NVME_TRANSPORT_PCIE)
   {
-    msix_table = (msix_entry *)(intr_ctrl->msix_info.vir_addr + intr_ctrl->msix_info.bir_offset);
-    msix_table[vector_id].mask = 0;
-  }
-  else if (intr_ctrl->msi_en == 1)
-  {
-    raw_val = nvme_get_reg32(q->ctrlr, offsetof(struct spdk_nvme_registers, intmc), &raw_val);
-    raw_val |= BIT(vector_id);
-    nvme_set_reg32(q->ctrlr, offsetof(struct spdk_nvme_registers, intmc), raw_val);
+    vector_id = intc_get_vec(q);
+    if (intr_ctrl->msix_en == 1)
+    {
+      msix_table = (msix_entry *)(intr_ctrl->msix_info.vir_addr + intr_ctrl->msix_info.bir_offset);
+      msix_table[vector_id].mask = 0;
+    }
+    else if (intr_ctrl->msi_en == 1)
+    {
+      raw_val = nvme_get_reg32(q->ctrlr, offsetof(struct spdk_nvme_registers, intmc), &raw_val);
+      raw_val |= BIT(vector_id);
+      nvme_set_reg32(q->ctrlr, offsetof(struct spdk_nvme_registers, intmc), raw_val);
+    }
   }
 }
 
