@@ -702,17 +702,20 @@ int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
       // to check it again later
       return 0;
     }
+    
+    // mask the interrupt
+    intc_mask(ctrlr->adminq);
   }
-
-  // mask the interrupt
-  intc_mask(ctrlr->adminq);
   
   // process all the completions
   rc = spdk_nvme_ctrlr_process_admin_completions(ctrlr);
 
   // clear and un-mask the interrupt
-  intr_ctrl->msg_data[0] = 0;
-  intc_unmask(ctrlr->adminq);
+  if (cmdlog->intr_enabled)
+  {
+    intr_ctrl->msg_data[0] = 0;
+    intc_unmask(ctrlr->adminq);
+  }
 
   return rc;
 }
