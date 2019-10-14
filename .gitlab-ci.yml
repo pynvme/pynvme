@@ -10,7 +10,7 @@ default:
     - ./install.sh
     - make setup
   after_script:
-    - make reset    
+    - make reset
     - make clean
   
 checkin_test:
