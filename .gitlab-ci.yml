@@ -17,9 +17,9 @@ checkin_test:
   only:
     - pushes
   script:
+    - cd ./spdk/app/nvmf_tgt; make; cd ../../../
     - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob[1] --pciaddr=01:00.0
-    - make nvmt
-    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=127.0.0.1
+    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=10.24.48.17
 
 stress_test:
   only:
