@@ -18,7 +18,8 @@ checkin_test:
     - pushes
   script:
     - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob[1] --pciaddr=01:00.0
-    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=10.24.48.17
+    - make nvmt
+    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=127.0.0.1
 
 stress_test:
   only:
