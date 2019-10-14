@@ -319,7 +319,7 @@ void intc_unmask(struct spdk_nvme_qpair *q)
   uint32_t vector_id;
   uint32_t raw_val;
   msix_entry *msix_table = NULL;
-;
+
   vector_id = intc_get_vec(q);
   if (intr_ctrl->msix_en == 1)
   {
@@ -338,16 +338,13 @@ uint32_t intc_get_cmd_vec_info(struct spdk_nvme_qpair *q)
 {
   struct spdk_nvme_ctrlr* ctrlr = q->ctrlr;
   intr_ctrl_t* intr_ctrl = ctrlr->pynvme_intc_ctrl;
-  uint16_t vector_id;
-  uint32_t vec_config = 0;
+  uint16_t vector_id = 0;
 
-  vector_id = intc_get_vec(q);
-  if (intr_ctrl->msi_en 
-      || intr_ctrl->msix_en)
+  if (intr_ctrl->msi_en || intr_ctrl->msix_en)
   {
-    SPDK_INFOLOG(SPDK_LOG_NVME, "%s, vector id%d\n", __FUNCTION__, vector_id);
-    vec_config = (0x3 | (vector_id << 16));
+    vector_id = intc_get_vec(q);
+    SPDK_INFOLOG(SPDK_LOG_NVME, "vector id%d\n", vector_id);
   }
 
-  return vec_config;
+  return vector_id;
 }

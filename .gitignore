@@ -7,13 +7,12 @@ __pycache__/
 webpages/*.pyc
 webpages/public
 webpages/content/pages
-*.so
 driver
-driver.d
-driver.o
 build
 driver_wrap.c
 *.so
+*.o
+*.d
 .coverage*
 __pycache__
 cov_report
