@@ -53,7 +53,7 @@ Our official repository is at: https://github.com/cranechu/pynvme. We built pynv
 - SPDK: https://github.com/cranechu/spdk
 - DPDK: https://github.com/cranechu/dpdk
 
-The pynvme modified code is in the branch of pynvme_1.x. We will regularly (e.g. every 6 months) rebase pynvme modifications to latest stable SPDK/DPDK release. 
+The pynvme modified code is in the branch of pynvme_1.x. We will regularly (e.g. every 6 months) rebase pynvme modifications to latest SPDK/DPDK stable release. 
 
 CI
 --
@@ -69,6 +69,8 @@ We defined 3 different tests for pynvme in GitLab's CI:
       make test TESTS="scripts/performance"
 
 We can find CI test status, logs and reports here: https://gitlab.com/cranechu/pynvme/pipelines.
+
+The CI runner is setup on Fedora 30 Server. 
 
 
 Debug
