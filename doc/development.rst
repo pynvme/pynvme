@@ -59,13 +59,14 @@ CI
 --
 
 We defined 3 different tests for pynvme in GitLab's CI:
+
 #. checkin test: it is executed automatically when any new commit pushed onto master or any other branches. It should be finished in 3 minutes.
 #. stress test: it is executed automatically in every weekend. Furthermore, before we merge any code onto master, we should also start and pass this stress test. We can start it here: https://gitlab.com/cranechu/pynvme/pipeline_schedules. It should be finished in 3 hours. 
 #. manual test: we can start any test scripts via web: https://gitlab.com/cranechu/pynvme/pipelines/new. For example, when we need to run performance tests, we can set variable key to "SCRIPT_PATH", and set its varaiable value to "scripts/performance". Then, CI starts the tests as below:
    
-.. code-block:: shell
+   .. code-block:: shell
    
-   make test TESTS="scripts/performance"
+      make test TESTS="scripts/performance"
 
 We can find CI test status, logs and reports here: https://gitlab.com/cranechu/pynvme/pipelines.
 
