@@ -192,6 +192,9 @@ void intc_init(struct spdk_nvme_ctrlr *ctrlr)
 {
   bool ret = true;
 
+  // interrupt is enabled on PCIe devices only
+  assert(ctrlr->trid.trtype == SPDK_NVME_TRANSPORT_PCIE);  
+  
   //search msix first, if the operation fail, will switch to msi intr
   if (!msix_intc_init(ctrlr, &ctrlr->pynvme_intc_ctrl))
   {
@@ -231,7 +234,7 @@ void intc_fini(struct spdk_nvme_ctrlr *ctrlr)
   intr_ctrl_t *intr_ctrl = ctrlr->pynvme_intc_ctrl;
 
   // interrupt is enabled on PCIe devices only
-  assert(q->trtype == SPDK_NVME_TRANSPORT_PCIE);
+  assert(ctrlr->trid.trtype == SPDK_NVME_TRANSPORT_PCIE);  
   assert(intr_ctrl != NULL);
   
   if (intr_ctrl->msix_en == 1)
