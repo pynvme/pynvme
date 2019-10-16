@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=NH6LmLSzjAs" target="_blank"><img align="right" src="https://github.com/cranechu/pynvme/raw/master/doc/logo.jpg" title="watch introduction video" alt="pynvme: test NVMe devices in Python" width="240" border="0" /></a>
+<img align="right" src="https://github.com/cranechu/pynvme/raw/master/doc/logo.jpg" width="240" border="0" />
 
 The pynvme is a python extension module. Users can test NVMe devices intuitively in Python scripts. It is designed for NVMe storage developers with performance considered. Integrated with third-party tools (e.g. vscode and pytest), pynvme provides a convenient and professional solution of NVMe testing.
 
@@ -13,14 +13,14 @@ The pynvme is a python extension module. Users can test NVMe devices intuitively
 1. access PCI configuration space
 2. access NVMe registers in BAR space
 3. send any NVMe admin/IO commands
-4. callback functions are supported
-5. MSIx interrupt is supported
-6. transparent checksum verification for each LBA
-7. IOWorker generates high-performance IO
-8. integrated with pytest
-9. integrated with VSCode
-10. test multiple controllers, namespaces and qpairs simultaneously
-11. test NVMe over TCP targets
+4. support callback functions for NVMe commands
+5. support MSI/MSIx interrupt
+6. transparent checksum verification on every LBA data
+7. IOWorker generates IO workload of high performance, low latency and high consistency
+8. support multiple controllers and namespaces
+9. integrate with pytest
+10. integrate with VSCode
+11. support NVMe over TCP targets
 
 ## Links:
 * GitHub: https://github.com/cranechu/pynvme
