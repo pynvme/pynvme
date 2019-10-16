@@ -1,11 +1,11 @@
-# pynvme: test NVMe devices in Python.
+# pynvme: test NVMe devices in Python
 
 [![Status](https://img.shields.io/gitlab/pipeline/cranechu/pynvme.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 [![Document](https://readthedocs.org/projects/pynvme/badge/?version=latest)](https://pynvme.readthedocs.io)
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
 
-<img align="right" src="https://github.com/cranechu/pynvme/raw/master/doc/logo.jpg" width="240" border="0" />
+<a href="#"><img src="https://github.com/cranechu/pynvme/raw/master/doc/logo.jpg" width="360" /></a>
 
 The pynvme is a python extension module. Users can test NVMe devices intuitively in Python scripts. It is designed for NVMe storage developers with performance considered. Integrated with third-party tools (e.g. vscode and pytest), pynvme provides a convenient and professional solution of NVMe testing.
 
