@@ -677,20 +677,7 @@ cdef class Controller(object):
             Test scripts should delete all io qpairs before reset!
         """
         
-        # clear cc.shn, and reset cc.en
-        logging.debug("cc.en 1=>0")
-        cc = self[0x14] & (~0xc000)
-        self[0x14] = cc & 0xfffffffe
-        while (self[0x1c] & 1) == 1:
-            logging.debug("wait csts.rdy, 0x%x" % self[0x1c])
-
-        logging.debug("cc.en 0=>1")
-        cc = self[0x14]
-        self[0x14] = cc | 1
-        while (self[0x1c] & 1) == 0:
-            logging.debug("wait csts.rdy, 0x%x" % self[0x1c])
-
-        # reset driver
+        # reset controller
         self._reinit()
 
     def cmdname(self, opcode):
