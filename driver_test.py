@@ -239,15 +239,6 @@ def test_get_identify(nvme0, nvme0n1):
         nvme0.identify(id_buf, 0xffffff, 0).waitdone()
 
 
-def test_get_identify_more(nvme0, nvme0n1):        
-    logging.info("common namespace data")
-    id_buf = d.Buffer(4096, 'identify buffer')
-    assert id_buf[0] == 0
-    nvme0.identify(id_buf, 0xffffffff, 0)
-    nvme0.waitdone()
-    assert id_buf[0] != 0
-
-        
 def test_get_pcie_config_class_code(nvme0):
     p = d.Pcie(nvme0)
     assert p[9:12] == [2, 8, 1]
@@ -2117,7 +2108,7 @@ def test_write_4k_lba(nvme0, nvme0n1, lba_size, repeat):
         nvme0n1.compare(q, zb, lba_start).waitdone()
 
     assert buf[0] == lba_start
-    print(buf.dump())
+    #print(buf.dump())
 
 
 @pytest.mark.parametrize("start", [8, 16])
