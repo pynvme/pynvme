@@ -95,6 +95,7 @@ info:
 setup: reset
 	-xhost +local:		# enable GUI with root/sudo
 	-sudo chmod 777 /tmp
+	sed -i 's/BB:DD.F/${pciaddr}/g' .vscode/settings.json
 	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh  	# use UIO only
 
 cython_lib:
