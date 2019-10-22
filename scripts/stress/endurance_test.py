@@ -13,11 +13,11 @@ def do_enterprise_endurance_workload(nvme0n1, iops_scale=100, tsc=10):
     bandwidth = 0
     distribution = [1000]*5 + [200]*15 + [25]*80
     iops_distribution = {1: 4,
-                         #2: 1,
-                         #3: 1,
+                         2: 1,
+                         3: 1,
                          4: 5,
-                         #5: 1,
-                         #6: 1,
+                         5: 1,
+                         6: 1,
                          7: 1,
                          8: 67,
                          16: 10,
@@ -45,7 +45,7 @@ def do_enterprise_endurance_workload(nvme0n1, iops_scale=100, tsc=10):
         r = a.close()
         logging.debug(r.io_count_read+r.io_count_write)
         bandwidth += (r.io_count_read+r.io_count_write)*lba_size
-    return bandwidth*512/1000/1000/tsc
+    return bandwidth*512/tsc
 
 
 def do_fill_drive(rand, nvme0n1, region_end):
