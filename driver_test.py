@@ -1276,6 +1276,27 @@ def test_ioworker_simplified(nvme0n1):
                      read_percentage=0, time=2).start().close()
 
     
+def test_ioworker_distribution(nvme0n1):
+    distribution = [0]*100
+    distribution[1] = 10000
+    nvme0n1.ioworker(io_size=8, lba_align=8,
+                     lba_random=True, qdepth=16,
+                     distribution = distribution, 
+                     read_percentage=0, time=2).start().close()
+    
+    distribution = [100]*100
+    r = nvme0n1.ioworker(io_size=8, lba_align=8,
+                         lba_random=True, qdepth=64,
+                         distribution = distribution, 
+                         read_percentage=100, time=10).start().close()
+    logging.info(r)
+
+    r = nvme0n1.ioworker(io_size=8, lba_align=8,
+                         lba_random=True, qdepth=64,
+                         read_percentage=100, time=10).start().close()
+    logging.info(r)
+    
+    
 def test_ioworker_simplified_context(nvme0n1):
     with nvme0n1.ioworker(io_size=8, lba_align=16,
                           lba_random=True, qdepth=16,
@@ -1762,6 +1783,35 @@ def test_ioworkers_read_and_write_conflict(nvme0n1, nvme0, verify):
             pass
 
 
+def test_ioworker_distribution_read_write_confliction(nvme0n1, verify):
+    assert verify
+    
+    distribution = [0]*100
+    distribution[1] = 10000
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+        with nvme0n1.ioworker(io_size=8, lba_align=8,
+                              lba_random=True, qdepth=64,
+                              distribution = distribution, 
+                              read_percentage=0, time=60), \
+             nvme0n1.ioworker(io_size=8, lba_align=8,
+                              lba_random=True, qdepth=64,
+                              distribution = distribution, 
+                              read_percentage=100, time=60):
+            pass
+
+    distribution2 = [0]*100
+    distribution2[2] = 10000
+    with nvme0n1.ioworker(io_size=8, lba_align=8,
+                          lba_random=True, qdepth=64,
+                          distribution = distribution, 
+                          read_percentage=0, time=60), \
+         nvme0n1.ioworker(io_size=8, lba_align=8,
+                          lba_random=True, qdepth=64,
+                          distribution = distribution2, 
+                          read_percentage=100, time=60):
+        pass
+
+        
 def test_ioworkers_read_and_write(nvme0n1, nvme0):
     # """read write confliction will cause data mismatch.
     #

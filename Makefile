@@ -101,7 +101,7 @@ cython_lib:
 	@python3 setup.py build_ext -i --force
 
 tags:
-	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=ioat --exclude=bdev --exclude=snippets --exclude=env
+	ctags -e --c-kinds=+l -R --exclude=.git --exclude=test --exclude=ioat --exclude=snippets --exclude=env
 
 pytest: info
 	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -x -v -r Efsx

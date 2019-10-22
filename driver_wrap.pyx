@@ -1407,7 +1407,7 @@ cdef class Namespace(object):
                  read_percentage, time=0, qdepth=64,
                  region_start=0, region_end=0xffff_ffff_ffff_ffff,
                  iops=0, io_count=0, lba_start=0, qprio=0,
-                 pvalue=0, ptype=0, 
+                 distribution=None, pvalue=0, ptype=0, 
                  output_io_per_second=None,
                  output_percentile_latency=None):
         """workers sending different read/write IO on different CPU cores.
@@ -1435,6 +1435,7 @@ cdef class Namespace(object):
             io_count (long): specified maximum IO counts to send. Default: 0, means no limit
             lba_start (long): the LBA address of the first command. Default: 0, means start from region_start
             qprio (int): SQ priority. Default: 0, as Round Robin arbitration
+            distribution (list(int)): distribute 10,000 IO to 100 sections. Default: None
             pvalue (int): data pattern value. Refer to data pattern in class `Buffer`. Default: 0
             ptype (int): data pattern type. Refer to data pattern in class `Buffer`. Default: 0
             output_io_per_second (list): list to hold the output data of io_per_second. Default: None, not to collect the data
@@ -1456,7 +1457,7 @@ cdef class Namespace(object):
         return _IOWorker(pciaddr, nsid, lba_start, io_size, lba_align,
                          lba_random, region_start, region_end,
                          read_percentage, iops, io_count, time, qdepth, qprio,
-                         pvalue, ptype, 
+                         distribution, pvalue, ptype, 
                          output_io_per_second, output_percentile_latency)
 
     def read(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
@@ -1741,7 +1742,7 @@ class _IOWorker(object):
     def __init__(self, pciaddr, nsid, lba_start, lba_size, lba_align,
                  lba_random, region_start, region_end,
                  read_percentage, iops, io_count, time, qdepth, qprio,
-                 pvalue, ptype, 
+                 distribution, pvalue, ptype, 
                  output_io_per_second, output_percentile_latency):
         # queue for returning result
         self.q = _mp.Queue()
@@ -1755,7 +1756,7 @@ class _IOWorker(object):
                                      lba_start, lba_size, lba_align, lba_random,
                                      region_start, region_end, read_percentage,
                                      iops, io_count, time, qdepth, qprio,
-                                     pvalue, ptype, 
+                                     distribution, pvalue, ptype, 
                                      output_io_per_second, output_percentile_latency))
         self.output_io_per_second = output_io_per_second
         self.output_percentile_latency = output_percentile_latency
@@ -1849,7 +1850,7 @@ class _IOWorker(object):
     def _ioworker(self, rqueue, locker, pciaddr, nsid, lba_start, lba_size,
                   lba_align, lba_random, region_start, region_end,
                   read_percentage, iops, io_count, seconds, qdepth, qprio,
-                  pvalue, ptype, 
+                  distribution, pvalue, ptype, 
                   output_io_per_second, output_percentile_latency):
         cdef d.ioworker_args args
         cdef d.ioworker_rets rets
@@ -1869,6 +1870,17 @@ class _IOWorker(object):
             memset(&rets, 0, sizeof(rets))
             assert lba_size < 0x10000, "io_size is a 16bit-field in commands"
 
+            # check distribution
+            if distribution is not None:
+                assert region_start == 0, "distribution has to be on the full region"
+                assert region_end == 0xffff_ffff_ffff_ffff, "distribution has to be on the full region"
+                assert len(distribution) == 100, "distribution on 100 equal sections"
+                assert sum(distribution) == 10000, "distribute 10000 IO on 100 sections"
+                assert lba_random == True, "distribution has to be random IO"
+                args.distribution = <unsigned int*>PyMem_Malloc(100*sizeof(unsigned int))
+                for i in range(100):
+                    args.distribution[i] = distribution[i]
+                
             if seconds == 0:
                 # collect upto 24hr IOPS data
                 seconds = 24*3600
@@ -1959,6 +1971,9 @@ class _IOWorker(object):
 
             if args.io_counter_per_latency:
                 PyMem_Free(args.io_counter_per_latency)
+
+            if distribution:
+                PyMem_Free(args.distribution)
 
             import gc; gc.collect()
 

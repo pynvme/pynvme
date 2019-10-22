@@ -64,6 +64,7 @@ typedef struct ioworker_args
   unsigned int ptype;
   unsigned int* io_counter_per_second;
   unsigned int* io_counter_per_latency;
+  unsigned int* distribution;
 } ioworker_args;
 
 typedef struct ioworker_rets

@@ -58,6 +58,7 @@ cdef extern from "driver.h":
         unsigned int ptype
         unsigned int* io_counter_per_second
         unsigned int* io_counter_per_latency
+        unsigned int* distribution
     ctypedef struct ioworker_rets:
         unsigned long io_count_read
         unsigned long io_count_write

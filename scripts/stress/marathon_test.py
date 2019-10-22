@@ -1,7 +1,9 @@
-import time
 import pytest
-import logging
 import nvme as d
+
+import time
+import logging
+
 
 def test_write_and_read_to_eol(nvme0, subsystem, nvme0n1: d.Namespace, verify):
     assert verify

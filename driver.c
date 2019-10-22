@@ -1046,6 +1046,11 @@ struct ioworker_io_ctx {
 	STAILQ_ENTRY(ioworker_io_ctx) next;
 };
 
+struct ioworker_distribution_lookup {
+  uint64_t lba_start;
+  uint64_t lba_end;
+};
+
 struct ioworker_global_ctx {
   struct ioworker_args* args;
   struct ioworker_rets* rets;
@@ -1062,6 +1067,10 @@ struct ioworker_global_ctx {
   uint32_t last_sec;
   bool flag_finish;
 
+  // distribution loopup table
+  bool distribution;
+  struct ioworker_distribution_lookup dl_table[10000];
+  
   // pending io list
 	STAILQ_HEAD(, ioworker_io_ctx)	pending_io_list;
 };
@@ -1232,13 +1241,15 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
   }
 }
 
-static inline bool ioworker_send_one_is_read(unsigned short read_percentage)
+static inline bool
+ioworker_send_one_is_read(unsigned short read_percentage)
 {
   return random()%100 < read_percentage;
 }
 
-static uint64_t ioworker_send_one_lba_sequential(struct ioworker_args* args,
-                                                 struct ioworker_global_ctx* gctx)
+static inline uint64_t
+ioworker_send_one_lba_sequential(struct ioworker_args* args,
+                                 struct ioworker_global_ctx* gctx)
 {
   uint64_t ret;
 
@@ -1254,13 +1265,33 @@ static uint64_t ioworker_send_one_lba_sequential(struct ioworker_args* args,
   return ret;
 }
 
-static inline uint64_t ioworker_send_one_lba_random(struct ioworker_args* args)
+static inline uint64_t
+ioworker_send_one_lba_random(struct ioworker_args* args, 
+                             struct ioworker_global_ctx* gctx)
 {
-  return (random()%(args->region_end-args->region_start)) + args->region_start;
+  uint64_t start;
+  uint64_t end;
+
+  // for distributed IO, pick up a random section first
+  if (gctx->distribution)
+  {
+    uint32_t index = random()%10000;
+    start = gctx->dl_table[index].lba_start;
+    end = gctx->dl_table[index].lba_end;
+  }
+  else
+  {
+    start = args->region_start;
+    end = args->region_end;
+  }
+
+  // pick up a random lba in the section
+  return (random()%(end-start)) + start;
 }
 
-static uint64_t ioworker_send_one_lba(struct ioworker_args* args,
-                                      struct ioworker_global_ctx* gctx)
+static inline uint64_t
+ioworker_send_one_lba(struct ioworker_args* args,
+                      struct ioworker_global_ctx* gctx)
 {
   uint64_t ret;
 
@@ -1271,11 +1302,12 @@ static uint64_t ioworker_send_one_lba(struct ioworker_args* args,
   }
   else
   {
-    ret = ioworker_send_one_lba_random(args);
+    ret = ioworker_send_one_lba_random(args, gctx);
   }
 
   return ALIGN_UP(ret, args->lba_align);
 }
+
 
 static int ioworker_send_one(struct spdk_nvme_ns* ns,
                              struct spdk_nvme_qpair *qpair,
@@ -1312,6 +1344,38 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   _gettimeofday(&ctx->time_sent);
   return 0;
 }
+
+
+static void iowoker_distrubution_init(struct spdk_nvme_ns* ns,
+                                      struct ioworker_global_ctx* ctx,
+                                      uint32_t* distribution)
+{
+  uint32_t lookup_index = 0;
+  uint64_t lba_max = spdk_nvme_ns_get_num_sectors(ns);
+  uint64_t lba_section = lba_max/100;
+  uint64_t section_start;
+  uint64_t section_end;
+  
+  for (uint32_t i=0; i<100; i++)
+  {
+    section_start = lba_section*i;
+    section_end = section_start+lba_section;
+    if (i == 99)
+    {
+      section_end = lba_max;
+    }
+
+    // fill lookup table
+    for (uint32_t j=0; j<distribution[i]; j++)
+    {
+      ctx->dl_table[lookup_index].lba_start = section_start;
+      ctx->dl_table[lookup_index].lba_end = section_end;
+      lookup_index ++;
+    }
+  }
+
+  assert(lookup_index == 10000);
+}  
 
 
 int ioworker_entry(struct spdk_nvme_ns* ns,
@@ -1419,6 +1483,13 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   gctx.io_count_till_last_sec = 0;
   gctx.last_sec = 0;
 
+  // calculate distribution lookup table
+  if (args->distribution)
+  {
+    gctx.distribution = true;
+    iowoker_distrubution_init(ns, &gctx, args->distribution);
+  }
+  
   // sending the first batch of IOs, all remaining IOs are sending
   // in callbacks till end
   STAILQ_INIT(&gctx.pending_io_list);
