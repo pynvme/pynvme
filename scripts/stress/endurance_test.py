@@ -15,7 +15,7 @@ def do_enterprise_endurance_workload(nvme0n1, iops_scale=100, tsc=10):
     iops_distribution = {1: 4,
                          2: 1,
                          3: 1,
-                         4: 5,
+                         4: 1,
                          5: 1,
                          6: 1,
                          7: 1,
