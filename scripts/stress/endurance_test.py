@@ -7,6 +7,7 @@ import logging
 
 rand = True
 seq = False
+TEST_LOOPS = 10  # 1000
 
 
 def do_enterprise_endurance_workload(nvme0n1, iops_scale=100, tsc=10):
@@ -88,7 +89,7 @@ def test_jesd219a_enterprise_endurance_workload(nvme0n1):
     assert max_scale != 0
     tsc = 3600
     tbw_total = 0
-    for i in range(1, 1000):
+    for i in range(1, TEST_LOOPS):
         bw = do_enterprise_endurance_workload(nvme0n1, max_scale, 3600)
         tbw = bw*3600
         tbw_total += tbw

@@ -5,6 +5,9 @@ import time
 import logging
 
 
+TEST_LOOPS = 3  # 3000
+
+
 def test_write_and_read_to_eol(nvme0, subsystem, nvme0n1: d.Namespace, verify):
     assert verify
     
@@ -13,7 +16,7 @@ def test_write_and_read_to_eol(nvme0, subsystem, nvme0n1: d.Namespace, verify):
     lba_count = nvme0n1.id_data(7, 0)
 
     # test for PE cycles
-    for i in range(3000):
+    for i in range(TEST_LOOPS):
         logging.info(f"loop {i} start")
 
         # write 1 pass of whole drive
