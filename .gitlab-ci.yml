@@ -33,7 +33,7 @@ stress_test:
     - make test
     - cat test.log | grep "459 passed" || exit -1
 
-manual_test:
+scripts_test:
   only:
     - web
   artifacts:
@@ -43,4 +43,4 @@ manual_test:
     when: always
     expire_in: 5 yrs
   script:
-    - make test TESTS=$SCRIPT_PATH
+    - make test TESTS=scripts/$SCRIPT_PATH

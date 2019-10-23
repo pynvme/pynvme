@@ -392,7 +392,22 @@ The IOWorker result data includes these information:
      - int
      - error code of the IOWorker
 
-We can start as many ioworkers as the Qpairs the NVMe device supports at the same time.
+To get more result of the ioworkers, we should provide arguments output_io_per_second and/or output_percentile_latency. When an empty list is provided to output_io_per_second, ioworker will fill the io count of every seconds during the whole test. When a dict, whose keys are a serie of percentiles, is provided to output_percentile_latency, ioworker will fill the latency of these percentiles as the values of the dict. With these detail output data, we can test IOPS consistency, latency QoS, and etc. Here is an example: 
+
+.. code-block:: python
+
+   def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
+       output_io_per_second = []
+       output_percentile_latency = dict.fromkeys([10, 50, 90, 99, 99.9, 99.99, 99.999, 99.99999])
+       r = nvme0n1.ioworker(io_size=8, lba_align=8,
+                            lba_random=False, qdepth=32,
+                            read_percentage=0, time=10,
+                            output_io_per_second=output_io_per_second,
+                            output_percentile_latency=output_percentile_latency).start().close()
+       assert len(output_io_per_second) == 10
+       assert output_percentile_latency[99.999] < output_percentile_latency[99.99999]
+
+We can simultaneously start as many ioworkers as the IO Qpairs NVMe device provides.
 
 .. code-block:: python
 
@@ -485,8 +500,7 @@ The performance of `IOWorker` is super high and super consistent. We can use it 
 
        logging.info("Q %d IOPS: %dK" % (qcount, io_total/10000))
 
-Furthermore, we can also test IOPS consistency, latency QoS and distribution with IOWorkers. We can also specify different data pattern in the IOWorker.
-
+       
 IOWorker can accurately control the IO speed by the parameter `iops`. Here is an example test script: 
 
 .. code-block:: python
@@ -507,7 +521,7 @@ IOWorker can accurately control the IO speed by the parameter `iops`. Here is an
 
 The result of the IOWorker shows that it takes 7 seconds, and it sends 1234 IOs in each second. In this way, we can measure the latency against different IOPS pressure.
 
-We can create an ioworker upto 24 hours.
+We can create an ioworker upto 24 hours. We can also specify different data pattern in the IOWorker with arguments pvalue and ptype, which are the same definition as that in class Buffer.
 
 
 Data Verify

@@ -1339,7 +1339,7 @@ def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
     assert len(output_io_per_second) == 10
     logging.info(output_percentile_latency)
     logging.info(r)
-    output_percentile_latency[99.999] > output_percentile_latency[99.99999]
+    assert output_percentile_latency[99.999] > output_percentile_latency[99.99999]
 
 
 def test_ioworker_output_io_per_second(nvme0n1, nvme0):
