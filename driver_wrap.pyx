@@ -145,12 +145,12 @@ cdef class Buffer(object):
 
     # data patterns
 ```markdown
-        |ptype    | pvalue                                     |
-        |---------|--------------------------------------------|
-        |0        | 0 for all-zero data, 1 for all-one data    |
-        |32       | 32-bit value of the repeated data pattern  |
-        |0xbeef   | random data compression percentage rate    |
-        |others   | not supported                              |
+        |ptype    | pvalue                                                     |
+        |---------|------------------------------------------------------------|
+        |0        | 0 for all-zero data, 1 for all-one data                    |
+        |32       | 32-bit value of the repeated data pattern                  |
+        |0xbeef   | random data compressed rate (0: all 0; 100: fully random)  |
+        |others   | not supported                                              |
 ```
 
     # Examples

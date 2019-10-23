@@ -36,6 +36,7 @@ def do_enterprise_endurance_workload(nvme0n1, iops_scale=100, tsc=10):
                              iops=iops, 
                              distribution = distribution,
                              read_percentage=0,
+                             ptype=0xbeef, pvalue=100, 
                              time=tsc).start()
         iops_distribution[lba_size] = a
 
