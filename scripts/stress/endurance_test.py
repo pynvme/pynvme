@@ -75,7 +75,7 @@ def test_precondition(nvme0n1):
     
 def test_jesd219a_enterprise_endurance_workload(nvme0n1):
     # find the largest iops scale to the test
-    max_scale = 0
+    max_scale = 1000
     base = do_enterprise_endurance_workload(nvme0n1, 50)
     for i in range(2, 20):
         scale = i*50
