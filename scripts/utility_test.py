@@ -99,3 +99,10 @@ def test_get_dell_smart_attributes(nvme0):
     sg.Window("Dell SMART Attributes",
               layout+[[sg.OK()]],
               font=('monospace', 16)).Read()
+
+
+def test_get_log_page(nvme0):
+    lbuf = d.Buffer(512, nvme0.id_data(63, 24, str))
+    lid = sg.PopupGetText("Which Log ID to read?", "pynvme")
+    nvme0.getlogpage(int(lid), lbuf).waitdone()
+    sg_show_hex_buffer(lbuf)
