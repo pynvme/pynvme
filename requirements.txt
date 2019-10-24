@@ -7,4 +7,4 @@ pytest-cov
 pytemperature
 pydoc-markdown
 PySimpleGUI
-oenpyxl
+openpyxl
