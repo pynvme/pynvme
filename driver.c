@@ -562,7 +562,7 @@ static struct spdk_nvme_ctrlr* nvme_probe(char* traddr, unsigned int port)
     // ip address: fixed port to 4420
     trid.trtype = SPDK_NVME_TRANSPORT_TCP;
     trid.adrfam = SPDK_NVMF_ADRFAM_IPV4;
-    strncpy(trid.traddr, traddr, strlen(traddr)+1);
+    strncpy(trid.traddr, traddr, SPDK_NVMF_TRADDR_MAX_LEN);
     snprintf(trid.trsvcid, sizeof(trid.trsvcid), "%d", port);
     snprintf(trid.subnqn, sizeof(trid.subnqn), "%s", SPDK_NVMF_DISCOVERY_NQN);
   }
@@ -570,7 +570,7 @@ static struct spdk_nvme_ctrlr* nvme_probe(char* traddr, unsigned int port)
   {
     // pcie address: contains ':' characters
     trid.trtype = SPDK_NVME_TRANSPORT_PCIE;
-    strncpy(trid.traddr, traddr, strlen(traddr)+1);
+    strncpy(trid.traddr, traddr, SPDK_NVMF_TRADDR_MAX_LEN);
   }
 
   cb_ctx.trid = &trid;
@@ -1515,13 +1515,14 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
          gctx.flag_finish != true ||
          head_io != NULL)
   {
-    struct timeval now; _gettimeofday(&now);
+    struct timeval now;
 
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "sent %ld cplt %ld, finish %d, head %p\n",
                   gctx.io_count_sent, gctx.io_count_cplt,
                   gctx.flag_finish, head_io);
     
     // check time and send all pending io
+    _gettimeofday(&now);
     while (head_io && timercmp(&now, &head_io->time_sent, >))
     {
       ioworker_send_one(ns, qpair, head_io, &gctx);
