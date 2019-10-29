@@ -141,7 +141,7 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
     int fd = open("/dev/urandom", O_RDONLY);
     
     assert(pvalue <= 100);  // here needs a percentage <= 100
-    SPDK_INFOLOG(SPDK_LOG_NVME, "percentage: %d\n", pvalue);
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "percentage: %d\n", pvalue);
     count = (size_t)(bytes*pvalue/100);
     count = MIN(count, bytes);
     read(fd, buf, count);
