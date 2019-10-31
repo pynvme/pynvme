@@ -1826,6 +1826,10 @@ static void rpc_list_qpair_content(struct spdk_json_write_ctx *w,
                                    struct spdk_nvme_qpair* q)
 {
   uint32_t os = nvme_transport_qpair_outstanding_count(q);
+  int8_t mn[SPDK_NVME_CTRLR_MN_LEN+1];
+
+  strncpy(mn, q->ctrlr->cdata.mn, SPDK_NVME_CTRLR_MN_LEN);
+  mn[SPDK_NVME_CTRLR_MN_LEN] = '\0';
 
   spdk_json_write_object_begin(w);
   
@@ -1833,7 +1837,7 @@ static void rpc_list_qpair_content(struct spdk_json_write_ctx *w,
   spdk_json_write_named_uint32(w, "qid", q->id+1);  // 0 means octal
   spdk_json_write_named_uint32(w, "outstanding", MIN(os, 100));
   spdk_json_write_named_uint64(w, "qpair", (uint64_t)q);
-  spdk_json_write_named_string(w, "model", q->ctrlr->cdata.mn);
+  spdk_json_write_named_string(w, "model", mn);
 
   spdk_json_write_object_end(w);
 }
@@ -1857,7 +1861,7 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
   struct ctrlr_entry* e;
   STAILQ_FOREACH(e, &g_controllers, next)
   {
-      // admin qpair
+    // admin qpair
     rpc_list_qpair_content(w, e->ctrlr->adminq);
       
     // io qpairs
