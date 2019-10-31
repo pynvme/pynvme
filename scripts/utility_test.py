@@ -106,3 +106,25 @@ def test_get_log_page(nvme0):
     lbuf = d.Buffer(512, "%s, Log ID: %d" % (nvme0.id_data(63, 24, str), lid))
     nvme0.getlogpage(lid, lbuf).waitdone()
     sg_show_hex_buffer(lbuf)
+
+    
+def test_firmware_slot(nvme0, subsystem):
+    filename = sg.PopupGetFile('select the firmware binary file', 'pynvme')
+    if not filename:
+        pytest.skip("no binary file found")
+
+    def get_fw_slot(): #return: next reset, current
+        buf = d.Buffer(512)
+        nvme0.getlogpage(3, buf).waitdone()
+        return buf[1], buf[0]
+    
+    # download slot 1
+    nvme0.downfw(filename, 1)
+    next_slot, this_slot = get_fw_slot()
+    assert next_slot == 1
+
+    # reset to activate
+    subsystem.power_cycle()
+    next_slot, this_slot = get_fw_slot()
+    assert this_slot == 1
+    assert next_slot == 0
