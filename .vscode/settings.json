@@ -7,7 +7,7 @@
     },
     "python.testing.pytestArgs": [
         //"-s", "--log-cli-level=DEBUG", // uncomment for more debug logging in pytest
-        "--pciaddr=3a:00.0"              // BDF address of the DUT. >>> Backup your data! <<<
+        "--pciaddr=BB:DD.F"              // BDF address of the DUT. >>> Backup your data! <<<
     ],
     "python.pythonPath": "/usr/bin/python3",
     "python.testing.unittestEnabled": false,

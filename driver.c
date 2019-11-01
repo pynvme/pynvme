@@ -54,7 +54,7 @@
 #define MAX_CMD_LOG_QPAIR_COUNT (32)
 #define MAX_CMD_LOG_QPAIR_COUNT_SHIFT (5)
 
-#define US_PER_S              (1000ULL*1000ULL)
+#define US_PER_S              (1000L*1000L)
 
 // the global configuration of the driver
 #define DCFG_VERIFY_READ      (BIT(0))
@@ -65,20 +65,46 @@ static uint64_t* g_driver_io_token_ptr = NULL;
 static uint64_t* g_driver_config_ptr = NULL;
 
 
+////module: timeval
+///////////////////////////////
+
+static struct timespec tv_diff;
+
+
+static void timeval_init(void)
+{
+  struct timespec ts;
+  struct timeval tv;
+  
+  gettimeofday(&tv, NULL);
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+
+  tv_diff.tv_sec = tv.tv_sec-ts.tv_sec-1;
+  tv_diff.tv_nsec = (1<<30)+tv.tv_usec*1000-ts.tv_nsec;
+}
+
+
 static uint32_t timeval_to_us(struct timeval* t)
 {
   return t->tv_sec*US_PER_S + t->tv_usec;
 }
 
 
-static void _gettimeofday(struct timeval *tv)
+static void timeval_gettimeofday(struct timeval *tv)
 {
   struct timespec ts;
 
+  assert(tv != NULL);
+  
   // gettimeofday is affected by NTP and etc, so use clock_gettime
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  tv->tv_sec = ts.tv_sec;
-  tv->tv_usec = ts.tv_nsec>>10; //roughly /1000
+  tv->tv_sec = ts.tv_sec+tv_diff.tv_sec;
+  tv->tv_usec = (ts.tv_nsec+tv_diff.tv_nsec)>>10;
+  if (tv->tv_usec > US_PER_S)
+  {
+    tv->tv_sec += tv->tv_usec/US_PER_S;
+    tv->tv_usec = tv->tv_usec%US_PER_S;
+  }
 }
 
 
@@ -348,7 +374,7 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   }
 
   //reuse dword2 of cpl as latency value
-  _gettimeofday(&now);
+  timeval_gettimeofday(&now);
   memcpy(&log_entry->cpl, cpl, sizeof(struct spdk_nvme_cpl));
   timersub(&now, &log_entry->time_cmd, &diff);
   log_entry->cpl_latency_us = timeval_to_us(&diff);
@@ -420,7 +446,7 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
   log_entry->buf = req->payload.contig_or_cb_arg;
   log_entry->cpl_latency_us = 0;
   memcpy(&log_entry->cmd, &req->cmd, sizeof(struct spdk_nvme_cmd));
-  _gettimeofday(&log_entry->time_cmd);
+  timeval_gettimeofday(&log_entry->time_cmd);
 
   // link req and cmdlog entry
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "save req %p cb arg to entry %p, new %p, old %p\n",
@@ -1103,7 +1129,7 @@ static bool ioworker_send_one_is_finish(struct ioworker_args* args,
   }
 
   assert(c->io_count_sent < args->io_count);
-  _gettimeofday(&now);
+  timeval_gettimeofday(&now);
   if (timercmp(&now, &c->due_time, >))
   {
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "ioworker finish, due time %ld us\n", c->due_time.tv_usec);
@@ -1119,7 +1145,7 @@ static uint32_t ioworker_get_duration(struct timeval* start)
   struct timeval diff;
   uint32_t msec;
 
-  _gettimeofday(&now);
+  timeval_gettimeofday(&now);
   if (timercmp(&now, start, >))
   {
     timersub(&now, start, &diff);
@@ -1187,7 +1213,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
   gctx->io_count_cplt ++;
 
   // update statistics in ret structure
-  _gettimeofday(&now);
+  timeval_gettimeofday(&now);
   assert(rets != NULL);
   latency_us = ioworker_update_rets(ctx, rets, &now);
 
@@ -1341,7 +1367,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   //sent one io cmd successfully
   gctx->sequential_lba += args->lba_size;
   ctx->is_read = is_read;
-  _gettimeofday(&ctx->time_sent);
+  timeval_gettimeofday(&ctx->time_sent);
   return 0;
 }
 
@@ -1474,7 +1500,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   gctx.flag_finish = false;
   gctx.args = args;
   gctx.rets = rets;
-  _gettimeofday(&test_start);
+  timeval_gettimeofday(&test_start);
   timeradd_second(&test_start, args->seconds, &gctx.due_time);
   gctx.io_delay_time.tv_sec = 0;
   gctx.io_delay_time.tv_usec = args->iops ? US_PER_S/args->iops : 0;
@@ -1501,7 +1527,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     io_ctx[i].gctx = &gctx;
 
     // set time to send it right now
-    _gettimeofday(&io_ctx[i].time_sent);
+    timeval_gettimeofday(&io_ctx[i].time_sent);
     STAILQ_INSERT_TAIL(&gctx.pending_io_list, &io_ctx[i], next);
     gctx.io_count_sent ++;
   }
@@ -1522,7 +1548,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
                   gctx.flag_finish, head_io);
     
     // check time and send all pending io
-    _gettimeofday(&now);
+    timeval_gettimeofday(&now);
     while (head_io && timercmp(&now, &head_io->time_sent, >))
     {
       ioworker_send_one(ns, qpair, head_io, &gctx);
@@ -1942,6 +1968,8 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
     index -= 1;
 
     // no timeval, empty slot, not print
+    char tmbuf[128];
+    struct tm* time;
     struct timeval time_cmd = table[index].time_cmd;
     if (timercmp(&time_cmd, &(struct timeval){0}, >))
     {
@@ -1950,9 +1978,8 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
       uint32_t* cmd = (uint32_t*)&table[index].cmd;
 
       //get the string of date/time
-      char tmbuf[128];
-      strftime(tmbuf, sizeof tmbuf, "%Y-%m-%d %H:%M:%S",
-               localtime(&time_cmd.tv_sec));
+      time = localtime(&time_cmd.tv_sec);
+      strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
       
       spdk_json_write_string_fmt(w, "%s.%06ld [cmd%03d: %s]\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
@@ -1974,8 +2001,8 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
         timeradd(&time_cmd, &time_cpl, &time_cpl);
 
         //get the string of cpl date/time
-        strftime(tmbuf, sizeof tmbuf, "%Y-%m-%d %H:%M:%S",
-                 localtime(&time_cpl.tv_sec));
+        time = localtime(&time_cpl.tv_sec);
+        strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
 
         uint32_t* cpl = (uint32_t*)&table[index].cpl;
         const char* sts = nvme_qpair_get_status_string(&table[index].cpl);
@@ -2083,6 +2110,9 @@ int driver_init(void)
   //init random sequence reproducible
   srandom(time(NULL));
 
+  // init timer
+  timeval_init();
+  
   return 0;
 }
 
