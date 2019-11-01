@@ -35,9 +35,7 @@
 
 if [ -s /etc/redhat-release ]; then
     # fedora
-    sudo dnf install -y make redhat-rpm-config python3-devel python3-pip
-    # centos 8
-    sudo dnf install -y numactl-devel libaio-devel libuuid-devel openssl-devel gcc
+    sudo dnf install -y make redhat-rpm-config python3-devel python3-pip python3-tkinter
 elif [ -f /etc/debian_version ]; then
     # ubuntu
     sudo apt install -y python3-setuptools python3-dev python3-pip 
