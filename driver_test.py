@@ -548,7 +548,7 @@ def test_timeout_command_completion(nvme0, nvme0n1):
         
     # 512GB DUT format takes long time
     assert nvme0.timeout == 10000
-    nvme0.timeout=10
+    nvme0.timeout = 10
     with pytest.warns(UserWarning, match="drive timeout:"):
         nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1, cb=format_timeout_cb).waitdone()
     assert nvme0.timeout == 10
@@ -563,32 +563,36 @@ def test_timeout_command_completion(nvme0, nvme0n1):
     nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1, cb=format_non_timeout_cb).waitdone()
     assert nvme0.timeout == 15000
 
+    # set to default value
+    nvme0.timeout = 10000
+    
     
 def test_set_timeout(nvme0, nvme0n1):
     # 512GB DUT format takes long time
     logging.info("format all namespace")
     assert nvme0.timeout == 10000
-    nvme0.timeout=10
+    
+    nvme0.timeout = 10
     with pytest.warns(UserWarning, match="drive timeout:"):
         nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     assert nvme0.timeout == 10
 
     # timeout is set by controller
     nvme1 = d.Controller(tcp_target)
-    nvme1.timeout=10000
+    nvme1.timeout = 10000
     with pytest.warns(UserWarning, match="drive timeout:"):
         nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     assert nvme0.timeout == 10
         
-    nvme0.timeout=15000
+    nvme0.timeout = 15000
     nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     
-    nvme0.timeout=100000
+    nvme0.timeout = 100000
     nvme0.reset()
     assert nvme0.timeout == 100000
 
     # set to default value
-    nvme0.timeout=10000
+    nvme0.timeout = 10000
 
 
 @pytest.mark.parametrize("lbaf", range(2))
