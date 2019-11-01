@@ -9,6 +9,7 @@
         //"-s", "--log-cli-level=DEBUG", // uncomment for more debug logging in pytest
         "--pciaddr=BB:DD.F"              // BDF address of the DUT. >>> Backup your data! <<<
     ],
+    "python.path": "/usr/bin/python3",
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
     "python.testing.pytestEnabled": true,

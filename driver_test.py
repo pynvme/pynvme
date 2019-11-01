@@ -559,9 +559,9 @@ def test_timeout_command_completion(nvme0, nvme0n1):
         assert status1 != 0xffff
         
     # 512GB DUT format takes long time
-    nvme0.timeout = 10000
+    nvme0.timeout = 15000
     nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1, cb=format_non_timeout_cb).waitdone()
-    assert nvme0.timeout == 10000
+    assert nvme0.timeout == 15000
 
     
 def test_set_timeout(nvme0, nvme0n1):
@@ -580,7 +580,7 @@ def test_set_timeout(nvme0, nvme0n1):
         nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     assert nvme0.timeout == 10
         
-    nvme0.timeout=10000
+    nvme0.timeout=15000
     nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1).waitdone()
     
     nvme0.timeout=100000
