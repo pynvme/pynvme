@@ -650,13 +650,19 @@ def test_firmware_commit(nvme0):
         nvme0.fw_commit(7, 2).waitdone()
 
 
-def test_sanitize_basic(nvme0, nvme0n1):
-    buf = d.Buffer(4096)
-
+def test_sanitize_basic(nvme0, nvme0n1, verify, buf):
+    # check if sanitize is supported
     nvme0.identify(buf).waitdone()
     if buf.data(331, 328) == 0:
         pytest.skip("sanitize operation is not supported")
 
+    # write some daat
+    nvme0n1.ioworker(io_size=8, lba_align=8,
+                     region_start=0, region_end=256*1024*8, # 1GB space
+                     lba_random=False, qdepth=16,
+                     read_percentage=0, time=10).start().close()
+
+    # start sanitize, and wait it complete
     logging.info("supported sanitize operation: %d" % buf.data(331, 328))
     nvme0.sanitize().waitdone()
 
@@ -673,8 +679,15 @@ def test_sanitize_basic(nvme0, nvme0n1):
     q = d.Qpair(nvme0, 8)
     nvme0n1.read(q, buf, 11, 1).waitdone()
     assert buf[0] == 0
+    assert buf[511] == 0
 
+    # read after sanitize
+    nvme0n1.ioworker(io_size=8, lba_align=8,
+                     region_start=0, region_end=256*1024*8, # 1GB space
+                     lba_random=False, qdepth=16,
+                     read_percentage=100, time=10).start().close()
 
+    
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
 def test_dst_short(nvme0, nsid):
     nvme0.dst(1, nsid).waitdone()

@@ -139,26 +139,38 @@ Ex5: write drive and monitor temperature
                time.sleep(1)
    
 
-Ex6: two ioworkers on different namespaces
-------------------------------------------
+Ex6: multiple ioworkers on different namespaces and controllers
+---------------------------------------------------------------
 
 .. code-block:: python
 
-   # create first controller and namespace in the fixture
-   def test_two_namespace_ioworkers(nvme0n1, nvme0):
+   def test_multiple_controllers_and_namespaces():
+       # address list of the devices to test
+       addr_list = [b'3a:00.0', b'10.24.48.17']
 
-       # manually create another controller and namespace
-       nvme1 = d.Controller(b'03:00.0')
-       nvme1n1 = d.Namespace(nvme1)
-
-       # start two ioworkers for two different namespaces respectively
-       with nvme0n1.ioworker(io_size=8, lba_align=16,
-                             lba_random=True, qdepth=16,
-                             read_percentage=0, time=100), \
-            nvme1n1.ioworker(io_size=8, lba_align=16,
-                             lba_random=True, qdepth=16,
-                             read_percentage=0, time=100):
-           pass
+       # create the list of controllers and namespaces
+       nvme_list = [d.Controller(a) for a in addr_list]
+       ns_list = [d.Namespace(n) for n in nvme_list]
+   
+       # operations on multiple controllers
+       for nvme in nvme_list:
+           logging.info("device: %s" % nvme.id_data(63, 24, str))
+   
+       # start multiple ioworkers
+       ioworkers = {}
+       for ns in ns_list:
+           a = ns.ioworker(io_size=8, lba_align=8,
+                           region_start=0, region_end=256*1024*8, # 1GB space
+                           lba_random=False, qdepth=16,
+                           read_percentage=100, time=10).start()
+           ioworkers[ns] = a
+   
+       # test results of different namespaces
+       for ns in ioworkers:
+           r = ioworkers[ns].close()
+           io_total = (r.io_count_read+r.io_count_write)
+           logging.info("capacity: %u, IOPS: %.3fK" %
+                        (ns.id_data(7, 0), io_total/10000))
    
 
 Ex7: format and fused operations
