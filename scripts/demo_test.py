@@ -120,7 +120,7 @@ def test_aer_smart_temperature(nvme0, loading, aer):
 
 def test_multiple_controllers_and_namespaces():
     # address list of the devices to test
-    addr_list = [b'3a:00.0', b'10.24.48.17']
+    addr_list = [b'3a:00.0', b'127.0.0.1']
     
     nvme_list = [d.Controller(a) for a in addr_list]
     ns_list = [d.Namespace(n) for n in nvme_list]

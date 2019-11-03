@@ -113,10 +113,12 @@ test:
 	make pytest 2>test.log | tee -a test.log
 
 nvmt: target backend
-	sudo ./spdk/scripts/rpc.py bdev_malloc_create -b Malloc0 256 512
 	sudo ./spdk/scripts/rpc.py nvmf_create_transport -t TCP -p 64
 	sudo ./spdk/scripts/rpc.py nvmf_create_subsystem nqn.2016-06.io.spdk:cnode1 -a -s SPDK_NVME_OVER_TCP
-	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 Malloc0
+	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 lvs/lv1
+	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 lvs/lv2
+	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 lvs/lv3
+	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 lvs/lv4
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_listener nqn.2016-06.io.spdk:cnode1 -t tcp -a 127.0.0.1 -s 4420
 
 target:
@@ -155,10 +157,10 @@ backend:
 
 # lvol: 800GB x4, thin provision
 	sudo ./spdk/scripts/rpc.py bdev_lvol_create_lvstore -c 65536 --clear-method write_zeroes TOP lvs
-	sudo ./spdk/scripts/rpc.py bdev_lvol_create -l lvs -t --clear-method write_zeroes lv0 819200
 	sudo ./spdk/scripts/rpc.py bdev_lvol_create -l lvs -t --clear-method write_zeroes lv1 819200
 	sudo ./spdk/scripts/rpc.py bdev_lvol_create -l lvs -t --clear-method write_zeroes lv2 819200
 	sudo ./spdk/scripts/rpc.py bdev_lvol_create -l lvs -t --clear-method write_zeroes lv3 819200
+	sudo ./spdk/scripts/rpc.py bdev_lvol_create -l lvs -t --clear-method write_zeroes lv4 819200
 
 # backend performance:
   # - read: 1GB/s, 2M IOPS on 512B
