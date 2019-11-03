@@ -58,7 +58,7 @@ all: cython_lib
 .PHONY: all spdk doc
 
 spdk:
-	cd spdk; make clean; ./configure --enable-debug --disable-tests --without-vhost --without-virtio --without-pmdk --without-vpp --without-rbd --without-isal; make; cd ..
+	cd spdk; make clean; ./configure --enable-debug --with-ocf --disable-tests --without-vhost --without-virtio --without-pmdk --without-vpp --without-rbd --without-isal; make; cd ..
 
 doc: cython_lib
 	pydocmd simple nvme++ > api.md
@@ -111,12 +111,59 @@ test:
 	-rm test.log
 	make pytest 2>test.log | tee -a test.log
 
-nvmt:
-	cd ./spdk/app/nvmf_tgt; make
-	sudo ./spdk/app/nvmf_tgt/nvmf_tgt --no-pci -m 0x3 &
-	sleep 5
-	sudo ./spdk/scripts/rpc.py construct_malloc_bdev -b Malloc0 1024 512
-	sudo ./spdk/scripts/rpc.py nvmf_create_transport -t TCP -p 10
-	sudo ./spdk/scripts/rpc.py nvmf_subsystem_create nqn.2016-06.io.spdk:cnode1 -a -s SPDK00000000000001
+nvmt: target backend
+	sudo ./spdk/scripts/rpc.py construct_malloc_bdev -b Malloc0 256 512
+	sudo ./spdk/scripts/rpc.py nvmf_create_transport -t TCP -p 64
+	sudo ./spdk/scripts/rpc.py nvmf_subsystem_create nqn.2016-06.io.spdk:cnode1 -a -s SPDK_NVME_OVER_TCP
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 Malloc0
+	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 lvol0
+	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 lvol1
+	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 lvol2
+	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_ns nqn.2016-06.io.spdk:cnode1 lvol3
 	sudo ./spdk/scripts/rpc.py nvmf_subsystem_add_listener nqn.2016-06.io.spdk:cnode1 -t tcp -a 127.0.0.1 -s 4420
+
+target:
+	cd ./spdk/app/nvmf_tgt; make
+	sudo ./spdk/app/nvmf_tgt/nvmf_tgt --no-pci -m 0xc &
+	sleep 3
+
+backend:
+# 4 sata drive
+	sudo ./spdk/scripts/rpc.py construct_aio_bdev /aio/sda AIO0 512
+	sudo ./spdk/scripts/rpc.py construct_aio_bdev /aio/sdb AIO1 512
+	sudo ./spdk/scripts/rpc.py construct_aio_bdev /aio/sdc AIO2 512
+	sudo ./spdk/scripts/rpc.py construct_aio_bdev /aio/sdd AIO3 512 #128G
+
+# 20 splitted vbdev
+	sudo ./spdk/scripts/rpc.py construct_split_vbdev AIO0 6
+	sudo ./spdk/scripts/rpc.py construct_split_vbdev AIO1 6
+	sudo ./spdk/scripts/rpc.py construct_split_vbdev AIO2 6
+	sudo ./spdk/scripts/rpc.py construct_split_vbdev AIO3 2
+
+# raid: fast drive
+	sudo ./spdk/scripts/rpc.py construct_raid_bdev -n FastDisk -z 64 -r 0 -b "AIO0p0 AIO1p0 AIO2p0 AIO3p0"
+
+# raid: large drive
+	sudo ./spdk/scripts/rpc.py construct_raid_bdev -n LargeDisk -z 64 -r 0 -b "AIO0p1 AIO1p1 AIO2p1 AIO3p1 AIO0p2 AIO1p2 AIO2p2 AIO0p3 AIO1p3 AIO2p3 AIO0p4 AIO1p4 AIO2p4 AIO0p5 AIO1p5 AIO2p5"
+
+# cache: fast on large, write back
+	sudo ./spdk/scripts/rpc.py bdev_ocf_create DISK wb FastDisk LargeDisk
+
+# ram disk
+	sudo ./spdk/scripts/rpc.py construct_malloc_bdev -b RAM 256 512
+
+# cache: ram on drive, write through
+	sudo ./spdk/scripts/rpc.py bdev_ocf_create TOP wt RAM DISK
+
+# lvol: 800GB x4, thin provision
+	rpc.py construct_lvol_store TOP lvs -c 4096 --clear-method write_zeroes
+	rpc.py construct_lvol_bdev lvol0 819200 -l lvs -t -c write_zeroes
+	rpc.py construct_lvol_bdev lvol1 819200 -l lvs -t -c write_zeroes
+	rpc.py construct_lvol_bdev lvol2 819200 -l lvs -t -c write_zeroes
+	rpc.py construct_lvol_bdev lvol3 819200 -l lvs -t -c write_zeroes
+
+# backend performance:
+  # - read: 1GB/s, 2M IOPS on 512B
+  # - write: 1GB/s
+  # - write zeroes: 10M IOPS, need ioworker support
+
