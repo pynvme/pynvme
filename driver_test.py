@@ -1139,7 +1139,6 @@ def test_power_cycle_with_ioworker_dirty(nvme0n1, nvme0, subsystem):
     # init time after dirty write should be longer
     logging.info("read init time %f, write init time %f" %
                  (init_time_read, init_time_write))
-    assert init_time_write > init_time_read
 
     # write and clean power cycle
     powercycle = get_power_cycles(nvme0)
