@@ -221,32 +221,30 @@ static void buffer_fill_data(uint32_t* crc_table,
   }
 }
 
-static int buffer_verify_data(uint32_t* crc_table,
-                              const void* buf,
-                              const unsigned long lba_first,
-                              const uint32_t lba_count,
-                              const uint32_t lba_size)
+static inline int buffer_verify_data(uint32_t* crc_table,
+                                     const void* buf,
+                                     const unsigned long lba_first,
+                                     const uint32_t lba_count,
+                                     const uint32_t lba_size)
 {
-  unsigned long lba = lba_first;
-
-  for (uint32_t i=0; i<lba_count; i++, lba++)
+  // if crc table is not available, bypass verification
+  if (crc_table == NULL)
   {
-    uint64_t* ptr = (uint64_t*)(buf+i*lba_size);
-    uint32_t computed_crc = buffer_calc_csum(ptr, lba_size);
-    uint32_t expected_crc = computed_crc;
+    return 0;
+  }
 
-    // if crc table is not available, just use computed crc as
-    //expected crc, to bypass verification
-    if (crc_table != NULL)
-    {
-      expected_crc = crc_table[lba];
-    }
+  for (uint32_t i=0, uint64_t lba=lba_first; i<lba_count; i++, lba++)
+  {
+    uint32_t expected_crc = crc_table[lba];
 
     if (expected_crc == 0)
     {
-      //no mapping, nothing to verify
+      // no mapping, nothing to verify
       continue;
     }
+    
+    uint64_t* ptr = (uint64_t*)(buf+i*lba_size);
+    uint32_t computed_crc = buffer_calc_csum(ptr, lba_size);
 
     if (expected_crc == 0xffffffff)
     {

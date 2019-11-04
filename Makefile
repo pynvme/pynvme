@@ -161,9 +161,3 @@ backend:
 	sudo ./spdk/scripts/rpc.py bdev_lvol_create -l lvs -t --clear-method write_zeroes lv2 819200
 	sudo ./spdk/scripts/rpc.py bdev_lvol_create -l lvs -t --clear-method write_zeroes lv3 819200
 	sudo ./spdk/scripts/rpc.py bdev_lvol_create -l lvs -t --clear-method write_zeroes lv4 819200
-
-# backend performance:
-  # - read: 1GB/s, 2M IOPS on 512B
-  # - write: 1GB/s
-  # - write zeroes: 10M IOPS, need ioworker support
-
