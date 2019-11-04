@@ -233,7 +233,7 @@ static inline int buffer_verify_data(uint32_t* crc_table,
     return 0;
   }
 
-  for (uint32_t i=0, uint64_t lba=lba_first; i<lba_count; i++, lba++)
+  for (uint64_t i=0, lba=lba_first; i<lba_count; i++, lba++)
   {
     uint32_t expected_crc = crc_table[lba];
 
