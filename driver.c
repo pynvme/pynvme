@@ -1398,7 +1398,9 @@ static void iowoker_distrubution_init(struct spdk_nvme_ns* ns,
     }
   }
 
+  // set last section
   assert(lookup_index == 10000);
+  ctx->dl_table[lookup_index-1].lba_end = ctx->args->region_end;
 }  
 
 
