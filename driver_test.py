@@ -2048,7 +2048,7 @@ def test_ioworker_test_end(nvme0n1):
     nvme0n1.ioworker(io_size=8, lba_align=16,
                      lba_random=True, qdepth=16,
                      read_percentage=0, time=2).start().close()
-    assert time.time()-start_time < 4.0
+    assert time.time()-start_time < 5.0
 
 
 def test_admin_generic_cmd(nvme0):
