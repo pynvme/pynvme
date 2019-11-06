@@ -46,6 +46,7 @@ import os
 import sys
 import time
 import glob
+import math
 import atexit
 import signal
 import struct
@@ -1739,6 +1740,8 @@ class DotDict(dict):
 class _IOWorker(object):
     """A process-worker executing user functions. Use its wrapper function Namespace.ioworker() in scripts. """
 
+    target_start_time = 0
+    
     def __init__(self, pciaddr, nsid, lba_start, lba_size, lba_align,
                  lba_random, region_start, region_end,
                  read_percentage, iops, io_count, time, qdepth, qprio,
@@ -1911,16 +1914,18 @@ class _IOWorker(object):
             args.pvalue = pvalue
             args.ptype = ptype
             
-            # ready
+            # ready: create resources
             with locker:
                 nvme0 = Controller(pciaddr)
                 nvme0n1 = Namespace(nvme0, nsid)
                 qpair = Qpair(nvme0, max(2, qdepth), qprio)
 
-            # set
-            time.sleep(1)
+            # set: all ioworkers created in recent seconds will start at the same time
+            if time.time() > _IOWorker.target_start_time:
+                _IOWorker.target_start_time = math.ceil(time.time())+1
+            time.sleep(_IOWorker.target_start_time-time.time())
             
-            # go
+            # go: start at the same time
             error = d.ioworker_entry(nvme0n1._ns, qpair._qpair, &args, &rets)
 
             # transfer back iops counter per second: c => cython
