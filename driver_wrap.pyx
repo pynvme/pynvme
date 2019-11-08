@@ -1404,8 +1404,8 @@ cdef class Namespace(object):
                meta_size == (format_support&0xffff):
                 return fid
 
-    def ioworker(self, io_size, lba_align, lba_random,
-                 read_percentage, time=0, qdepth=64,
+    def ioworker(self, io_size, lba_align=None, lba_random=True,
+                 read_percentage=100, time=0, qdepth=64,
                  region_start=0, region_end=0xffff_ffff_ffff_ffff,
                  iops=0, io_count=0, lba_start=0, qprio=0,
                  distribution=None, pvalue=0, ptype=0, 
@@ -1424,10 +1424,10 @@ cdef class Namespace(object):
         Each ioworker can run upto 24 hours.
 
         # Parameters
-            io_size (short): IO size, unit is LBA
-            lba_align (short): IO alignment, unit is LBA
-            lba_random (bool): True if sending IO with random starting LBA
-            read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only
+            io_size (short, list, dict): IO size, unit is LBA. It can be a fixed size, or a list of size, or specify ratio in the dict if they are not evenly distributed
+            lba_align (short): IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
+            lba_random (bool): True if sending IO with random starting LBA. Default: True
+            read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100
             time (int): specified maximum time of the IOWorker in seconds, up to 24*3600. Default:0, means no limit
             qdepth (int): queue depth of the Qpair created by the IOWorker, up to 1024. Default: 64
             region_start (long): sending IO in the specified LBA region, start. Default: 0
@@ -1872,6 +1872,7 @@ class _IOWorker(object):
             memset(&args, 0, sizeof(args))
             memset(&rets, 0, sizeof(rets))
             assert lba_size < 0x10000, "io_size is a 16bit-field in commands"
+            assert lba_align < 0x10000, "io_size is a 16bit-field in commands"
 
             # check distribution
             if distribution is not None:
