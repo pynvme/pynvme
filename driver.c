@@ -1374,7 +1374,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   uint16_t lba_count = ioworker_send_one_size(args, gctx, &lba_align);
   uint64_t lba_starting = ioworker_send_one_lba(args, gctx, lba_align);
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba 0x%lx, count %d\n",
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba %lu, count %d\n",
                 ctx, lba_starting, lba_count);
 
   assert(ctx->data_buf != NULL);
@@ -1409,6 +1409,7 @@ static void iowoker_iosize_init(struct ioworker_global_ctx* ctx)
     for (unsigned int j=0; j<ctx->args->lba_size_list_ratio[i]; j++)
     {
       ctx->sl_table[sl_index++] = i;
+      SPDK_DEBUGLOG(SPDK_LOG_NVME, "sl table %d: %d\n", sl_index-1, i);
     }
   }
   assert(sl_index == ctx->args->lba_size_ratio_sum);

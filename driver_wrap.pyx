@@ -1464,10 +1464,13 @@ cdef class Namespace(object):
         assert 0 not in io_size.keys(), "io_size cannot be 0"
 
         # set default alignment if it is specified
-        # align to 4K when io_size if > 4K, or align to io_size
         if not lba_align:
             lba_align = [min(s, 8) for s in io_size.keys()]
-            
+        if isinstance(lba_align, int):
+            lba_align = [lba_align, ]
+        assert isinstance(lba_align, list)
+        assert 0 not in lba_align, "lba_align cannot be 0"
+
         pciaddr = self._bdf
         nsid = self._nsid
         return _IOWorker(pciaddr, nsid, lba_start, io_size, lba_align,
