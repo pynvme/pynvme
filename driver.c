@@ -1329,7 +1329,13 @@ ioworker_send_one_lba(struct ioworker_args* args,
     ret = ioworker_send_one_lba_random(args, gctx);
   }
 
-  return ALIGN_UP(ret, args->lba_align);
+  ret = ALIGN_UP(ret, args->lba_align);
+  if (lba_starting > args->region_end)
+  {
+    SPDK_ERRLOG("lba_starting %d, region_end %d\n",
+                lba_starting, args->region_end);
+  }
+  return ret;
 }
 
 
