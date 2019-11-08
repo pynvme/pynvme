@@ -1466,7 +1466,7 @@ cdef class Namespace(object):
         # set default alignment if it is specified
         # align to 4K when io_size if > 4K, or align to io_size
         if not lba_align:
-            lba_align = [8 if s>8 else s for s in io_size.keys()]
+            lba_align = [min(s, 8) for s in io_size.keys()]
             
         pciaddr = self._bdf
         nsid = self._nsid
