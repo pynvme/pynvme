@@ -21,14 +21,14 @@ Buffer allocates memory in DPDK, so we can get its physical address for DMA. Dat
 
 **data patterns**
 
-.. code-block:: markdown
+.. code-block:: md
 
-       |ptype    | pvalue                                     |
-       |---------|--------------------------------------------|
-       |0        | 0 for all-zero data, 1 for all-one data    |
-       |32       | 32-bit value of the repeated data pattern  |
-       |0xbeef   | random data compression percentage rate    |
-       |others   | not supported                              |
+       |ptype    | pvalue                                                     |
+       |---------|------------------------------------------------------------|
+       |0        | 0 for all-zero data, 1 for all-one data                    |
+       |32       | 32-bit value of the repeated data pattern                  |
+       |0xbeef   | random data compressed rate (0: all 0; 100: fully random)  |
+       |others   | not supported                                              |
 
 **Examples**
 
@@ -857,7 +857,7 @@ ioworker
 
 .. code-block:: python
 
-   Namespace.ioworker(self, io_size, lba_align, lba_random, read_percentage, time, qdepth, region_start, region_end, iops, io_count, lba_start, qprio, pvalue, ptype, output_io_per_second, output_percentile_latency)
+   Namespace.ioworker(self, io_size, lba_align, lba_random, read_percentage, time, qdepth, region_start, region_end, iops, io_count, lba_start, qprio, distribution, pvalue, ptype, output_io_per_second, output_percentile_latency)
 
 workers sending different read/write IO on different CPU cores.
 
@@ -874,10 +874,10 @@ Each ioworker can run upto 24 hours.
 **Parameters**
 
 
-* **io_size (short)**\ : IO size, unit is LBA
-* **lba_align (short)**\ : IO alignment, unit is LBA
-* **lba_random (bool)**\ : True if sending IO with random starting LBA
-* **read_percentage (int)**\ : sending read/write mixed IO, 0 means write only, 100 means read only
+* **io_size (short, range, list, dict)**\ : IO size, unit is LBA. It can be a fixed size, or a range or list of size, or specify ratio in the dict if they are not evenly distributed
+* **lba_align (short)**\ : IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
+* **lba_random (bool)**\ : True if sending IO with random starting LBA. Default: True
+* **read_percentage (int)**\ : sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100
 * **time (int)**\ : specified maximum time of the IOWorker in seconds, up to 24*3600. Default:0, means no limit
 * **qdepth (int)**\ : queue depth of the Qpair created by the IOWorker, up to 1024. Default: 64
 * **region_start (long)**\ : sending IO in the specified LBA region, start. Default: 0
@@ -886,10 +886,11 @@ Each ioworker can run upto 24 hours.
 * **io_count (long)**\ : specified maximum IO counts to send. Default: 0, means no limit
 * **lba_start (long)**\ : the LBA address of the first command. Default: 0, means start from region_start
 * **qprio (int)**\ : SQ priority. Default: 0, as Round Robin arbitration
+* **distribution (list(int))**\ : distribute 10,000 IO to 100 sections. Default: None
 * **pvalue (int)**\ : data pattern value. Refer to data pattern in class ``Buffer``. Default: 0
 * **ptype (int)**\ : data pattern type. Refer to data pattern in class ``Buffer``. Default: 0
 * **output_io_per_second (list)**\ : list to hold the output data of io_per_second. Default: None, not to collect the data
-* **output_percentile_latency (dict)**\ : dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in ms. Default: None, not to collect the data
+* **output_percentile_latency (dict)**\ : dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in micro-second. Default: None, not to collect the data
 
 **Returns**
 

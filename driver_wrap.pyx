@@ -145,7 +145,7 @@ cdef class Buffer(object):
         ptype (int): data pattern type. Default: 0
 
     # data patterns
-```markdown
+```md
         |ptype    | pvalue                                                     |
         |---------|------------------------------------------------------------|
         |0        | 0 for all-zero data, 1 for all-one data                    |
@@ -1424,7 +1424,7 @@ cdef class Namespace(object):
         Each ioworker can run upto 24 hours.
 
         # Parameters
-            io_size (short, list, dict): IO size, unit is LBA. It can be a fixed size, or a list of size, or specify ratio in the dict if they are not evenly distributed
+            io_size (short, range, list, dict): IO size, unit is LBA. It can be a fixed size, or a range or list of size, or specify ratio in the dict if they are not evenly distributed
             lba_align (short): IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
             lba_random (bool): True if sending IO with random starting LBA. Default: True
             read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100

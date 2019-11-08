@@ -472,13 +472,13 @@ However, pynvme does not support power_cycle or reset when IOWorkers are working
 
 .. code-block:: python
 
-def test_power_cycle_dirty(nvme0n1, subsystem):
-    with nvme0n1.ioworker(io_size=256, lba_align=256,
-                          lba_random=False, qdepth=64,
-                          read_percentage=0, time=5):
-        pass
-    subsystem.power_cycle()
-
+   def test_power_cycle_dirty(nvme0n1, subsystem):
+       with nvme0n1.ioworker(io_size=256, lba_align=256,
+                             lba_random=False, qdepth=64,
+                             read_percentage=0, time=5):
+           pass
+       subsystem.power_cycle()
+  
 The performance of `IOWorker` is super high and super consistent. We can use it extensively in performance tests and stress tests. For example, we can get the 4K read IOPS in the following script.
 
 .. code-block:: python
