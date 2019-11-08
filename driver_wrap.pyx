@@ -1450,8 +1450,8 @@ cdef class Namespace(object):
         assert qdepth>=2 and qdepth<=1023, "support qdepth upto 1023"
         assert qdepth <= (self._nvme.cap & 0xffff) + 1, "qdepth is larger than specification"
         assert region_start < region_end, "region end is not included"
-        assert io_count != 0 or time != 0
-        assert time < 24*3600ULL
+        assert io_count != 0 or time != 0, "worker needs a rest :)"
+        assert time < 24*3600ULL, "worker needs a rest :)"
 
         # convert any possible io_size input to dict
         if isinstance(io_size, int):
@@ -1461,6 +1461,7 @@ cdef class Namespace(object):
         if isinstance(io_size, list):
             io_size = {i : 1 for i in io_size}
         assert isinstance(io_size, dict)
+        assert 0 not in io_size.keys(), "io_size cannot be 0"
 
         # set default alignment if it is specified
         # align to 4K when io_size if > 4K, or align to io_size
@@ -1887,7 +1888,11 @@ class _IOWorker(object):
             memset(&rets, 0, sizeof(rets))
 
             # setup lba_size lists
-            args.lba_size_max = max(lba_size)
+            assert isinstance(lba_size, dict)
+            assert isinstance(lba_align, list)
+            assert len(lba_size) == len(lba_align), "size and align not match"
+            args.lba_size_max = max(lba_size.keys())
+            args.lba_align_max = max(lba_align)
             args.lba_size_ratio_sum = sum(lba_size[i] for i in lba_size)
             assert args.lba_size_ratio_sum <= 10000, "please simplify the io_size ratios"
             args.lba_size_list = <unsigned int*>PyMem_Malloc(len(lba_size)*sizeof(unsigned int))
