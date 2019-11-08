@@ -1094,6 +1094,9 @@ struct ioworker_global_ctx {
   // distribution loopup table
   bool distribution;
   struct ioworker_distribution_lookup dl_table[10000];
+
+  // io_size lookup table
+  uint32_t sl_table[10000];
   
   // pending io list
 	STAILQ_HEAD(, ioworker_io_ctx)	pending_io_list;
@@ -1277,8 +1280,8 @@ ioworker_send_one_lba_sequential(struct ioworker_args* args,
 {
   uint64_t ret;
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "gctx lba: 0x%lx, align:%d, end: 0x%lx\n",
-                gctx->sequential_lba, args->lba_align, args->region_end);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "gctx lba: 0x%lx, end: 0x%lx\n",
+                gctx->sequential_lba, args->region_end);
 
   ret = gctx->sequential_lba;
   if (ret > args->region_end)
@@ -1313,9 +1316,29 @@ ioworker_send_one_lba_random(struct ioworker_args* args,
   return (random()%(end-start)) + start;
 }
 
+
+static inline uint16_t
+ioworker_send_one_size(struct ioworker_args* args,
+                       struct ioworker_global_ctx* gctx,
+                       uint16_t* lba_align)
+{
+  uint32_t si = gctx->sl_table[random()%args->lba_size_ratio_sum];
+  uint16_t ret = args->lba_size_list[si];
+  
+  if (args->lba_random == 0)
+  {
+    gctx->sequential_lba += ret;
+  }
+
+  *lba_align = args->lba_size_list_align[si];
+  return ret;
+}
+
+
 static inline uint64_t
 ioworker_send_one_lba(struct ioworker_args* args,
-                      struct ioworker_global_ctx* gctx)
+                      struct ioworker_global_ctx* gctx,
+                      uint16_t lba_align)
 {
   uint64_t ret;
 
@@ -1329,11 +1352,11 @@ ioworker_send_one_lba(struct ioworker_args* args,
     ret = ioworker_send_one_lba_random(args, gctx);
   }
 
-  ret = ALIGN_UP(ret, args->lba_align);
-  if (lba_starting > args->region_end)
+  ret = ALIGN_UP(ret, lba_align);
+  if (ret > args->region_end)
   {
-    SPDK_ERRLOG("lba_starting %d, region_end %d\n",
-                lba_starting, args->region_end);
+    SPDK_ERRLOG("lba_starting %lu, region_end %lu\n",
+                ret, args->region_end);
   }
   return ret;
 }
@@ -1345,10 +1368,11 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
                              struct ioworker_global_ctx* gctx)
 {
   int ret;
+  uint16_t lba_align;
   struct ioworker_args* args = gctx->args;
   bool is_read = ioworker_send_one_is_read(args->read_percentage);
-  uint64_t lba_starting = ioworker_send_one_lba(args, gctx);
-  uint16_t lba_count = args->lba_size;
+  uint16_t lba_count = ioworker_send_one_size(args, gctx, &lba_align);
+  uint64_t lba_starting = ioworker_send_one_lba(args, gctx, lba_align);
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba 0x%lx, count %d\n",
                 ctx, lba_starting, lba_count);
@@ -1369,10 +1393,25 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   }
 
   //sent one io cmd successfully
-  gctx->sequential_lba += args->lba_size;
   ctx->is_read = is_read;
   timeval_gettimeofday(&ctx->time_sent);
   return 0;
+}
+
+
+static void iowoker_iosize_init(struct ioworker_global_ctx* ctx)
+{
+  unsigned int sl_index = 0;
+  
+  assert(ctx->args->lba_size_ratio_sum <= 10000);
+  for (unsigned int i=0; i<ctx->args->lba_size_list_len; i++)
+  {
+    for (unsigned int j=0; j<ctx->args->lba_size_list_ratio[i]; j++)
+    {
+      ctx->sl_table[sl_index++] = i;
+    }
+  }
+  assert(sl_index == ctx->args->lba_size_ratio_sum);
 }
 
 
@@ -1436,8 +1475,8 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   rets->error = 0;
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_start = %ld\n", args->lba_start);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_size = %d\n", args->lba_size);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_align = %d\n", args->lba_align);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_size_max = %d\n", args->lba_size_max);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_align_max = %d\n", args->lba_align_max);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_random = %d\n", args->lba_random);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.region_start = %ld\n", args->region_start);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.region_end = %ld\n", args->region_end);
@@ -1451,12 +1490,12 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 
   //check args
   assert(args->read_percentage <= 100);
-  assert(args->lba_size != 0);
+  assert(args->lba_size_max != 0);
   assert(args->region_start < args->region_end);
   assert(args->qdepth <= CMD_LOG_DEPTH/2);
 
   // check io size
-  if (args->lba_size*sector_size > ns->ctrlr->max_xfer_size)
+  if (args->lba_size_max*sector_size > ns->ctrlr->max_xfer_size)
   {
     SPDK_WARNLOG("IO size is larger than max xfer size, %d\n",
                 ns->ctrlr->max_xfer_size);
@@ -1481,9 +1520,9 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   }
 
   //adjust region to start_lba's region
-  args->region_start = ALIGN_UP(args->region_start, args->lba_align);
-  args->region_end = args->region_end-args->lba_size;
-  args->region_end = ALIGN_DOWN(args->region_end, args->lba_align);
+  args->region_start = ALIGN_UP(args->region_start, args->lba_align_max);
+  args->region_end = args->region_end-args->lba_size_max;
+  args->region_end = ALIGN_DOWN(args->region_end, args->lba_align_max);
   if (args->lba_start < args->region_start)
   {
     args->lba_start = args->region_start;
@@ -1521,13 +1560,16 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     gctx.distribution = true;
     iowoker_distrubution_init(ns, &gctx, args->distribution);
   }
-  
+
+  // calculate io_size lookup table
+  iowoker_iosize_init(&gctx);
+
   // sending the first batch of IOs, all remaining IOs are sending
   // in callbacks till end
   STAILQ_INIT(&gctx.pending_io_list);
   for (unsigned int i=0; i<args->qdepth; i++)
   {
-    io_ctx[i].data_buf_len = args->lba_size * sector_size;
+    io_ctx[i].data_buf_len = args->lba_size_max * sector_size;
     io_ctx[i].data_buf = buffer_init(io_ctx[i].data_buf_len, NULL,
                                      args->ptype, args->pvalue);
     io_ctx[i].gctx = &gctx;

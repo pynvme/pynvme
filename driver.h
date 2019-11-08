@@ -50,8 +50,13 @@ typedef struct spdk_nvme_cpl cpl;
 typedef struct ioworker_args
 {
   unsigned long lba_start;
-  unsigned short lba_size;
-  unsigned short lba_align;
+  unsigned short lba_size_max;
+  unsigned short lba_align_max;
+  unsigned int lba_size_ratio_sum;
+  unsigned int* lba_size_list;
+  unsigned int lba_size_list_len;
+  unsigned int* lba_size_list_ratio;
+  unsigned int* lba_size_list_align;
   int lba_random;
   unsigned long region_start;
   unsigned long region_end;

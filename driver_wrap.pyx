@@ -1453,6 +1453,20 @@ cdef class Namespace(object):
         assert io_count != 0 or time != 0
         assert time < 24*3600ULL
 
+        # convert any possible io_size input to dict
+        if isinstance(io_size, int):
+            io_size = [io_size, ]
+        if isinstance(io_size, range):
+            io_size = list(io_size)
+        if isinstance(io_size, list):
+            io_size = {i : 1 for i in io_size}
+        assert isinstance(io_size, dict)
+
+        # set default alignment if it is specified
+        # align to 4K when io_size if > 4K, or align to io_size
+        if not lba_align:
+            lba_align = [8 if s>8 else s for s in io_size.keys()]
+            
         pciaddr = self._bdf
         nsid = self._nsid
         return _IOWorker(pciaddr, nsid, lba_start, io_size, lba_align,
@@ -1871,9 +1885,22 @@ class _IOWorker(object):
             _reentry_flag_init()
             memset(&args, 0, sizeof(args))
             memset(&rets, 0, sizeof(rets))
-            assert lba_size < 0x10000, "io_size is a 16bit-field in commands"
-            assert lba_align < 0x10000, "io_size is a 16bit-field in commands"
 
+            # setup lba_size lists
+            args.lba_size_max = max(lba_size)
+            args.lba_size_ratio_sum = sum(lba_size[i] for i in lba_size)
+            assert args.lba_size_ratio_sum <= 10000, "please simplify the io_size ratios"
+            args.lba_size_list = <unsigned int*>PyMem_Malloc(len(lba_size)*sizeof(unsigned int))
+            args.lba_size_list_len = len(lba_size)
+            args.lba_size_list_ratio = <unsigned int*>PyMem_Malloc(len(lba_size)*sizeof(unsigned int))
+            args.lba_size_list_align = <unsigned int*>PyMem_Malloc(len(lba_size)*sizeof(unsigned int))
+            for i, io_size in enumerate(lba_size):
+                args.lba_size_list[i] = io_size
+                args.lba_size_list_ratio[i] = lba_size[io_size]
+                args.lba_size_list_align[i] = lba_align[i]
+                assert io_size < 0x10000, "io_size is a 16bit-field in commands"
+                assert lba_align[i] < 0x10000, "io_size is a 16bit-field in commands"
+            
             # check distribution
             if distribution is not None:
                 assert region_start == 0, "distribution has to be on the full region"
@@ -1888,7 +1915,7 @@ class _IOWorker(object):
             if seconds == 0:
                 # collect upto 24hr IOPS data
                 seconds = 24*3600
-            
+
             # create array for output data: io counter per second
             if output_io_per_second is not None:
                 # need time duration to collect io counter per second data
@@ -1902,8 +1929,6 @@ class _IOWorker(object):
 
             # transfer agurments
             args.lba_start = lba_start
-            args.lba_size = lba_size
-            args.lba_align = lba_align
             args.lba_random = lba_random
             args.region_start = region_start
             args.region_end = region_end
@@ -1978,8 +2003,17 @@ class _IOWorker(object):
             if args.io_counter_per_latency:
                 PyMem_Free(args.io_counter_per_latency)
 
-            if distribution:
+            if args.distribution:
                 PyMem_Free(args.distribution)
+
+            if args.lba_size_list:
+                PyMem_Free(args.lba_size_list)
+
+            if args.lba_size_list_ratio:
+                PyMem_Free(args.lba_size_list_ratio)
+                
+            if args.lba_size_list_align:
+                PyMem_Free(args.lba_size_list_align)
 
             import gc; gc.collect()
 
