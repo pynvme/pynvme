@@ -2156,8 +2156,8 @@ int driver_init(void)
   driver_init_config();
   driver_init_token();
 
-  //init random sequence reproducible
-  srandom(time(NULL));
+  // init random sequence reproducible
+  srandom(0);
 
   // init timer
   timeval_init();
@@ -2187,4 +2187,10 @@ uint64_t driver_config(uint64_t cfg_word)
 {
   assert(g_driver_config_ptr != NULL);
   return *g_driver_config_ptr = cfg_word;
+}
+
+
+void driver_srand(unsigned int seed)
+{
+  srandom(seed);
 }

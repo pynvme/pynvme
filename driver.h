@@ -184,3 +184,5 @@ extern void intc_clear(struct spdk_nvme_qpair* q);
 extern bool intc_isset(struct spdk_nvme_qpair* q);
 extern void intc_mask(struct spdk_nvme_qpair* q);
 extern void intc_unmask(struct spdk_nvme_qpair* q);
+
+extern void driver_srand(unsigned int seed);

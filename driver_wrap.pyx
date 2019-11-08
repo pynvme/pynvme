@@ -50,8 +50,10 @@ import math
 import atexit
 import signal
 import struct
+import random
 import logging
 import warnings
+import datetime
 import statistics
 import subprocess
 import multiprocessing
@@ -2040,8 +2042,23 @@ def config(verify, fua_read=False, fua_write=False):
                            (fua_write << 2))
 
 
+def srand(seed):
+    """setup random seed
+
+    # Parameters
+        seed (int): the seed to setup for both python and C library
+    """
+
+    logging.info("setup random seed: 0x%x" % seed)
+    d.driver_srand(seed)
+    random.seed(seed)
+    
+
 # module init, needs root privilege
 if os.geteuid() == 0:
+    # setup a default random seed by datetime
+    srand(int(datetime.datetime.now().strftime("%M%S%f")))
+    
     # CTRL-c to exit
     signal.signal(signal.SIGINT, _interrupt_handler)
     # timeout

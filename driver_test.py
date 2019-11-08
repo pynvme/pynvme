@@ -90,6 +90,19 @@ def test_two_controllers(nvme0):
     assert nvme0.id_data(63, 24, str)[:6] != nvme1.id_data(63, 24, str)[:6]
     assert nvme0.id_data(23, 4, str) != nvme1.id_data(23, 4, str)
     
+
+def test_random_seed():
+    import random
+    assert random.randint(1, 1000000) != random.randint(0, 1000000)
+    d.srand(10)
+    a = random.randint(1, 1000000)
+    d.srand(10)
+    b = random.randint(1, 1000000)
+    assert a == b
+    d.srand(100)
+    b = random.randint(1, 1000000)
+    assert a != b
+
     
 def test_two_namespace_basic(nvme0n1, nvme0, verify):
     nvme1 = d.Controller(b'03:00.0')

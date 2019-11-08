@@ -173,3 +173,6 @@ cdef extern from "driver.h":
     bint intc_isset(qpair * q)
     void intc_mask(qpair * q)
     void intc_unmask(qpair * q)
+
+    void driver_srand(unsigned int seed)
+    

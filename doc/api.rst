@@ -1168,6 +1168,20 @@ Notice
 
 * **expected (int)**\ : expected commands to complete. Default: 1
 
+srand
+-----
+
+.. code-block:: python
+
+   srand(seed)
+
+setup random seed
+
+**Parameters**
+
+
+* **seed (int)**\ : the seed to setup for both python and C library
+
 Subsystem
 ---------
 
