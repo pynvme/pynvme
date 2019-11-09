@@ -36,6 +36,7 @@
 import time
 import yaml
 import pytest
+import random
 import logging
 import inspect
 
@@ -62,8 +63,9 @@ def script(request):
     if 'pass' in sourcecode[-1] and len(sourcecode) < 5:
         pytest.skip("empty test function")
 
-    # measure test time
+    # measure test time, and set random seed by time
     start_time = time.time()
+    d.srand(int(start_time*1000000)&0xffffffff)
     yield
     logging.info("test duration: %.3f sec" % (time.time()-start_time))
 

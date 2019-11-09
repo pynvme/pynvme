@@ -1335,7 +1335,8 @@ def test_ioworker_jedec_workload(nvme0n1):
                      time=10).start().close()
     
     
-def test_ioworker_distribution(nvme0n1):
+@pytest.mark.parametrize("repeat", range(20))
+def test_ioworker_distribution(nvme0n1, repeat):
     distribution = [0]*100
     distribution[1] = 10000
     nvme0n1.ioworker(io_size=8, lba_align=8,

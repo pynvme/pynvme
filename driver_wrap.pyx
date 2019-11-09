@@ -2056,9 +2056,6 @@ def srand(seed):
 
 # module init, needs root privilege
 if os.geteuid() == 0:
-    # setup a default random seed by datetime
-    srand(int(datetime.datetime.now().strftime("%M%S%f")))
-    
     # CTRL-c to exit
     signal.signal(signal.SIGINT, _interrupt_handler)
     # timeout
