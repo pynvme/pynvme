@@ -75,7 +75,7 @@ static void timeval_init(void)
 {
   struct timespec ts;
   struct timeval tv;
-  
+
   gettimeofday(&tv, NULL);
   clock_gettime(CLOCK_MONOTONIC, &ts);
 
@@ -95,7 +95,7 @@ static void timeval_gettimeofday(struct timeval *tv)
   struct timespec ts;
 
   assert(tv != NULL);
-  
+
   // gettimeofday is affected by NTP and etc, so use clock_gettime
   clock_gettime(CLOCK_MONOTONIC, &ts);
   tv->tv_sec = ts.tv_sec+tv_diff.tv_sec;
@@ -117,8 +117,8 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
   uint32_t pattern = 0;
   void* buf = spdk_dma_zmalloc(bytes, 0x1000, NULL);
 
-  // we can return NULL, but it suppose scripts will handle this case, 
-  // No, it's too dangerous. So, we assert it here. 
+  // we can return NULL, but it suppose scripts will handle this case,
+  // No, it's too dangerous. So, we assert it here.
   assert(buf != NULL);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "buffer: alloc ptr at %p, size %ld\n",
                buf, bytes);
@@ -134,7 +134,7 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
     // if pvalue is not zero, set data buffer all-one
     if (pvalue != 0)
     {
-      pattern = 0xffffffff; 
+      pattern = 0xffffffff;
     }
   }
   else if (ptype == 32)
@@ -152,11 +152,11 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
   if (pattern != 0)
   {
     uint32_t* ptr = buf;
-	  
+
     // left remaining unaligned bytes unset
     for (uint32_t i=0; i<bytes/sizeof(pattern); i++)
     {
-      ptr[i] = pattern;	    
+      ptr[i] = pattern;
     }
   }
 
@@ -165,7 +165,7 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
   {
     uint32_t count = 0;
     int fd = open("/dev/urandom", O_RDONLY);
-    
+
     assert(pvalue <= 100);  // here needs a percentage <= 100
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "percentage: %d\n", pvalue);
     count = (size_t)(bytes*pvalue/100);
@@ -173,7 +173,7 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
     read(fd, buf, count);
     close(fd);
   }
-  
+
   return buf;
 }
 
@@ -216,7 +216,7 @@ static void buffer_fill_data(uint32_t* crc_table,
     // write is supported, we still cannot tell that.
     if (crc_table != NULL)
     {
-      crc_table[lba] = buffer_calc_csum(ptr, lba_size);      
+      crc_table[lba] = buffer_calc_csum(ptr, lba_size);
     }
   }
 }
@@ -242,7 +242,7 @@ static inline int buffer_verify_data(uint32_t* crc_table,
       // no mapping, nothing to verify
       continue;
     }
-    
+
     uint64_t* ptr = (uint64_t*)(buf+i*lba_size);
     uint32_t computed_crc = buffer_calc_csum(ptr, lba_size);
 
@@ -326,7 +326,7 @@ static void _cmdlog_uname(struct spdk_nvme_qpair* q, char* name, uint32_t len)
 void cmdlog_init(struct spdk_nvme_qpair* q)
 {
   char cmdlog_name[64];
-  
+
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog init: %p\n", q);
   _cmdlog_uname(q, cmdlog_name, sizeof(cmdlog_name));
   assert(q->pynvme_cmdlog == NULL);
@@ -341,7 +341,7 @@ void cmdlog_init(struct spdk_nvme_qpair* q)
 void cmdlog_free(struct spdk_nvme_qpair* q)
 {
   char cmdlog_name[64];
-  
+
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog free: %p\n", q);
   _cmdlog_uname(q, cmdlog_name, sizeof(cmdlog_name));
   spdk_memzone_free(cmdlog_name);
@@ -433,7 +433,7 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog: add cmd %s\n",
                 cmd_name(req->cmd.opc, qpair->id==0?0:1));
-  
+
   if (log_entry->req != NULL)
   {
     // this entry is overlapped before command complete
@@ -515,7 +515,7 @@ static bool probe_cb(void *cb_ctx,
 
   // disable keep alive function in controller side
 	opts->keep_alive_timeout_ms = 0;
-  
+
 	return true;
 }
 
@@ -569,7 +569,7 @@ struct ctrlr_entry {
   STAILQ_ENTRY(ctrlr_entry) next;
 };
 
-STAILQ_HEAD(, ctrlr_entry) g_controllers = STAILQ_HEAD_INITIALIZER(g_controllers);	
+STAILQ_HEAD(, ctrlr_entry) g_controllers = STAILQ_HEAD_INITIALIZER(g_controllers);
 
 static struct spdk_nvme_ctrlr* nvme_probe(char* traddr, unsigned int port)
 {
@@ -642,7 +642,7 @@ struct spdk_nvme_ctrlr* nvme_init(char * traddr, unsigned int port)
     e->ctrlr = ctrlr;
     STAILQ_INSERT_TAIL(&g_controllers, e, next);
   }
-  
+
   return ctrlr;
 }
 
@@ -659,7 +659,7 @@ int nvme_fini(struct spdk_nvme_ctrlr* ctrlr)
   {
     if (false == TAILQ_EMPTY(&ctrlr->active_io_qpairs))
     {
-      // io qpairs should all be deleted before closing master controller      
+      // io qpairs should all be deleted before closing master controller
       struct spdk_nvme_qpair	*qpair;
       TAILQ_FOREACH(qpair, &ctrlr->active_io_qpairs, tailq)
       {
@@ -680,7 +680,7 @@ int nvme_fini(struct spdk_nvme_ctrlr* ctrlr)
       }
     }
   }
-  
+
   return spdk_nvme_detach(ctrlr);
 }
 
@@ -726,11 +726,11 @@ int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* ctrlr)
       // to check it again later
       return 0;
     }
-    
+
     // mask the interrupt
     intc_mask(ctrlr->adminq);
   }
-  
+
   // process all the completions
   rc = spdk_nvme_ctrlr_process_admin_completions(ctrlr);
 
@@ -949,7 +949,7 @@ struct spdk_nvme_ns* ns_init(struct spdk_nvme_ctrlr* ctrlr, uint32_t nsid)
 
   assert(ns != NULL);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "ctrlr %p, nsid %d\n", ctrlr, nsid);
-  
+
   if (0 != ns_table_init(ns, sizeof(uint32_t)*nsze))
   {
     return NULL;
@@ -977,7 +977,7 @@ void ns_crc32_clear(struct spdk_nvme_ns *ns, uint64_t lba,
       SPDK_DEBUGLOG(SPDK_LOG_NVME, "clear the whole table\n");
       len = ns->table_size;
     }
-  
+
     SPDK_INFOLOG(SPDK_LOG_NVME, "clear checksum table, "
                  "lba 0x%lx, c %d, len %ld\n", lba, c, len);
     memset(&ns->crc_table[lba], c, len);
@@ -991,7 +991,7 @@ int ns_refresh(struct spdk_nvme_ns *ns, uint32_t id,
   nvme_ns_construct(ns, id, ctrlr);
   ns_table_fini(ns);
   ns_table_init(ns, sizeof(uint32_t)*spdk_nvme_ns_get_num_sectors(ns));
-  
+
   return 0;
 }
 
@@ -1097,7 +1097,7 @@ struct ioworker_global_ctx {
 
   // io_size lookup table
   uint32_t sl_table[10000];
-  
+
   // pending io list
 	STAILQ_HEAD(, ioworker_io_ctx)	pending_io_list;
 };
@@ -1293,7 +1293,7 @@ ioworker_send_one_lba_sequential(struct ioworker_args* args,
 }
 
 static inline uint64_t
-ioworker_send_one_lba_random(struct ioworker_args* args, 
+ioworker_send_one_lba_random(struct ioworker_args* args,
                              struct ioworker_global_ctx* gctx)
 {
   uint64_t start;
@@ -1324,11 +1324,6 @@ ioworker_send_one_size(struct ioworker_args* args,
 {
   uint32_t si = gctx->sl_table[random()%args->lba_size_ratio_sum];
   uint16_t ret = args->lba_size_list[si];
-  
-  if (args->lba_random == 0)
-  {
-    gctx->sequential_lba += ret;
-  }
 
   *lba_align = args->lba_size_list_align[si];
   return ret;
@@ -1338,14 +1333,14 @@ ioworker_send_one_size(struct ioworker_args* args,
 static inline uint64_t
 ioworker_send_one_lba(struct ioworker_args* args,
                       struct ioworker_global_ctx* gctx,
-                      uint16_t lba_align)
+                      uint16_t lba_align,
+                      uint16_t lba_count)
 {
   uint64_t ret;
 
   if (args->lba_random == 0)
   {
     ret = ioworker_send_one_lba_sequential(args, gctx);
-    gctx->sequential_lba = ret;
   }
   else
   {
@@ -1358,6 +1353,13 @@ ioworker_send_one_lba(struct ioworker_args* args,
     SPDK_ERRLOG("lba_starting %lu, region_end %lu\n",
                 ret, args->region_end);
   }
+
+  if (args->lba_random == 0)
+  {
+    // setup for next sequential io
+    gctx->sequential_lba = ret+lba_count;
+  }
+
   return ret;
 }
 
@@ -1372,14 +1374,14 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   struct ioworker_args* args = gctx->args;
   bool is_read = ioworker_send_one_is_read(args->read_percentage);
   uint16_t lba_count = ioworker_send_one_size(args, gctx, &lba_align);
-  uint64_t lba_starting = ioworker_send_one_lba(args, gctx, lba_align);
+  uint64_t lba_starting = ioworker_send_one_lba(args, gctx, lba_align, lba_count);
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba %lu, count %d\n",
-                ctx, lba_starting, lba_count);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba %lu, count %d, align %d, read %d\n",
+                ctx, lba_starting, lba_count, lba_align, is_read);
 
   assert(ctx->data_buf != NULL);
   assert(lba_starting <= args->region_end);
-  
+
   ret = ns_cmd_read_write(is_read, ns, qpair,
                           ctx->data_buf, ctx->data_buf_len,
                           lba_starting, lba_count,
@@ -1402,7 +1404,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
 static void iowoker_iosize_init(struct ioworker_global_ctx* ctx)
 {
   unsigned int sl_index = 0;
-  
+
   assert(ctx->args->lba_size_ratio_sum <= 10000);
   for (unsigned int i=0; i<ctx->args->lba_size_list_len; i++)
   {
@@ -1425,7 +1427,7 @@ static void iowoker_distrubution_init(struct spdk_nvme_ns* ns,
   uint64_t lba_section = lba_max/100;
   uint64_t section_start;
   uint64_t section_end;
-  
+
   for (uint32_t i=0; i<100; i++)
   {
     section_start = lba_section*i;
@@ -1447,7 +1449,7 @@ static void iowoker_distrubution_init(struct spdk_nvme_ns* ns,
   // set last section
   assert(lookup_index == 10000);
   ctx->dl_table[lookup_index-1].lba_end = ctx->args->region_end;
-}  
+}
 
 
 int ioworker_entry(struct spdk_nvme_ns* ns,
@@ -1585,7 +1587,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   // flag here if it is time to stop the ioworker and return the
   // statistics data
   struct ioworker_io_ctx* head_io = STAILQ_FIRST(&gctx.pending_io_list);
-  
+
   while (gctx.io_count_sent != gctx.io_count_cplt ||
          gctx.flag_finish != true ||
          head_io != NULL)
@@ -1595,14 +1597,14 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "sent %ld cplt %ld, finish %d, head %p\n",
                   gctx.io_count_sent, gctx.io_count_cplt,
                   gctx.flag_finish, head_io);
-    
+
     // check time and send all pending io
     timeval_gettimeofday(&now);
     while (head_io && timercmp(&now, &head_io->time_sent, >))
     {
       ioworker_send_one(ns, qpair, head_io, &gctx);
       STAILQ_REMOVE_HEAD(&gctx.pending_io_list, next);
-      head_io = STAILQ_FIRST(&gctx.pending_io_list);      
+      head_io = STAILQ_FIRST(&gctx.pending_io_list);
     }
 
     //exceed 30 seconds more than the expected test time, abort ioworker
@@ -1692,7 +1694,7 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
   // print cmdlog from tail to head
   assert(cmdlog != NULL);
   index = cmdlog->tail_index;
-  
+
   if (count == 0 || count > CMD_LOG_DEPTH)
   {
     dump_count = CMD_LOG_DEPTH;
@@ -1908,7 +1910,7 @@ static void rpc_list_qpair_content(struct spdk_json_write_ctx *w,
   mn[SPDK_NVME_CTRLR_MN_LEN] = '\0';
 
   spdk_json_write_object_begin(w);
-  
+
   spdk_json_write_named_string(w, "ctrlr", q->ctrlr->trid.traddr);
   spdk_json_write_named_uint32(w, "qid", q->id+1);  // 0 means octal
   spdk_json_write_named_uint32(w, "outstanding", MIN(os, 100));
@@ -1924,7 +1926,7 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
                    const struct spdk_json_val *params)
 {
   struct spdk_json_write_ctx *w;
-  
+
   w = spdk_jsonrpc_begin_result(request);
   if (w == NULL)
   {
@@ -1939,7 +1941,7 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
   {
     // admin qpair
     rpc_list_qpair_content(w, e->ctrlr->adminq);
-      
+
     // io qpairs
     struct spdk_nvme_qpair	*q;
     TAILQ_FOREACH(q, &e->ctrlr->active_io_qpairs, tailq)
@@ -1990,7 +1992,7 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
   assert(q);
   assert(q->ctrlr);
   assert(q->pynvme_cmdlog);
-  
+
   w = spdk_jsonrpc_begin_result(request);
   if (w == NULL)
   {
@@ -2029,14 +2031,14 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
       //get the string of date/time
       time = localtime(&time_cmd.tv_sec);
       strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
-      
+
       spdk_json_write_string_fmt(w, "%s.%06ld [cmd%03d: %s]\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
                                  "0x%08x, 0x%08x, 0x%08x, 0x%08x",
                                  tmbuf, time_cmd.tv_usec,
-                                 seq, cmdname, 
+                                 seq, cmdname,
                                  cmd[0], cmd[1], cmd[2], cmd[3],
                                  cmd[4], cmd[5], cmd[6], cmd[7],
                                  cmd[8], cmd[9], cmd[10], cmd[11],
@@ -2087,7 +2089,7 @@ static void driver_init_token(void)
     g_driver_io_token_ptr = spdk_memzone_reserve(DRIVER_IO_TOKEN_NAME,
                                                  sizeof(uint64_t),
                                                  0,
-                                                 0);    
+                                                 0);
 
     // avoid token 0
     *g_driver_io_token_ptr = 1;
@@ -2161,7 +2163,7 @@ int driver_init(void)
 
   // init timer
   timeval_init();
-  
+
   return 0;
 }
 
@@ -2175,10 +2177,10 @@ int driver_fini(void)
     spdk_memzone_free(DRIVER_GLOBAL_CONFIG_NAME);
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "pynvme driver unloaded.\n");
   }
-  
+
   g_driver_io_token_ptr = NULL;
   g_driver_config_ptr = NULL;
-  
+
   return spdk_env_cleanup();
 }
 
