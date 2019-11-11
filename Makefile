@@ -58,7 +58,7 @@ all: cython_lib
 .PHONY: all spdk doc
 
 spdk:
-	cd spdk; make clean; ./configure --enable-debug --enable-log-bt --enable-werror --enable-asan --enable-ubsan --disable-tests --without-ocf --without-vhost --without-virtio --without-pmdk --without-vpp --without-rbd --without-isal; make; cd ..
+	cd spdk; make clean; ./configure --enable-debug --enable-log-bt --enable-asan --enable-ubsan --disable-tests --without-ocf --without-vhost --without-virtio --without-pmdk --without-vpp --without-rbd --without-isal; make; cd ..
 
 doc: cython_lib
 	pydocmd simple nvme++ > api.md
