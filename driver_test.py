@@ -1310,7 +1310,8 @@ def test_ioworker_iosize_inputs(nvme0n1):
     nvme0n1.ioworker(io_size={1: 2, 8: 8}, time=1).start().close()
     nvme0n1.ioworker(io_size={1: 2, 8: 8}, lba_align=[1, 8], time=1).start().close()
 
-
+    
+@pytest.mark.skip("testing")
 def test_ioworker_jedec_workload(nvme0n1):
     distribution = [1000]*5 + [200]*15 + [25]*80
     iosz_distribution = {1: 4,
