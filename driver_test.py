@@ -1311,8 +1311,33 @@ def test_ioworker_iosize_inputs(nvme0n1):
     nvme0n1.ioworker(io_size={1: 2, 8: 8}, time=1).start().close()
     nvme0n1.ioworker(io_size={1: 2, 8: 8}, lba_align=[1, 8], time=1).start().close()
 
+
+@pytest.mark.parametrize("repeat", range(10))
+def test_ioworker_jedec_workload(nvme0n1, repeat):
+    distribution = [1000]*5 + [200]*15 + [25]*80
+    iosz_distribution = {1: 4,
+                         2: 1,
+                         3: 1,
+                         4: 1,
+                         5: 1,
+                         6: 1,
+                         7: 1,
+                         8: 67,
+                         16: 10,
+                         32: 7,
+                         64: 3,
+                         128: 3}
+
+    nvme0n1.ioworker(io_size=iosz_distribution,
+                     lba_random=True,
+                     qdepth=128,
+                     distribution = distribution,
+                     read_percentage=0,
+                     ptype=0xbeef, pvalue=100, 
+                     time=10).start().close()
+
     
-@pytest.mark.parametrize("repeat", range(20))
+@pytest.mark.parametrize("repeat", range(10))
 def test_ioworker_distribution(nvme0n1, repeat):
     distribution = [0]*100
     distribution[1] = 10000
@@ -1325,12 +1350,12 @@ def test_ioworker_distribution(nvme0n1, repeat):
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
                          lba_random=True, qdepth=64,
                          distribution = distribution, 
-                         read_percentage=100, time=10).start().close()
+                         read_percentage=100, time=2).start().close()
     logging.debug(r)
 
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
                          lba_random=True, qdepth=64,
-                         read_percentage=100, time=10).start().close()
+                         read_percentage=100, time=2).start().close()
     logging.debug(r)
     
     
