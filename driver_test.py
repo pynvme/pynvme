@@ -1302,10 +1302,10 @@ def test_ioworker_progress(nvme0, nvme0n1):
 def test_ioworker_simplified(nvme0n1):
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
-    
+
 def test_ioworker_iosize_inputs(nvme0n1):
     d.srand(0x58e7f337)
-    nvme0n1.ioworker(io_size=8, time=1).start().close()
+    nvme0n1.ioworker(io_size=16, time=10).start().close()
     nvme0n1.ioworker(io_size=[1, 8], time=1).start().close()
     nvme0n1.ioworker(io_size=range(1, 8), time=1).start().close()
     nvme0n1.ioworker(io_size={1: 2, 8: 8}, time=1).start().close()

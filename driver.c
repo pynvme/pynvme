@@ -1061,7 +1061,6 @@ int ns_fini(struct spdk_nvme_ns* ns)
 // used for callback
 struct ioworker_io_ctx {
   void* data_buf;
-  size_t data_buf_len;
   bool is_read;
   struct timeval time_sent;
   struct ioworker_global_ctx* gctx;
@@ -1375,6 +1374,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   bool is_read = ioworker_send_one_is_read(args->read_percentage);
   uint16_t lba_count = ioworker_send_one_size(args, gctx, &lba_align);
   uint64_t lba_starting = ioworker_send_one_lba(args, gctx, lba_align, lba_count);
+  uint32_t sector_size = spdk_nvme_ns_get_sector_size(ns);
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba %lu, count %d, align %d, read %d\n",
                 ctx, lba_starting, lba_count, lba_align, is_read);
@@ -1383,7 +1383,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   assert(lba_starting <= args->region_end);
 
   ret = ns_cmd_read_write(is_read, ns, qpair,
-                          ctx->data_buf, ctx->data_buf_len,
+                          ctx->data_buf, lba_count*sector_size,
                           lba_starting, lba_count,
                           0,  //do not have more options in ioworkers
                           ioworker_one_cb, ctx);
@@ -1572,9 +1572,8 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   STAILQ_INIT(&gctx.pending_io_list);
   for (unsigned int i=0; i<args->qdepth; i++)
   {
-    io_ctx[i].data_buf_len = args->lba_size_max * sector_size;
-    io_ctx[i].data_buf = buffer_init(io_ctx[i].data_buf_len, NULL,
-                                     args->ptype, args->pvalue);
+    io_ctx[i].data_buf = buffer_init(args->lba_size_max * sector_size,
+                                     NULL, args->ptype, args->pvalue);
     io_ctx[i].gctx = &gctx;
 
     // set time to send it right now
