@@ -1347,11 +1347,7 @@ ioworker_send_one_lba(struct ioworker_args* args,
   }
 
   ret = ALIGN_UP(ret, lba_align);
-  if (ret > args->region_end)
-  {
-    SPDK_ERRLOG("lba_starting %lu, region_end %lu\n",
-                ret, args->region_end);
-  }
+  assert(ret <= args->region_end);
 
   if (args->lba_random == 0)
   {
