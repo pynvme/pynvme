@@ -1313,6 +1313,7 @@ def test_ioworker_iosize_inputs(nvme0n1):
     
 @pytest.mark.skip("testing")
 def test_ioworker_jedec_workload(nvme0n1):
+    d.srand(0x58e7f337)
     distribution = [1000]*5 + [200]*15 + [25]*80
     iosz_distribution = {1: 4,
                          2: 1,
@@ -1350,12 +1351,12 @@ def test_ioworker_distribution(nvme0n1, repeat):
                          lba_random=True, qdepth=64,
                          distribution = distribution, 
                          read_percentage=100, time=10).start().close()
-    logging.info(r)
+    logging.debug(r)
 
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
                          lba_random=True, qdepth=64,
                          read_percentage=100, time=10).start().close()
-    logging.info(r)
+    logging.debug(r)
     
     
 def test_ioworker_simplified_context(nvme0n1):

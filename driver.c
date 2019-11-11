@@ -2158,9 +2158,6 @@ int driver_init(void)
   driver_init_config();
   driver_init_token();
 
-  // init random sequence reproducible
-  srandom(0);
-
   // init timer
   timeval_init();
 
@@ -2194,5 +2191,6 @@ uint64_t driver_config(uint64_t cfg_word)
 
 void driver_srand(unsigned int seed)
 {
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "set random seed: 0x%x\n", seed);
   srandom(seed);
 }

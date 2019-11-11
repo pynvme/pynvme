@@ -523,7 +523,61 @@ The result of the IOWorker shows that it takes 7 seconds, and it sends 1234 IOs 
 
 We can create an ioworker upto 24 hours. We can also specify different data pattern in the IOWorker with arguments pvalue and ptype, which are the same definition as that in class Buffer.
 
+We can send differnt size IO in an ioworker through parameter io_size, which accepts different types of input: int, range, list, and dict.
 
+.. list-table::
+   :header-rows: 1
+
+   * - type
+     - explanation
+     - example
+   * - int
+     - fixed io size
+     - 1, send all io with size of 512 Byte. 
+   * - range
+     - a range of different io size
+     - range(1, 8), send io size of 512, 1024, 1536, 2048, 2560, 3072, and 3584. 
+   * - list
+     - a list of different io size
+     - [8, 16],  send io size of 4096, and 8192.
+   * - dict
+     - identify io size, as well as the ratio
+     - {8: 2, 16: 1}, send io size of 4096 and 8192, and their IO count ratio is 2:1. 
+
+We can limit ioworker sending IO in a region specified by parameter `region_start` and `region_end`. Furthermore, we can do a further fine granularity control of IO distribution across the LBA space by parameter `distribution`. It evenly divides LBA space into 100 regions, and we specify how to identify 10000 IOs in these 100 regions.
+
+Here is an example to display how ioworker implements JEDEC workload by these parameters:
+
+.. code-block:: python
+                
+   def test_ioworker_jedec_workload(nvme0n1):
+       # distribute 10000 IOs to 100 regions
+       distribution = [1000]*5 + [200]*15 + [25]*80
+       
+       # specify different IO size and their ratio of io count
+       iosz_distribution = {1: 4,
+                            2: 1,
+                            3: 1,
+                            4: 1,
+                            5: 1,
+                            6: 1,
+                            7: 1,
+                            8: 67,
+                            16: 10,
+                            32: 7,
+                            64: 3,
+                            128: 3}
+
+       # implement JEDEC workload in a single ioworker
+       nvme0n1.ioworker(io_size=iosz_distribution,
+                        lba_random=True,
+                        qdepth=32,
+                        distribution = distribution,
+                        read_percentage=0,
+                        ptype=0xbeef, pvalue=100, 
+                        time=10).start().close()
+
+       
 Data Verify
 ^^^^^^^^^^^
 

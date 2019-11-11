@@ -74,6 +74,9 @@ __author__ = "Crane Chu"
 __version__ = "1.5"
 
 
+# random seed in all processes
+_random_seed = 0
+
 # nvme command timeout, it's a warning
 # drive times out earlier than driver timeout
 _cTIMEOUT = 10
@@ -1775,7 +1778,7 @@ class _IOWorker(object):
 
         # create the child process
         self.p = _mp.Process(target = self._ioworker,
-                             args = (self.q, self.l, pciaddr, nsid,
+                             args = (self.q, self.l, pciaddr, nsid, _random_seed, 
                                      lba_start, lba_size, lba_align, lba_random,
                                      region_start, region_end, read_percentage,
                                      iops, io_count, time, qdepth, qprio,
@@ -1870,9 +1873,10 @@ class _IOWorker(object):
         self.close()
         return True
 
-    def _ioworker(self, rqueue, locker, pciaddr, nsid, lba_start, lba_size,
-                  lba_align, lba_random, region_start, region_end,
-                  read_percentage, iops, io_count, seconds, qdepth, qprio,
+    def _ioworker(self, rqueue, locker, pciaddr, nsid, seed, 
+                  lba_start, lba_size, lba_align, lba_random,
+                  region_start, region_end, read_percentage,
+                  iops, io_count, seconds, qdepth, qprio,
                   distribution, pvalue, ptype, 
                   output_io_per_second, output_percentile_latency):
         cdef d.ioworker_args args
@@ -1887,6 +1891,10 @@ class _IOWorker(object):
             # timeout
             signal.signal(signal.SIGALRM, _timeout_signal_handler)
 
+            # setup random seed
+            d.driver_srand(seed)
+            random.seed(seed)
+            
             # init var
             _reentry_flag_init()
             memset(&args, 0, sizeof(args))
@@ -2048,7 +2056,10 @@ def srand(seed):
     # Parameters
         seed (int): the seed to setup for both python and C library
     """
-
+    
+    global _random_seed
+    _random_seed = seed
+    
     logging.info("setup random seed: 0x%x" % seed)
     d.driver_srand(seed)
     random.seed(seed)
