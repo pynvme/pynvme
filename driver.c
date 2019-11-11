@@ -1440,7 +1440,7 @@ static void iowoker_distrubution_init(struct spdk_nvme_ns* ns,
     // fill lookup table
     for (uint32_t j=0; j<distribution[i]; j++)
     {
-      SPDK_DEBUGLOG(SPDK_LOG_NVME, "%d: [%d - %d]\n", lookup_index, section_start, section_end)
+      SPDK_DEBUGLOG(SPDK_LOG_NVME, "%d: [%lu - %lu]\n", lookup_index, section_start, section_end);
       ctx->dl_table[lookup_index].lba_start = section_start;
       ctx->dl_table[lookup_index].lba_end = section_end;
       lookup_index ++;
