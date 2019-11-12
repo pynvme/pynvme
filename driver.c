@@ -1397,7 +1397,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
 }
 
 
-static void iowoker_iosize_init(struct ioworker_global_ctx* ctx)
+static void ioworker_iosize_init(struct ioworker_global_ctx* ctx)
 {
   unsigned int sl_index = 0;
 
@@ -1414,9 +1414,9 @@ static void iowoker_iosize_init(struct ioworker_global_ctx* ctx)
 }
 
 
-static void iowoker_distrubution_init(struct spdk_nvme_ns* ns,
-                                      struct ioworker_global_ctx* ctx,
-                                      uint32_t* distribution)
+static void ioworker_distribution_init(struct spdk_nvme_ns* ns,
+                                       struct ioworker_global_ctx* ctx,
+                                       uint32_t* distribution)
 {
   uint32_t lookup_index = 0;
   uint64_t lba_max = spdk_nvme_ns_get_num_sectors(ns);
@@ -1557,11 +1557,11 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   if (args->distribution)
   {
     gctx.distribution = true;
-    iowoker_distrubution_init(ns, &gctx, args->distribution);
+    ioworker_distribution_init(ns, &gctx, args->distribution);
   }
 
   // calculate io_size lookup table
-  iowoker_iosize_init(&gctx);
+  ioworker_iosize_init(&gctx);
 
   // sending the first batch of IOs, all remaining IOs are sending
   // in callbacks till end
