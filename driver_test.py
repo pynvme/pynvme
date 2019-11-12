@@ -1624,7 +1624,7 @@ def test_ioworker_iops(nvme0n1):
                          lba_random=False,
                          region_start=0, region_end=1000,
                          read_percentage=100,
-                         iops=1000, io_count=10000, time=0,
+                         iops=1000, io_count=10000, time=1000*3600,
                          qprio=0, qdepth=16)
     w.start()
     report = w.close()

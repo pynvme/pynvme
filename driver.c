@@ -1508,10 +1508,10 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   {
     args->io_count = (unsigned long)-1;
   }
-  if (args->seconds == 0 || args->seconds > 24*3600ULL)
+  if (args->seconds == 0 || args->seconds > 1000*3600ULL)
   {
-    // run ioworker for 24hr at most
-    args->seconds = 24*3600ULL;
+    // run ioworker for 1000hr at most
+    args->seconds = 1000*3600ULL;
   }
   if (args->region_end > nsze)
   {

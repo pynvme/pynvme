@@ -1433,7 +1433,7 @@ cdef class Namespace(object):
             lba_align (short): IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
             lba_random (bool): True if sending IO with random starting LBA. Default: True
             read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100
-            time (int): specified maximum time of the IOWorker in seconds, up to 24*3600. Default:0, means no limit
+            time (int): specified maximum time of the IOWorker in seconds, up to 1000*3600. Default:0, means no limit
             qdepth (int): queue depth of the Qpair created by the IOWorker, up to 1024. Default: 64
             region_start (long): sending IO in the specified LBA region, start. Default: 0
             region_end (long): sending IO in the specified LBA region, end but not include. Default: 0xffff_ffff_ffff_ffff
@@ -1456,7 +1456,7 @@ cdef class Namespace(object):
         assert qdepth <= (self._nvme.cap & 0xffff) + 1, "qdepth is larger than specification"
         assert region_start < region_end, "region end is not included"
         assert io_count != 0 or time != 0, "worker needs a rest :)"
-        assert time < 24*3600ULL, "worker needs a rest :)"
+        assert time <= 1000*3600ULL, "worker needs a rest :)"
 
         # convert any possible io_size input to dict
         if isinstance(io_size, int):
@@ -1930,10 +1930,6 @@ class _IOWorker(object):
                 for i in range(100):
                     args.distribution[i] = distribution[i]
                 
-            if seconds == 0:
-                # collect upto 24hr IOPS data
-                seconds = 24*3600
-
             # create array for output data: io counter per second
             if output_io_per_second is not None:
                 # need time duration to collect io counter per second data
