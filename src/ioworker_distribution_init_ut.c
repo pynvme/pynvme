@@ -129,6 +129,10 @@ void test_ioworker_distribution_init(void)
   CU_ASSERT_EQUAL(ret, true);
 }
 
+void test_ioworker_distribution_init(void)
+{
+  CU_ASSERT(false);
+}
 
 int main()
 {
@@ -146,6 +150,7 @@ int main()
 	}
 
   CU_ADD_TEST(s, test_ioworker_distribution_init);
+  CU_ADD_TEST(s, test_ioworker_fail);
   
   CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();
