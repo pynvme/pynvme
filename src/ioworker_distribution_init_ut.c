@@ -120,50 +120,6 @@ static struct spdk_nvme_ns ns;
 static struct ioworker_global_ctx ctx;
 static uint32_t distribution[100];
 
-// test cases
-static void test_ioworker_distribution_init_1000(void)
-{
-  uint64_t max_lba = 1000;
-
-  // single active region
-  distribution[0] = 10000;
-  ctx.args->region_end = max_lba;
-  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
-
-  // run test
-  ioworker_distribution_init(&ns, &ctx, distribution);
-
-  // result
-  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
-  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, max_lba/100);
-  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
-  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
-  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 0);
-  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100);
-}
-
-static void test_ioworker_distribution_init_10000(void)
-{
-  uint64_t max_lba = 10000;
-
-  // single active region
-  distribution[0] = 10000;
-  ctx.args->region_end = max_lba;
-  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
-
-  // run test
-  ioworker_distribution_init(&ns, &ctx, distribution);
-
-  // result
-  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
-  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, max_lba/100);
-  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
-  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
-  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 0);
-  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100);
-
-}
-
 static void test_ioworker_pass(void)
 {
   CU_ASSERT(true);
@@ -186,6 +142,72 @@ static int ut_clear(void)
   return 0;
 }
 
+// test cases
+static void test_ioworker_distribution_init_single_1000(void)
+{
+  uint64_t max_lba = 1000;
+
+  // single active region
+  distribution[0] = 10000;
+  ctx.args->region_end = max_lba;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100);
+}
+
+static void test_ioworker_distribution_init_single_10000(void)
+{
+  uint64_t max_lba = 10000;
+
+  // single active region
+  distribution[0] = 10000;
+  ctx.args->region_end = max_lba;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100);
+}
+
+static void test_ioworker_distribution_init_dual_20000(void)
+{
+  uint64_t max_lba = 20000;
+
+  // two active region
+  distribution[0] = 5000;
+  distribution[1] = 5000;
+  ctx.args->region_end = max_lba;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100+max_lba/100);
+}
+
+
 int main()
 {
   CU_Suite* s;
@@ -202,8 +224,9 @@ int main()
 	}
 
   CU_ADD_TEST(s, test_ioworker_pass);
-  CU_ADD_TEST(s, test_ioworker_distribution_init_1000);
-  CU_ADD_TEST(s, test_ioworker_distribution_init_10000);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_single_1000);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_single_10000);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_dual_20000);
   
   CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();
