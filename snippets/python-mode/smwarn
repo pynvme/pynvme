@@ -1,6 +1,0 @@
-# -*- mode: snippet -*-
-# name: ssdmeter warning expected
-# key: smwarn
-# --
-with pytest.warns(UserWarning, match="ERROR status: 0${1:0}/$2"):
- $0

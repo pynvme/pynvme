@@ -1,6 +1,0 @@
-# -*- mode: snippet -*-
-# name: ssdmeter parametrize test case
-# key: smpara
-# --
-@pytest.mark.parametrize('$1', [$2])
-$0

@@ -1,6 +1,0 @@
-# -*- mode: snippet -*-
-# name: ssdmeter pytest skip
-# key: smskip
-# --
-@pytest.mark.skip(reason="$1")
-$0

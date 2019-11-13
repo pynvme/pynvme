@@ -1,5 +1,0 @@
-# -*- mode: snippet -*-
-# name: ssdmeter logging
-# key: smlog
-# --
-logging.info(f"$0")

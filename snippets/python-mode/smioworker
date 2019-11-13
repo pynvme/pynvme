@@ -1,9 +1,0 @@
-# -*- mode: snippet -*-
-# name: ssdmeter ioworker
-# key: smioworker
-# --
-${13:with }nvme0n1.ioworker(io_size=${1:lba}, lba_align=${2:lba}, lba_random=${3:False},
- read_percentage=${4:100}, time=${5:sec}, qdepth=${6:64}, 
- region_start=${7:lba}, region_end=${8:0xffffffffffffffff},
- iops=${9:0}, io_count=${10:0}, lba_start=${11:0}, qprio=${12:0})${14:.start().close()}
- $0
