@@ -52,7 +52,8 @@ TESTS := driver_test.py
 #cython part
 clean: cython_clean
 cython_clean:
-	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c __pycache__ .pytest_cache cov_report .coverage.* scripts/__pycache__
+	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c
+	@sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* scripts/__pycache__ a.out
 
 all: cython_lib
 .PHONY: all spdk doc
@@ -111,6 +112,10 @@ pytest: info
 test:
 	-rm test.log
 	make pytest 2>test.log | tee -a test.log
+
+unittest:
+	gcc src/ioworker_distribution_init.c -lcunit -Ispdk/include -Ispdk/test -I.
+	./a.out
 
 nvmt: target backend
 	sudo ./spdk/scripts/rpc.py nvmf_create_transport -t TCP -p 64

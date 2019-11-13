@@ -31,8 +31,24 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <string.h>
+#include <pthread.h>
+#include <sys/time.h>
+#include <sys/sysinfo.h>
 
+#include "spdk/stdinc.h"
+#include "spdk/env.h"
+#include "spdk/crc32.h"
+#include "spdk/rpc.h"
+#include "spdk_internal/log.h"
+#include "spdk/lib/nvme/nvme_internal.h"
+#include "intr_mgt.h"
 #include "spdk/nvme.h"
+
 
 #define MIN(X,Y)              ((X) < (Y) ? (X) : (Y))
 
