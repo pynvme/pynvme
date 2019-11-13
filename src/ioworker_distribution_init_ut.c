@@ -32,12 +32,26 @@
  */
 
 
+#include "spdk/stdinc.h"
 #include "spdk_cunit.h"
-#define spdk_log(...)
+#include "spdk_internal/log.h"
+
 #include "ioworker.c"
 
 
 // null stubs
+
+struct spdk_log_flag SPDK_LOG_NVME = {
+	.name = "nvme",
+	.enabled = false,
+};
+
+void
+spdk_log(enum spdk_log_level level, const char *file, const int line, const char *func,
+	 const char *format, ...)
+{
+  
+}
 
 void* buffer_init(size_t bytes, uint64_t *phys_addr,
                   uint32_t ptype, uint32_t pvalue)
@@ -119,11 +133,23 @@ void test_ioworker_distribution_init(void)
 int main()
 {
   CU_Suite* s;
-  
-  CU_initialize_registry();
+	unsigned int	num_failures;
+
+	if (CU_initialize_registry() != CUE_SUCCESS) {
+		return CU_get_error();
+	}
+
   s = CU_add_suite("ioworker", NULL, NULL);
-  CU_add_test(s, "first", test_ioworker_distribution_init);
+	if (s == NULL) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
+  CU_ADD_TEST(s, test_ioworker_distribution_init);
+  
   CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();
-  CU_cleanup_registry();
+	num_failures = CU_get_number_of_failures();
+	CU_cleanup_registry();
+	return num_failures;
 }

@@ -48,7 +48,6 @@
 #include "spdk/nvme.h"
 
 
-
 #define MIN(X,Y)              ((X) < (Y) ? (X) : (Y))
 
 #ifndef BIT

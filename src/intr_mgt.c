@@ -35,7 +35,6 @@
 #include "driver.h"
 
 #include "intr_mgt.h"
-#include "spdk_internal/log.h"
 #include "../spdk/lib/nvme/nvme_internal.h"
 
 
