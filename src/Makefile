@@ -31,50 +31,27 @@
 #  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-from distutils.core import setup
-from distutils.extension import Extension
-from Cython.Build import cythonize
+#SPDK infrastructure
+SPDK_ROOT_DIR := $(abspath $(CURDIR)/../spdk)
+include $(SPDK_ROOT_DIR)/mk/spdk.common.mk
 
-setup(
-    ext_modules=cythonize(
-        [Extension(
-            "nvme",
-            ["driver_wrap.pyx"],
+C_SRCS = driver.c intr_mgt.c
+LIBNAME = pynvme
 
-            # include paths
-            include_dirs = ['spdk/include'],
-            
-            # dpdk prebuilt static libraries
-            libraries=['uuid', 'numa', 'pthread'],
+include $(SPDK_ROOT_DIR)/mk/spdk.lib.mk
 
-            # spdk static libraries
-            extra_objects=[
-                # spdk
-                './spdk/build/lib/libspdk_pynvme.a',
-                './spdk/build/lib/libspdk_nvme.a',
-                './spdk/build/lib/libspdk_env_dpdk.a',
-                './spdk/build/lib/libspdk_util.a',
-                './spdk/build/lib/libspdk_sock.a',
-                './spdk/build/lib/libspdk_rpc.a',
-                './spdk/build/lib/libspdk_log.a',
+#cython part
+clean: cython_clean
+cython_clean:
+	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c a.out
 
-                # force link symbols in these libraries
-                '-Wl,--whole-archive',  
-                './spdk/build/lib/libspdk_json.a',
-                './spdk/build/lib/libspdk_jsonrpc.a',
-                './spdk/build/lib/libspdk_sock_posix.a',
-                '-Wl,--no-whole-archive',
+.PHONY: all
 
-                # dpdk
-                './spdk/dpdk/build/lib/librte_eal.a',
-                './spdk/dpdk/build/lib/librte_mbuf.a',
-                './spdk/dpdk/build/lib/librte_ring.a',
-                './spdk/dpdk/build/lib/librte_mempool.a',
-                './spdk/dpdk/build/lib/librte_bus_pci.a',
-                './spdk/dpdk/build/lib/librte_pci.a',
-                './spdk/dpdk/build/lib/librte_kvargs.a',
+all: cython_lib
+cython_lib:
+	@python3 setup.py build_ext -i --force
 
-            ],
-        )]
-    )
-)
+unit:
+	gcc ioworker_distribution_init_ut.c -lcunit -I../spdk/include -I../spdk/test -I.
+	./a.out
+

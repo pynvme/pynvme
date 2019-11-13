@@ -878,7 +878,7 @@ Each ioworker can run upto 24 hours.
 * **lba_align (short)**\ : IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
 * **lba_random (bool)**\ : True if sending IO with random starting LBA. Default: True
 * **read_percentage (int)**\ : sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100
-* **time (int)**\ : specified maximum time of the IOWorker in seconds, up to 24*3600. Default:0, means no limit
+* **time (int)**\ : specified maximum time of the IOWorker in seconds, up to 1000*3600. Default:0, means no limit
 * **qdepth (int)**\ : queue depth of the Qpair created by the IOWorker, up to 1024. Default: 64
 * **region_start (long)**\ : sending IO in the specified LBA region, start. Default: 0
 * **region_end (long)**\ : sending IO in the specified LBA region, end but not include. Default: 0xffff_ffff_ffff_ffff

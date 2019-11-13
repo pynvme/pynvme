@@ -1045,7 +1045,7 @@ int ns_fini(struct spdk_nvme_ns* ns)
 ////module: ioworker
 ///////////////////////////////
 
-#include "src/ioworker.c"
+#include "ioworker.c"
 
 
 static inline void timeradd_second(struct timeval* now,

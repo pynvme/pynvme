@@ -31,15 +31,6 @@
 #  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#SPDK infrastructure
-SPDK_ROOT_DIR := $(abspath $(CURDIR)/spdk)
-include $(SPDK_ROOT_DIR)/mk/spdk.common.mk
-
-C_SRCS = driver.c intr_mgt.c
-LIBNAME = pynvme
-
-include $(SPDK_ROOT_DIR)/mk/spdk.lib.mk
-
 #find the first NVMe device as the DUT
 pciaddr=$(shell lspci | grep 'Non-Volatile memory' | grep -o '..:..\..' | head -1)
 
@@ -49,19 +40,20 @@ memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%8)/8*5}')
 #pytest test targets
 TESTS := driver_test.py
 
-#cython part
-clean: cython_clean
-cython_clean:
-	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c
-	@sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* scripts/__pycache__ a.out
-
-all: cython_lib
 .PHONY: all spdk doc
+
+all:
+	cd src; make;
+	mv src/nvme.*.so nvme.so
+
+clean:
+	cd src; make clean
+	@sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* scripts/__pycache__ a.out nvme.so
 
 spdk:
 	cd spdk; make clean; ./configure --enable-debug --enable-log-bt --enable-werror --disable-tests --without-ocf --without-vhost --without-virtio --without-pmdk --without-vpp --without-rbd --without-isal; make; cd ..
 
-doc: cython_lib
+doc:
 	pydocmd simple nvme++ > api.md
 	sed -i "1s/.*/# API/" api.md
 	m2r api.md
@@ -100,9 +92,6 @@ setup: reset
 	sed -i 's/BB:DD.F/${pciaddr}/g' .vscode/settings.json
 	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh  	# use UIO only
 
-cython_lib:
-	@python3 setup.py build_ext -i --force
-
 tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=ioat --exclude=snippets --exclude=env
 
@@ -113,9 +102,9 @@ test:
 	-rm test.log
 	make pytest 2>test.log | tee -a test.log
 
-unittest:
-	gcc src/ioworker_distribution_init.c -lcunit -Ispdk/include -Ispdk/test -I.
-	./a.out
+
+# local nvme tcp target
+####################################
 
 nvmt: target backend
 	sudo ./spdk/scripts/rpc.py nvmf_create_transport -t TCP -p 64

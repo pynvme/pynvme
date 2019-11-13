@@ -32,14 +32,7 @@
  */
 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include "intr_mgt.h"
 #include "driver.h"
-#include "spdk_internal/log.h"
-#include "spdk/lib/nvme/nvme_internal.h"
-#include "spdk/env.h"
 
 
 #define INTC_CTRL_NAME   "intc_ctrl_name%p"

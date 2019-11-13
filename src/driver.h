@@ -44,10 +44,12 @@
 #include "spdk/env.h"
 #include "spdk/crc32.h"
 #include "spdk/rpc.h"
-#include "spdk_internal/log.h"
-#include "spdk/lib/nvme/nvme_internal.h"
-#include "intr_mgt.h"
 #include "spdk/nvme.h"
+
+#include "spdk_internal/log.h"
+#include "../spdk/lib/nvme/nvme_internal.h"
+
+#include "intr_mgt.h"
 
 
 #define MIN(X,Y)              ((X) < (Y) ? (X) : (Y))
