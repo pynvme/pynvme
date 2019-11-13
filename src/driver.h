@@ -31,6 +31,7 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -46,10 +47,6 @@
 #include "spdk/rpc.h"
 #include "spdk/nvme.h"
 
-#include "spdk_internal/log.h"
-#include "../spdk/lib/nvme/nvme_internal.h"
-
-#include "intr_mgt.h"
 
 
 #define MIN(X,Y)              ((X) < (Y) ? (X) : (Y))
@@ -58,12 +55,23 @@
 #define BIT(a)                (1UL << (a))
 #endif /* BIT */
 
+#define US_PER_S              (1000L*1000L)
+
+#define ALIGN_UP(n, a)    (((n)%(a))?((n)+(a)-((n)%(a))):((n)))
+#define ALIGN_DOWN(n, a)  ((n)-((n)%(a)))
+
+// log_table contains latest cmd and cpl and their timestamps
+// queue_table traces cmd log tables by queue pairs
+// CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
+// reserved one slot space for tail value
+#define CMD_LOG_DEPTH              (2048)
+
+
 typedef struct spdk_nvme_qpair qpair;
 typedef struct spdk_nvme_ctrlr ctrlr;
 typedef struct spdk_nvme_ns namespace;
 typedef struct spdk_pci_device pcie;
 typedef struct spdk_nvme_cpl cpl;
-
 
 typedef struct ioworker_args
 {
@@ -99,9 +107,16 @@ typedef struct ioworker_rets
   unsigned short error;
 } ioworker_rets;
 
+
+extern int ioworker_entry(namespace* ns,
+                          struct spdk_nvme_qpair *qpair,
+                          ioworker_args* args,
+                          ioworker_rets* rets);
+
 extern int driver_init(void);
 extern int driver_fini(void);
 extern uint64_t driver_config(uint64_t cfg_word);
+extern void driver_srand(unsigned int seed);
 
 extern pcie* pcie_init(struct spdk_nvme_ctrlr* ctrlr);
 extern int pcie_cfg_read8(struct spdk_pci_device* pci,
@@ -187,11 +202,6 @@ extern void ns_crc32_clear(namespace* ns,
                            uint64_t lba, uint64_t lba_count,
                            int sanitize, int uncorr);
 
-extern int ioworker_entry(namespace* ns,
-                          struct spdk_nvme_qpair *qpair,
-                          ioworker_args* args,
-                          ioworker_rets* rets);
-
 extern char* log_buf_dump(const char* header, const void* buf, size_t len);
 extern void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count);
 extern void log_cmd_dump_admin(struct spdk_nvme_ctrlr* ctrlr, size_t count);
@@ -202,5 +212,8 @@ extern void intc_clear(struct spdk_nvme_qpair* q);
 extern bool intc_isset(struct spdk_nvme_qpair* q);
 extern void intc_mask(struct spdk_nvme_qpair* q);
 extern void intc_unmask(struct spdk_nvme_qpair* q);
+extern void* intc_lookup_ctrl(struct spdk_nvme_ctrlr* ctrlr);
 
-extern void driver_srand(unsigned int seed);
+extern void timeval_gettimeofday(struct timeval *tv);
+extern uint32_t timeval_to_us(struct timeval* t);
+

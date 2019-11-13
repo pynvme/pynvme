@@ -32,98 +32,46 @@
  */
 
 
-#include "spdk_cunit.h"
-#define spdk_log(...)
-#include "ioworker.c"
+// used for callback
+struct ioworker_io_ctx {
+  void* data_buf;
+  bool is_read;
+  struct timeval time_sent;
+  struct ioworker_global_ctx* gctx;
 
+  // next pending io
+	STAILQ_ENTRY(ioworker_io_ctx) next;
+};
 
-// null stubs
+struct ioworker_distribution_lookup {
+  uint64_t lba_start;
+  uint64_t lba_end;
+};
 
-void* buffer_init(size_t bytes, uint64_t *phys_addr,
-                  uint32_t ptype, uint32_t pvalue)
-{
-  
-}
+struct ioworker_global_ctx {
+  struct ioworker_args* args;
+  struct ioworker_rets* rets;
+  struct spdk_nvme_ns* ns;
+  struct spdk_nvme_qpair *qpair;
+  struct timeval due_time;
+  struct timeval io_due_time;
+  struct timeval io_delay_time;
+  struct timeval time_next_sec;
+  uint64_t io_count_till_last_sec;
+  uint64_t sequential_lba;
+  uint64_t io_count_sent;
+  uint64_t io_count_cplt;
+  uint32_t last_sec;
+  bool flag_finish;
 
-void buffer_fini(void* buf)
-{
-  
-}
+  // distribution loopup table
+  bool distribution;
+  struct ioworker_distribution_lookup dl_table[10000];
 
-int
-spdk_nvme_qpair_process_completions(struct spdk_nvme_qpair *qpair, uint32_t max_completions)
-{
-  return 0;
-}
+  // io_size lookup table
+  uint32_t sl_table[10000];
 
-int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl)
-{
-  return 0;
-}
+  // pending io list
+	STAILQ_HEAD(, ioworker_io_ctx)	pending_io_list;
+};
 
-uint32_t spdk_nvme_ns_get_sector_size(struct spdk_nvme_ns *ns)
-{
-  return 0;
-}
-
-uint64_t spdk_nvme_ns_get_num_sectors(struct spdk_nvme_ns *ns)
-{
-  return 0;
-}
-
-uint32_t timeval_to_us(struct timeval* t)
-{
-  return 0;
-}
-
-void timeval_gettimeofday(struct timeval *tv)
-{
-  
-}
-
-int ns_cmd_read_write(int is_read,
-                      struct spdk_nvme_ns* ns,
-                      struct spdk_nvme_qpair* qpair,
-                      void* buf,
-                      size_t len,
-                      uint64_t lba,
-                      uint16_t lba_count,
-                      uint32_t io_flags,
-                      spdk_nvme_cmd_cb cb_fn,
-                      void* cb_arg)
-{
-  return 0;
-}
-
-void *
-spdk_dma_zmalloc(size_t size, size_t align, uint64_t *phys_addr)
-{
-  return NULL;
-}
-
-
-// stubs
-
-
-// test cases
-void test_ioworker_distribution_init(void)
-{
-  bool ret;
-  
-  ret = ioworker_send_one_is_read(100);
-
-  CU_ASSERT_EQUAL(ret, true);
-}
-
-
-int main()
-{
-  CU_Suite* s;
-  
-  CU_initialize_registry();
-  s = CU_add_suite("ioworker", NULL, NULL);
-  CU_add_test(s, "first", test_ioworker_distribution_init);
-  CU_basic_set_mode(CU_BRM_VERBOSE);
-  CU_basic_run_tests();
-  CU_cleanup_registry();
-}

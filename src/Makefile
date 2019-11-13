@@ -35,7 +35,7 @@
 SPDK_ROOT_DIR := $(abspath $(CURDIR)/../spdk)
 include $(SPDK_ROOT_DIR)/mk/spdk.common.mk
 
-C_SRCS = driver.c intr_mgt.c
+C_SRCS = driver.c intr_mgt.c ioworker.c
 LIBNAME = pynvme
 
 include $(SPDK_ROOT_DIR)/mk/spdk.lib.mk
