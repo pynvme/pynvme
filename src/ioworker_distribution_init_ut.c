@@ -35,6 +35,7 @@
 #include "spdk/stdinc.h"
 #include "spdk_cunit.h"
 #include "spdk_internal/log.h"
+#include "spdk_internal/mock.h"
 
 #include "ioworker.c"
 
@@ -111,37 +112,67 @@ spdk_dma_zmalloc(size_t size, size_t align, uint64_t *phys_addr)
 
 
 // stubs
-
-uint64_t spdk_nvme_ns_get_num_sectors(struct spdk_nvme_ns *ns)
-{
-  return 1000;
-}
+DEFINE_STUB(spdk_nvme_ns_get_num_sectors, uint64_t,
+            (struct spdk_nvme_ns *ns), 0);
 
 
 // test cases
-void test_ioworker_distribution_init(void)
+void test_ioworker_distribution_init_1000(void)
 {
   struct spdk_nvme_ns ns;
   struct ioworker_global_ctx ctx;
   uint32_t distribution[100];
+  uint64_t max_lba = 1000;
 
-  // condition
+  // conditions
   ctx.args = malloc(sizeof(struct ioworker_args));
-  memset(distribution, 0, sizeof(distribution));
   memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  // single active region
+  memset(distribution, 0, sizeof(distribution));
   distribution[0] = 10000;
-  ctx.args->region_end = 1000;
+  ctx.args->region_end = max_lba;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
 
   // run test
   ioworker_distribution_init(&ns, &ctx, distribution);
   printf("%d\n", ctx.dl_table[1].lba_end);
   // result
   CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
-  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, 1000/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, max_lba/100);
   CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
-  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, 1000/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 0);
-  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 1000/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100);
+
+  free(ctx.args);
+}
+
+void test_ioworker_distribution_init_10000(void)
+{
+  struct spdk_nvme_ns ns;
+  struct ioworker_global_ctx ctx;
+  uint32_t distribution[100];
+  uint64_t max_lba = 10000;
+
+  // conditions
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  // single active region
+  memset(distribution, 0, sizeof(distribution));
+  distribution[0] = 10000;
+  ctx.args->region_end = max_lba;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+  printf("%d\n", ctx.dl_table[1].lba_end);
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100);
 
   free(ctx.args);
 }
@@ -168,7 +199,8 @@ int main()
 	}
 
   CU_ADD_TEST(s, test_ioworker_pass);
-  CU_ADD_TEST(s, test_ioworker_distribution_init);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_1000);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_10000);
   
   CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();
