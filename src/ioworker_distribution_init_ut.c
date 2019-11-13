@@ -129,7 +129,7 @@ void test_ioworker_distribution_init(void)
   CU_ASSERT_EQUAL(ret, true);
 }
 
-void test_ioworker_distribution_init(void)
+void test_ioworker_fail(void)
 {
   CU_ASSERT(false);
 }
