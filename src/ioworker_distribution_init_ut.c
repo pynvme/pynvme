@@ -50,7 +50,6 @@ void
 spdk_log(enum spdk_log_level level, const char *file, const int line, const char *func,
 	 const char *format, ...)
 {
-  
 }
 
 void* buffer_init(size_t bytes, uint64_t *phys_addr,
@@ -76,11 +75,6 @@ int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl)
 }
 
 uint32_t spdk_nvme_ns_get_sector_size(struct spdk_nvme_ns *ns)
-{
-  return 0;
-}
-
-uint64_t spdk_nvme_ns_get_num_sectors(struct spdk_nvme_ns *ns)
 {
   return 0;
 }
@@ -118,21 +112,45 @@ spdk_dma_zmalloc(size_t size, size_t align, uint64_t *phys_addr)
 
 // stubs
 
+uint64_t spdk_nvme_ns_get_num_sectors(struct spdk_nvme_ns *ns)
+{
+  return 1000;
+}
+
 
 // test cases
 void test_ioworker_distribution_init(void)
 {
-  bool ret;
-  
-  ret = ioworker_send_one_is_read(100);
+  struct spdk_nvme_ns ns;
+  struct ioworker_global_ctx ctx;
+  uint32_t distribution[100];
 
-  CU_ASSERT_EQUAL(ret, true);
+  // condition
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(distribution, 0, sizeof(distribution));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  distribution[0] = 10000;
+  ctx.args->region_end = 1000;
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+  printf("%d\n", ctx.dl_table[1].lba_end);
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, 1000/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, 1000/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 1000/100);
+
+  free(ctx.args);
 }
 
-void test_ioworker_fail(void)
+void test_ioworker_pass(void)
 {
-  CU_ASSERT(false);
+  CU_ASSERT(true);
 }
+
 
 int main()
 {
@@ -149,8 +167,8 @@ int main()
 		return CU_get_error();
 	}
 
+  CU_ADD_TEST(s, test_ioworker_pass);
   CU_ADD_TEST(s, test_ioworker_distribution_init);
-  CU_ADD_TEST(s, test_ioworker_fail);
   
   CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();

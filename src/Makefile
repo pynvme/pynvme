@@ -43,15 +43,18 @@ include $(SPDK_ROOT_DIR)/mk/spdk.lib.mk
 #cython part
 clean: cython_clean
 cython_clean:
-	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c a.out
+	@sudo rm -rf build *.o nvme.*.so cdriver.c driver_wrap.c unittest
 
-.PHONY: all
+.PHONY: all unittest
 
 all: cython_lib
 cython_lib:
 	@python3 setup.py build_ext -i --force
 
-unit:
-	gcc ioworker_distribution_init_ut.c -lcunit -I../spdk/include -I../spdk/test -I.
-	./a.out
+#unit test
+UT_SRCS = $(wildcard *_ut.c)
+
+unittest: $(UT_SRCS)
+	gcc -o $@ $^ -lcunit -I../spdk/include -I../spdk/test -I.
+	./$@
 
