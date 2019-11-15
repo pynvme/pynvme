@@ -131,6 +131,10 @@ static void test_ioworker_distribution_init_single_1000(void)
 {
   uint64_t max_lba = 1000;
 
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  memset(distribution, 0, sizeof(distribution));
+
   // single active region
   distribution[0] = 10000;
   ctx.args->region_end = max_lba;
@@ -146,12 +150,18 @@ static void test_ioworker_distribution_init_single_1000(void)
   CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 0);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100);
+
+  free(ctx.args);  
 }
 
 static void test_ioworker_distribution_init_single_10000(void)
 {
   uint64_t max_lba = 10000;
 
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  memset(distribution, 0, sizeof(distribution));
+
   // single active region
   distribution[0] = 10000;
   ctx.args->region_end = max_lba;
@@ -167,11 +177,17 @@ static void test_ioworker_distribution_init_single_10000(void)
   CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 0);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100);
+
+  free(ctx.args);
 }
 
 static void test_ioworker_distribution_init_dual_20000(void)
 {
   uint64_t max_lba = 20000;
+
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  memset(distribution, 0, sizeof(distribution));
 
   // two active region
   distribution[0] = 5000;
@@ -187,31 +203,49 @@ static void test_ioworker_distribution_init_dual_20000(void)
   CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, max_lba/100);
   CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
   CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_start, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_end, max_lba/100+max_lba/100);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, max_lba/100);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100+max_lba/100);
+
+  free(ctx.args);
 }
 
-static int ioworker_distribution_init_suite_init(void)
+
+static void test_ioworker_distribution_init_two_end_20000(void)
 {
+  uint64_t max_lba = 20000;
+  
   ctx.args = malloc(sizeof(struct ioworker_args));
   memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
   memset(distribution, 0, sizeof(distribution));
 
-  return 0;
+  // two active region
+  distribution[0] = 5000;
+  distribution[99] = 5000;
+  ctx.args->region_end = max_lba;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_start, max_lba-max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_end, max_lba);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, max_lba-max_lba/100);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba);
+  
+  free(ctx.args);  
 }
 
-static int ioworker_distribution_init_suite_clear(void)
-{
-  free(ctx.args);
-
-  return 0;
-}
 
 static int suite_ioworker_distribution_init(void)
 {
-  CU_Suite* s = CU_add_suite(__func__,
-                             ioworker_distribution_init_suite_init,
-                             ioworker_distribution_init_suite_clear);
+  CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
 	if (s == NULL) {
 		CU_cleanup_registry();
 		return CU_get_error();
@@ -221,6 +255,7 @@ static int suite_ioworker_distribution_init(void)
   CU_ADD_TEST(s, test_ioworker_distribution_init_single_1000);
   CU_ADD_TEST(s, test_ioworker_distribution_init_single_10000);
   CU_ADD_TEST(s, test_ioworker_distribution_init_dual_20000);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_two_end_20000);
   
 	return 0;
 }
