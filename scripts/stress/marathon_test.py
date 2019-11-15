@@ -43,7 +43,8 @@ def test_read_multiple_devices_500hr(verify):
     assert verify
 
     # address list of the devices to test
-    addr_list = [b'3a:00.0', ]
+    addr_list = [b'01:00.0', b'03:00.0']
+    test_seconds = 500*3600
     
     nvme_list = [d.Controller(a) for a in addr_list]
     ns_list = [d.Namespace(n) for n in nvme_list]
@@ -69,8 +70,17 @@ def test_read_multiple_devices_500hr(verify):
     ioworkers = {}
     for ns in ns_list:
         a = ns.ioworker(io_size=8, lba_random=True, qdepth=16,
-                        read_percentage=100, time=500*3600).start()
+                        read_percentage=100, time=test_seconds).start()
         ioworkers[ns] = a
 
+    # display progress
+    for i in range(test_seconds):
+        time.sleep(1)
+        buf = d.Buffer(512)
+        for nvme in nvme_list:
+            nvme.getlogpage(2, buf).waitdone()
+            logging.info("%9d: %s data units read %d" %
+                         (i, nvme.id_data(63, 24, str), buf.data(47, 32)))
+        
     # wait for all ioworker done
     [ioworkers[ns].close() for ns in ioworkers]
