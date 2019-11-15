@@ -43,7 +43,7 @@ TESTS := driver_test.py
 .PHONY: all spdk doc
 
 all: clean
-	cd src; make;
+	cd src; make
 	mv src/nvme.*.so nvme.so
 
 clean:
