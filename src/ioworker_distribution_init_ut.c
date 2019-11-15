@@ -120,26 +120,10 @@ static struct spdk_nvme_ns ns;
 static struct ioworker_global_ctx ctx;
 static uint32_t distribution[100];
 
+
 static void test_ioworker_pass(void)
 {
   CU_ASSERT(true);
-}
-
-
-static int ut_init(void)
-{
-  ctx.args = malloc(sizeof(struct ioworker_args));
-  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
-  memset(distribution, 0, sizeof(distribution));
-
-  return 0;
-}
-
-static int ut_clear(void)
-{
-  free(ctx.args);
-
-  return 0;
 }
 
 // test cases
@@ -207,17 +191,27 @@ static void test_ioworker_distribution_init_dual_20000(void)
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100+max_lba/100);
 }
 
-
-int main()
+static int ioworker_distribution_init_suite_init(void)
 {
-  CU_Suite* s;
-	unsigned int	num_failures;
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  memset(distribution, 0, sizeof(distribution));
 
-	if (CU_initialize_registry() != CUE_SUCCESS) {
-		return CU_get_error();
-	}
+  return 0;
+}
 
-  s = CU_add_suite("ioworker", ut_init, ut_clear);
+static int ioworker_distribution_init_suite_clear(void)
+{
+  free(ctx.args);
+
+  return 0;
+}
+
+static int suite_ioworker_distribution_init(void)
+{
+  CU_Suite* s = CU_add_suite(__func__,
+                             ioworker_distribution_init_suite_init,
+                             ioworker_distribution_init_suite_clear);
 	if (s == NULL) {
 		CU_cleanup_registry();
 		return CU_get_error();
@@ -227,6 +221,48 @@ int main()
   CU_ADD_TEST(s, test_ioworker_distribution_init_single_1000);
   CU_ADD_TEST(s, test_ioworker_distribution_init_single_10000);
   CU_ADD_TEST(s, test_ioworker_distribution_init_dual_20000);
+  
+	return 0;
+}
+
+
+// test cases
+static void test_timeradd_second_add_0(void)
+{
+  struct timeval now = {10, 10};
+  struct timeval due = {0, 0};
+  
+  timeradd_second(&now, 0, &due);
+  
+  CU_ASSERT_EQUAL(now.tv_usec, due.tv_usec);
+  CU_ASSERT_EQUAL(now.tv_sec, due.tv_sec);
+}
+
+
+static int suite_timeradd_second()
+{
+  CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
+	if (s == NULL) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
+  CU_ADD_TEST(s, test_timeradd_second_add_0);
+  
+	return 0;
+}
+
+
+int main()
+{
+	unsigned int	num_failures;
+
+	if (CU_initialize_registry() != CUE_SUCCESS) {
+		return CU_get_error();
+	}
+
+  suite_timeradd_second();
+  suite_ioworker_distribution_init();
   
   CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();
