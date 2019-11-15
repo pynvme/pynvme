@@ -74,8 +74,8 @@ def test_read_multiple_devices_500hr(verify):
         ioworkers[ns] = a
 
     # display progress
-    for i in range(test_seconds):
-        time.sleep(1)
+    for i in range(0, test_seconds, 10):
+        time.sleep(10)
         buf = d.Buffer(512)
         for nvme in nvme_list:
             nvme.getlogpage(2, buf).waitdone()
