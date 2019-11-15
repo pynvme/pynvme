@@ -242,6 +242,66 @@ static void test_ioworker_distribution_init_two_end_20000(void)
   free(ctx.args);  
 }
 
+static void test_ioworker_distribution_init_two_end_19999(void)
+{
+  uint64_t max_lba = 19999;
+  
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  memset(distribution, 0, sizeof(distribution));
+
+  // two active region
+  distribution[0] = 5000;
+  distribution[99] = 5000;
+  ctx.args->region_end = max_lba;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, 199);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, 199);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_start, 19701);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_end, 19999);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 19701);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 19999);
+  
+  free(ctx.args);  
+}
+
+static void test_ioworker_distribution_init_two_end_20001(void)
+{
+  uint64_t max_lba = 20001;
+  
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  memset(distribution, 0, sizeof(distribution));
+
+  // two active region
+  distribution[0] = 5000;
+  distribution[99] = 5000;
+  ctx.args->region_end = max_lba;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, 200);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, 200);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_start, 19800);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_end, 20001);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 19800);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 20001);
+  
+  free(ctx.args);  
+}
+
 
 static int suite_ioworker_distribution_init(void)
 {
@@ -256,6 +316,8 @@ static int suite_ioworker_distribution_init(void)
   CU_ADD_TEST(s, test_ioworker_distribution_init_single_10000);
   CU_ADD_TEST(s, test_ioworker_distribution_init_dual_20000);
   CU_ADD_TEST(s, test_ioworker_distribution_init_two_end_20000);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_two_end_19999);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_two_end_20001);
   
 	return 0;
 }
