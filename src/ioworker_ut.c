@@ -181,6 +181,33 @@ static void test_ioworker_distribution_init_single_10000(void)
   free(ctx.args);
 }
 
+static void test_ioworker_distribution_init_single_10000_last(void)
+{
+  uint64_t max_lba = 10000;
+
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  memset(distribution, 0, sizeof(distribution));
+
+  // single active region
+  distribution[99] = 10000;
+  ctx.args->region_end = max_lba;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 9900);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, 10000);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 9900);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, 10000);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 9900);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 10000);
+
+  free(ctx.args);
+}
+
 static void test_ioworker_distribution_init_dual_20000(void)
 {
   uint64_t max_lba = 20000;
@@ -303,6 +330,150 @@ static void test_ioworker_distribution_init_two_end_20001(void)
 }
 
 
+static void test_ioworker_distribution_init_even(void)
+{
+  uint64_t max_lba = 20000;
+  
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  memset(distribution, 0, sizeof(distribution));
+
+  // two active region
+  for (int i=0; i<100; i++)
+  {
+    distribution[i] = 100;
+  }
+  ctx.args->region_end = max_lba;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, 200);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, 200);
+  CU_ASSERT_EQUAL(ctx.dl_table[100].lba_start, 200);
+  CU_ASSERT_EQUAL(ctx.dl_table[100].lba_end, 400);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_start, 10000);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_end, 10200);
+  CU_ASSERT_EQUAL(ctx.dl_table[5001].lba_start, 10000);
+  CU_ASSERT_EQUAL(ctx.dl_table[5001].lba_end, 10200);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 19800);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 20000);
+  
+  free(ctx.args);  
+}
+
+
+static void test_ioworker_distribution_init_not_even(void)
+{
+  uint64_t max_lba = 54099;
+  
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  memset(distribution, 0, sizeof(distribution));
+
+  // two active region
+  distribution[0] = 1;
+  distribution[99] = 9999;
+
+  ctx.args->region_end = 54092;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, 540);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 53460);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, 54092);
+  CU_ASSERT_EQUAL(ctx.dl_table[100].lba_start, 53460);
+  CU_ASSERT_EQUAL(ctx.dl_table[100].lba_end, 54092);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_start, 53460);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_end, 54092);
+  CU_ASSERT_EQUAL(ctx.dl_table[5001].lba_start, 53460);
+  CU_ASSERT_EQUAL(ctx.dl_table[5001].lba_end, 54092);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 53460);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 54092);
+  
+  free(ctx.args);  
+}
+
+static void test_ioworker_distribution_init_jedec(void)
+{
+  uint64_t max_lba = 5400000095ULL;
+  
+  ctx.args = malloc(sizeof(struct ioworker_args));
+  memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
+  memset(distribution, 0, sizeof(distribution));
+
+  // two active region
+  for (int i=0; i<100; i++)
+  {
+    distribution[i] = 25;
+  }
+  for (int i=0; i<20; i++)
+  {
+    distribution[i] = 200;
+  }
+  for (int i=0; i<5; i++)
+  {
+    distribution[i] = 1000;
+  }
+
+  ctx.args->region_end = 5400000090ULL;
+  MOCK_SET(spdk_nvme_ns_get_num_sectors, max_lba);
+
+  // run test
+  ioworker_distribution_init(&ns, &ctx, distribution);
+
+  // result
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[0].lba_end, 54000000);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[1].lba_end, 54000000);
+  CU_ASSERT_EQUAL(ctx.dl_table[998].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[998].lba_end, 54000000);
+  CU_ASSERT_EQUAL(ctx.dl_table[999].lba_start, 0);
+  CU_ASSERT_EQUAL(ctx.dl_table[999].lba_end, 54000000);
+  CU_ASSERT_EQUAL(ctx.dl_table[1000].lba_start, 54000000);
+  CU_ASSERT_EQUAL(ctx.dl_table[1000].lba_end, 108000000);
+  CU_ASSERT_EQUAL(ctx.dl_table[1999].lba_start, 54000000);
+  CU_ASSERT_EQUAL(ctx.dl_table[1999].lba_end, 108000000);
+  CU_ASSERT_EQUAL(ctx.dl_table[4999].lba_start, 54000000*4);
+  CU_ASSERT_EQUAL(ctx.dl_table[4999].lba_end, 54000000*5);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_start, 54000000*5);
+  CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_end, 54000000*6);
+  CU_ASSERT_EQUAL(ctx.dl_table[5200].lba_start, 54000000*6);
+  CU_ASSERT_EQUAL(ctx.dl_table[5200].lba_end, 54000000*7);
+  CU_ASSERT_EQUAL(ctx.dl_table[7999].lba_start, 54000000*19);
+  CU_ASSERT_EQUAL(ctx.dl_table[7999].lba_end, 54000000*20);
+  CU_ASSERT_EQUAL(ctx.dl_table[8000].lba_start, 54000000*20);
+  CU_ASSERT_EQUAL(ctx.dl_table[8000].lba_end, 54000000*21);
+  CU_ASSERT_EQUAL(ctx.dl_table[8001].lba_start, 54000000*20);
+  CU_ASSERT_EQUAL(ctx.dl_table[8001].lba_end, 54000000*21);
+  CU_ASSERT_EQUAL(ctx.dl_table[8002].lba_start, 54000000ULL*20);
+  CU_ASSERT_EQUAL(ctx.dl_table[8002].lba_end, 54000000ULL*21);
+  CU_ASSERT_EQUAL(ctx.dl_table[8003].lba_start, 54000000ULL*20);
+  CU_ASSERT_EQUAL(ctx.dl_table[8003].lba_end, 54000000ULL*21);
+  CU_ASSERT_EQUAL(ctx.dl_table[8004].lba_start, 54000000ULL*20);
+  CU_ASSERT_EQUAL(ctx.dl_table[8004].lba_end, 54000000ULL*21);
+  CU_ASSERT_EQUAL(ctx.dl_table[8005].lba_start, 54000000ULL*20);
+  CU_ASSERT_EQUAL(ctx.dl_table[8005].lba_end, 54000000ULL*21);
+  CU_ASSERT_EQUAL(ctx.dl_table[8025].lba_start, 54000000ULL*21);
+  CU_ASSERT_EQUAL(ctx.dl_table[8025].lba_end, 54000000ULL*22);
+  CU_ASSERT_EQUAL(ctx.dl_table[9995].lba_start, 54000000ULL*99);
+  CU_ASSERT_EQUAL(ctx.dl_table[9995].lba_end, 5400000090ULL);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 54000000ULL*99);
+  CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 5400000090ULL);
+  
+  free(ctx.args);  
+}
+
+
 static int suite_ioworker_distribution_init(void)
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
@@ -314,10 +485,14 @@ static int suite_ioworker_distribution_init(void)
   CU_ADD_TEST(s, test_ioworker_pass);
   CU_ADD_TEST(s, test_ioworker_distribution_init_single_1000);
   CU_ADD_TEST(s, test_ioworker_distribution_init_single_10000);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_single_10000_last);
   CU_ADD_TEST(s, test_ioworker_distribution_init_dual_20000);
   CU_ADD_TEST(s, test_ioworker_distribution_init_two_end_20000);
   CU_ADD_TEST(s, test_ioworker_distribution_init_two_end_19999);
   CU_ADD_TEST(s, test_ioworker_distribution_init_two_end_20001);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_even);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_not_even);
+  CU_ADD_TEST(s, test_ioworker_distribution_init_jedec);
   
 	return 0;
 }
@@ -326,13 +501,35 @@ static int suite_ioworker_distribution_init(void)
 // test cases
 static void test_timeradd_second_add_0(void)
 {
-  struct timeval now = {10, 10};
+  struct timeval now = {10, 100};
   struct timeval due = {0, 0};
   
   timeradd_second(&now, 0, &due);
   
-  CU_ASSERT_EQUAL(now.tv_usec, due.tv_usec);
-  CU_ASSERT_EQUAL(now.tv_sec, due.tv_sec);
+  CU_ASSERT_EQUAL(due.tv_sec, 10);
+  CU_ASSERT_EQUAL(due.tv_usec, 100);
+}
+
+static void test_timeradd_second_add_1(void)
+{
+  struct timeval now = {10, 10};
+  struct timeval due = {0, 0};
+  
+  timeradd_second(&now, 1, &due);
+  
+  CU_ASSERT_EQUAL(due.tv_sec, 11);
+  CU_ASSERT_EQUAL(due.tv_usec, 10);
+}
+
+static void test_timeradd_second_add_10(void)
+{
+  struct timeval now = {10, 1000*1000ULL};
+  struct timeval due = {0, 0};
+  
+  timeradd_second(&now, 100, &due);
+  
+  CU_ASSERT_EQUAL(due.tv_sec, 111);
+  CU_ASSERT_EQUAL(due.tv_usec, 0);
 }
 
 
@@ -345,6 +542,8 @@ static int suite_timeradd_second()
 	}
 
   CU_ADD_TEST(s, test_timeradd_second_add_0);
+  CU_ADD_TEST(s, test_timeradd_second_add_1);
+  CU_ADD_TEST(s, test_timeradd_second_add_10);
   
 	return 0;
 }
