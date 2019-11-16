@@ -80,11 +80,6 @@ uint32_t spdk_nvme_ns_get_sector_size(struct spdk_nvme_ns *ns)
   return 0;
 }
 
-uint32_t timeval_to_us(struct timeval* t)
-{
-  return 0;
-}
-
 void timeval_gettimeofday(struct timeval *tv)
 {
   
@@ -754,6 +749,113 @@ static int suite_ioworker_get_duration()
 }
 
 
+DEFINE_STUB(timeval_to_us, uint32_t, (struct timeval* t), 0);
+
+static void test_ioworker_update_rets_latency_read()
+{
+  struct ioworker_io_ctx ctx;
+  struct ioworker_rets rets;
+  struct timeval now;
+  uint32_t ret;
+
+  MOCK_SET(timeval_to_us, 200);
+  
+  rets.latency_max_us = 100;
+  ctx.is_read = true;
+  rets.io_count_read = 10;
+  rets.io_count_write = 11;
+  
+  ret = ioworker_update_rets(&ctx, &rets, &now);
+
+  CU_ASSERT_EQUAL(rets.latency_max_us, 200);
+  CU_ASSERT_EQUAL(ret, 200);
+  CU_ASSERT_EQUAL(rets.io_count_read, 11);
+  CU_ASSERT_EQUAL(rets.io_count_write, 11);
+}
+
+static void test_ioworker_update_rets_latency_write()
+{
+  struct ioworker_io_ctx ctx;
+  struct ioworker_rets rets;
+  struct timeval now;
+  uint32_t ret;
+
+  MOCK_SET(timeval_to_us, 2000);
+  
+  rets.latency_max_us = 100;
+  ctx.is_read = false;
+  rets.io_count_read = 10;
+  rets.io_count_write = 11;
+  
+  ret = ioworker_update_rets(&ctx, &rets, &now);
+
+  CU_ASSERT_EQUAL(rets.latency_max_us, 2000);
+  CU_ASSERT_EQUAL(ret, 2000);
+  CU_ASSERT_EQUAL(rets.io_count_read, 10);
+  CU_ASSERT_EQUAL(rets.io_count_write, 12);
+}
+
+static void test_ioworker_update_rets_read()
+{
+  struct ioworker_io_ctx ctx;
+  struct ioworker_rets rets;
+  struct timeval now;
+  uint32_t ret;
+
+  MOCK_SET(timeval_to_us, 2000);
+  
+  rets.latency_max_us = 10000;
+  ctx.is_read = true;
+  rets.io_count_read = 10;
+  rets.io_count_write = 11;
+  
+  ret = ioworker_update_rets(&ctx, &rets, &now);
+
+  CU_ASSERT_EQUAL(rets.latency_max_us, 10000);
+  CU_ASSERT_EQUAL(ret, 2000);
+  CU_ASSERT_EQUAL(rets.io_count_read, 11);
+  CU_ASSERT_EQUAL(rets.io_count_write, 11);
+}
+
+static void test_ioworker_update_rets_write()
+{
+  struct ioworker_io_ctx ctx;
+  struct ioworker_rets rets;
+  struct timeval now;
+  uint32_t ret;
+
+  MOCK_SET(timeval_to_us, 2000);
+  
+  rets.latency_max_us = 10000;
+  ctx.is_read = false;
+  rets.io_count_read = 10;
+  rets.io_count_write = 11;
+  
+  ret = ioworker_update_rets(&ctx, &rets, &now);
+
+  CU_ASSERT_EQUAL(rets.latency_max_us, 10000);
+  CU_ASSERT_EQUAL(ret, 2000);
+  CU_ASSERT_EQUAL(rets.io_count_read, 10);
+  CU_ASSERT_EQUAL(rets.io_count_write, 12);
+}
+
+static int suite_ioworker_update_rets()
+{
+  CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
+	if (s == NULL) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
+  CU_ADD_TEST(s, test_ioworker_update_rets_latency_read);
+  CU_ADD_TEST(s, test_ioworker_update_rets_latency_write);
+  CU_ADD_TEST(s, test_ioworker_update_rets_read);
+  CU_ADD_TEST(s, test_ioworker_update_rets_write);
+  
+	return 0;
+}
+
+
 int main()
 {
 	unsigned int	num_failures;
@@ -766,6 +868,7 @@ int main()
   suite_ioworker_distribution_init();
   suite_ioworker_send_one_is_finish();
   suite_ioworker_get_duration();
+  suite_ioworker_update_rets();
   
   CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();
