@@ -264,7 +264,7 @@ static inline uint64_t ioworker_send_one_lba_sequential(struct ioworker_args* ar
                 gctx->sequential_lba, args->region_end);
 
   ret = gctx->sequential_lba;
-  if (ret > args->region_end)
+  if (ret >= args->region_end)
   {
     ret = args->region_start;
   }

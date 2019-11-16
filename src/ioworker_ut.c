@@ -1041,7 +1041,52 @@ static int suite_ioworker_iosize_init()
 
 static void test_ioworker_send_one_lba_seq()
 {
-  
+  struct ioworker_args args;
+  struct ioworker_global_ctx ctx;
+  uint16_t lba_align = 1;
+  uint16_t lba_count = 1;
+  uint64_t ret;
+
+  args.lba_random = 0;
+  args.region_end = 100;
+  args.region_start = 0;
+  ctx.sequential_lba = 0;
+
+  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+
+  CU_ASSERT_EQUAL(ret, 0);
+  CU_ASSERT_EQUAL(ctx.sequential_lba, 1);
+}
+
+static void test_ioworker_send_one_lba_seq_end()
+{
+  struct ioworker_args args;
+  struct ioworker_global_ctx ctx;
+  uint16_t lba_align = 1;
+  uint16_t lba_count = 1;
+  uint64_t ret;
+
+  args.lba_random = 0;
+  args.region_end = 100;
+  args.region_start = 0;
+  ctx.sequential_lba = 100;
+
+  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+
+  CU_ASSERT_EQUAL(ret, 0);
+  CU_ASSERT_EQUAL(ctx.sequential_lba, 1);
+
+  lba_align = 4;
+  lba_count = 4;
+  args.lba_random = 0;
+  args.region_end = 100;
+  args.region_start = 0;
+  ctx.sequential_lba = 100;
+
+  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+
+  CU_ASSERT_EQUAL(ret, 0);
+  CU_ASSERT_EQUAL(ctx.sequential_lba, 4);
 }
 
 static int suite_ioworker_send_one_lba()
@@ -1053,6 +1098,7 @@ static int suite_ioworker_send_one_lba()
 	}
 
   CU_ADD_TEST(s, test_ioworker_send_one_lba_seq);
+  CU_ADD_TEST(s, test_ioworker_send_one_lba_seq_end);
 
 	return 0;
 }
