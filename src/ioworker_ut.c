@@ -983,6 +983,46 @@ static int test_ioworker_iosize_init_dual()
   CU_ASSERT_EQUAL(ctx.sl_table[2], 1);
 }
 
+static int test_ioworker_iosize_init_jedec()
+{
+  struct ioworker_global_ctx ctx;
+  struct ioworker_args args;
+  uint32_t ratio[] = {4, 1, 1, 1, 1, 1, 1, 67, 10, 7, 3, 3};
+  
+  ctx.args = &args;
+  args.lba_size_list_len = 12;
+  args.lba_size_list_ratio = &ratio[0];
+  args.lba_size_ratio_sum = 100;
+  
+  ioworker_iosize_init(&ctx);
+
+  CU_ASSERT_EQUAL(args.lba_size_ratio_sum, 100);
+  CU_ASSERT_EQUAL(ctx.sl_table[0], 0);
+  CU_ASSERT_EQUAL(ctx.sl_table[1], 0);
+  CU_ASSERT_EQUAL(ctx.sl_table[2], 0);
+  CU_ASSERT_EQUAL(ctx.sl_table[3], 0);
+  CU_ASSERT_EQUAL(ctx.sl_table[4], 1);
+  CU_ASSERT_EQUAL(ctx.sl_table[5], 2);
+  CU_ASSERT_EQUAL(ctx.sl_table[6], 3);
+  CU_ASSERT_EQUAL(ctx.sl_table[7], 4);
+  CU_ASSERT_EQUAL(ctx.sl_table[8], 5);
+  CU_ASSERT_EQUAL(ctx.sl_table[9], 6);
+  CU_ASSERT_EQUAL(ctx.sl_table[10], 7);
+  CU_ASSERT_EQUAL(ctx.sl_table[11], 7);
+  CU_ASSERT_EQUAL(ctx.sl_table[12], 7);
+  CU_ASSERT_EQUAL(ctx.sl_table[76], 7);
+  CU_ASSERT_EQUAL(ctx.sl_table[77], 8);
+  CU_ASSERT_EQUAL(ctx.sl_table[86], 8);
+  CU_ASSERT_EQUAL(ctx.sl_table[87], 9);
+  CU_ASSERT_EQUAL(ctx.sl_table[93], 9);
+  CU_ASSERT_EQUAL(ctx.sl_table[94], 10);
+  CU_ASSERT_EQUAL(ctx.sl_table[95], 10);
+  CU_ASSERT_EQUAL(ctx.sl_table[96], 10);
+  CU_ASSERT_EQUAL(ctx.sl_table[97], 11);
+  CU_ASSERT_EQUAL(ctx.sl_table[98], 11);
+  CU_ASSERT_EQUAL(ctx.sl_table[99], 11);
+}
+
 static int suite_ioworker_iosize_init()
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
@@ -993,6 +1033,26 @@ static int suite_ioworker_iosize_init()
 
   CU_ADD_TEST(s, test_ioworker_iosize_init_single);
   CU_ADD_TEST(s, test_ioworker_iosize_init_dual);
+  CU_ADD_TEST(s, test_ioworker_iosize_init_jedec);
+
+	return 0;
+}
+
+
+static void test_ioworker_send_one_lba_seq()
+{
+  
+}
+
+static int suite_ioworker_send_one_lba()
+{
+  CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
+	if (s == NULL) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
+  CU_ADD_TEST(s, test_ioworker_send_one_lba_seq);
 
 	return 0;
 }
@@ -1013,8 +1073,8 @@ int main()
   suite_ioworker_update_rets();
   suite_ioworker_update_io_count_per_second();
   suite_ioworker_iosize_init();
+  suite_ioworker_send_one_lba();
   
-  CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();
 	num_failures = CU_get_number_of_failures();
 	CU_cleanup_registry();
