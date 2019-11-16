@@ -38,6 +38,23 @@
 #include "../spdk/lib/nvme/nvme_internal.h"
 
 
+static void ioworker_iosize_init(struct ioworker_global_ctx* ctx)
+{
+  unsigned int sl_index = 0;
+
+  assert(ctx->args->lba_size_ratio_sum <= 10000);
+  for (unsigned int i=0; i<ctx->args->lba_size_list_len; i++)
+  {
+    for (unsigned int j=0; j<ctx->args->lba_size_list_ratio[i]; j++)
+    {
+      SPDK_DEBUGLOG(SPDK_LOG_NVME, "sl table %d: %d\n", sl_index, i);
+      ctx->sl_table[sl_index++] = i;
+    }
+  }
+  assert(sl_index == ctx->args->lba_size_ratio_sum);
+}
+
+
 static void ioworker_distribution_init(struct spdk_nvme_ns* ns,
                                        struct ioworker_global_ctx* ctx,
                                        uint32_t* distribution)
@@ -233,15 +250,13 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
   }
 }
 
-static inline bool
-ioworker_send_one_is_read(unsigned short read_percentage)
+static inline bool ioworker_send_one_is_read(unsigned short read_percentage)
 {
   return random()%100 < read_percentage;
 }
 
-static inline uint64_t
-ioworker_send_one_lba_sequential(struct ioworker_args* args,
-                                 struct ioworker_global_ctx* gctx)
+static inline uint64_t ioworker_send_one_lba_sequential(struct ioworker_args* args,
+                                                        struct ioworker_global_ctx* gctx)
 {
   uint64_t ret;
 
@@ -257,9 +272,8 @@ ioworker_send_one_lba_sequential(struct ioworker_args* args,
   return ret;
 }
 
-static inline uint64_t
-ioworker_send_one_lba_random(struct ioworker_args* args,
-                             struct ioworker_global_ctx* gctx)
+static inline uint64_t ioworker_send_one_lba_random(struct ioworker_args* args,
+                                                    struct ioworker_global_ctx* gctx)
 {
   uint64_t start;
   uint64_t end;
@@ -282,10 +296,9 @@ ioworker_send_one_lba_random(struct ioworker_args* args,
 }
 
 
-static inline uint16_t
-ioworker_send_one_size(struct ioworker_args* args,
-                       struct ioworker_global_ctx* gctx,
-                       uint16_t* lba_align)
+static inline uint16_t ioworker_send_one_size(struct ioworker_args* args,
+                                              struct ioworker_global_ctx* gctx,
+                                              uint16_t* lba_align)
 {
   uint32_t si = gctx->sl_table[random()%args->lba_size_ratio_sum];
   uint16_t ret = args->lba_size_list[si];
@@ -295,11 +308,10 @@ ioworker_send_one_size(struct ioworker_args* args,
 }
 
 
-static inline uint64_t
-ioworker_send_one_lba(struct ioworker_args* args,
-                      struct ioworker_global_ctx* gctx,
-                      uint16_t lba_align,
-                      uint16_t lba_count)
+static inline uint64_t ioworker_send_one_lba(struct ioworker_args* args,
+                                             struct ioworker_global_ctx* gctx,
+                                             uint16_t lba_align,
+                                             uint16_t lba_count)
 {
   uint64_t ret;
 
@@ -360,23 +372,6 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   ctx->is_read = is_read;
   timeval_gettimeofday(&ctx->time_sent);
   return 0;
-}
-
-
-static void ioworker_iosize_init(struct ioworker_global_ctx* ctx)
-{
-  unsigned int sl_index = 0;
-
-  assert(ctx->args->lba_size_ratio_sum <= 10000);
-  for (unsigned int i=0; i<ctx->args->lba_size_list_len; i++)
-  {
-    for (unsigned int j=0; j<ctx->args->lba_size_list_ratio[i]; j++)
-    {
-      ctx->sl_table[sl_index++] = i;
-      SPDK_DEBUGLOG(SPDK_LOG_NVME, "sl table %d: %d\n", sl_index-1, i);
-    }
-  }
-  assert(sl_index == ctx->args->lba_size_ratio_sum);
 }
 
 

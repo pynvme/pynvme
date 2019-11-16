@@ -795,6 +795,28 @@ static void test_ioworker_update_rets_latency_write()
   CU_ASSERT_EQUAL(rets.io_count_write, 12);
 }
 
+static void test_ioworker_update_rets_latency_large_write()
+{
+  struct ioworker_io_ctx ctx;
+  struct ioworker_rets rets;
+  struct timeval now;
+  uint32_t ret;
+
+  MOCK_SET(timeval_to_us, 4000000000U);
+  
+  rets.latency_max_us = 100;
+  ctx.is_read = false;
+  rets.io_count_read = 10;
+  rets.io_count_write = 11;
+  
+  ret = ioworker_update_rets(&ctx, &rets, &now);
+
+  CU_ASSERT_EQUAL(rets.latency_max_us, 4000000000U);
+  CU_ASSERT_EQUAL(ret, 4000000000U);
+  CU_ASSERT_EQUAL(rets.io_count_read, 10);
+  CU_ASSERT_EQUAL(rets.io_count_write, 12);
+}
+
 static void test_ioworker_update_rets_read()
 {
   struct ioworker_io_ctx ctx;
@@ -849,9 +871,129 @@ static int suite_ioworker_update_rets()
 
   CU_ADD_TEST(s, test_ioworker_update_rets_latency_read);
   CU_ADD_TEST(s, test_ioworker_update_rets_latency_write);
+  CU_ADD_TEST(s, test_ioworker_update_rets_latency_large_write);
   CU_ADD_TEST(s, test_ioworker_update_rets_read);
   CU_ADD_TEST(s, test_ioworker_update_rets_write);
   
+	return 0;
+}
+
+static void test_ioworker_update_io_count_per_second_1()
+{
+  struct ioworker_global_ctx ctx;
+  struct ioworker_args args;
+  struct ioworker_rets rets;
+
+  rets.io_count_read = 0;
+  rets.io_count_write = 1;
+  ctx.last_sec = 10;
+  ctx.time_next_sec.tv_sec = 1;
+  ctx.time_next_sec.tv_usec = 100;
+  ctx.io_count_till_last_sec = 0;
+  args.io_counter_per_second = malloc(sizeof(uint32_t)*20);
+  args.io_counter_per_second[10] = 0;
+  
+  ioworker_update_io_count_per_second(&ctx, &args, &rets);
+
+  CU_ASSERT_EQUAL(ctx.last_sec, 11);
+  CU_ASSERT_EQUAL(ctx.time_next_sec.tv_sec, 2);
+  CU_ASSERT_EQUAL(ctx.time_next_sec.tv_usec, 100);
+  CU_ASSERT_EQUAL(args.io_counter_per_second[10], 1);
+  CU_ASSERT_EQUAL(ctx.io_count_till_last_sec, 1);
+
+  free(args.io_counter_per_second);
+}
+
+static void test_ioworker_update_io_count_per_second_100000_long()
+{
+  struct ioworker_global_ctx ctx;
+  struct ioworker_args args;
+  struct ioworker_rets rets;
+
+  rets.io_count_read = 30000;
+  rets.io_count_write = 80000;
+  ctx.last_sec = 500*3600;
+  ctx.time_next_sec.tv_sec = 12345;
+  ctx.time_next_sec.tv_usec = 0;
+  ctx.io_count_till_last_sec = 10000;
+  args.io_counter_per_second = malloc(sizeof(uint32_t)*1000*3600);
+  args.io_counter_per_second[500*3600] = 0;
+  
+  ioworker_update_io_count_per_second(&ctx, &args, &rets);
+
+  CU_ASSERT_EQUAL(ctx.last_sec, 500*3600+1);
+  CU_ASSERT_EQUAL(ctx.time_next_sec.tv_sec, 12346);
+  CU_ASSERT_EQUAL(ctx.time_next_sec.tv_usec, 0);
+  CU_ASSERT_EQUAL(args.io_counter_per_second[500*3600], 100000);
+  CU_ASSERT_EQUAL(ctx.io_count_till_last_sec, 110000);
+
+  free(args.io_counter_per_second);
+}
+
+static int suite_ioworker_update_io_count_per_second()
+{
+  CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
+	if (s == NULL) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
+  CU_ADD_TEST(s, test_ioworker_update_io_count_per_second_1);
+  CU_ADD_TEST(s, test_ioworker_update_io_count_per_second_100000_long);
+
+	return 0;
+}
+
+
+static int test_ioworker_iosize_init_single()
+{
+  struct ioworker_global_ctx ctx;
+  struct ioworker_args args;
+  uint32_t ratio = 10;
+  
+  ctx.args = &args;
+  args.lba_size_list_len = 1;
+  args.lba_size_list_ratio = &ratio;
+  args.lba_size_ratio_sum = 10;
+  
+  ioworker_iosize_init(&ctx);
+
+  CU_ASSERT_EQUAL(args.lba_size_ratio_sum, 10);
+  CU_ASSERT_EQUAL(ctx.sl_table[0], 0);
+  CU_ASSERT_EQUAL(ctx.sl_table[1], 0);
+  CU_ASSERT_EQUAL(ctx.sl_table[9], 0);
+}
+
+static int test_ioworker_iosize_init_dual()
+{
+  struct ioworker_global_ctx ctx;
+  struct ioworker_args args;
+  uint32_t ratio[] = {1, 2};
+  
+  ctx.args = &args;
+  args.lba_size_list_len = 2;
+  args.lba_size_list_ratio = &ratio[0];
+  args.lba_size_ratio_sum = 3;
+  
+  ioworker_iosize_init(&ctx);
+
+  CU_ASSERT_EQUAL(args.lba_size_ratio_sum, 3);
+  CU_ASSERT_EQUAL(ctx.sl_table[0], 0);
+  CU_ASSERT_EQUAL(ctx.sl_table[1], 1);
+  CU_ASSERT_EQUAL(ctx.sl_table[2], 1);
+}
+
+static int suite_ioworker_iosize_init()
+{
+  CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
+	if (s == NULL) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
+  CU_ADD_TEST(s, test_ioworker_iosize_init_single);
+  CU_ADD_TEST(s, test_ioworker_iosize_init_dual);
+
 	return 0;
 }
 
@@ -869,6 +1011,8 @@ int main()
   suite_ioworker_send_one_is_finish();
   suite_ioworker_get_duration();
   suite_ioworker_update_rets();
+  suite_ioworker_update_io_count_per_second();
+  suite_ioworker_iosize_init();
   
   CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();
