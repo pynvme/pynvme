@@ -105,22 +105,20 @@ static bool ioworker_send_one_is_finish(struct ioworker_args* args,
   return false;
 }
 
-static uint32_t ioworker_get_duration(struct timeval* start)
+static uint32_t ioworker_get_duration(struct timeval* start, struct timeval* now)
 {
-  struct timeval now;
   struct timeval diff;
   uint32_t msec;
 
-  timeval_gettimeofday(&now);
-  if (timercmp(&now, start, >))
+  if (timercmp(now, start, >))
   {
-    timersub(&now, start, &diff);
+    timersub(now, start, &diff);
     msec = diff.tv_sec*1000ULL;
     return msec + (diff.tv_usec+500)/1000ULL;
   }
 
   // something wrong
-  SPDK_INFOLOG(SPDK_LOG_NVME, "%ld.%06ld\n", now.tv_sec, now.tv_usec);
+  SPDK_INFOLOG(SPDK_LOG_NVME, "%ld.%06ld\n", now->tv_sec, now->tv_usec);
   SPDK_INFOLOG(SPDK_LOG_NVME, "%ld.%06ld\n", start->tv_sec, start->tv_usec);
   assert(false);
 }
@@ -516,13 +514,12 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   // flag here if it is time to stop the ioworker and return the
   // statistics data
   struct ioworker_io_ctx* head_io = STAILQ_FIRST(&gctx.pending_io_list);
+  struct timeval now = {0, 0};
 
   while (gctx.io_count_sent != gctx.io_count_cplt ||
          gctx.flag_finish != true ||
          head_io != NULL)
   {
-    struct timeval now;
-
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "sent %ld cplt %ld, finish %d, head %p\n",
                   gctx.io_count_sent, gctx.io_count_cplt,
                   gctx.flag_finish, head_io);
@@ -537,7 +534,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     }
 
     //exceed 30 seconds more than the expected test time, abort ioworker
-    if (ioworker_get_duration(&test_start) > (args->seconds+30)*1000ULL)
+    if (ioworker_get_duration(&test_start, &now) > (args->seconds+30)*1000ULL)
     {
       //ioworker timeout
       SPDK_WARNLOG("ioworker timeout, io sent %ld, io cplt %ld, finish %d\n",
@@ -554,7 +551,8 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   }
 
   // final duration
-  rets->mseconds = ioworker_get_duration(&test_start);
+  assert(now.tv_sec != 0);
+  rets->mseconds = ioworker_get_duration(&test_start, &now);
 
   //release io ctx
   for (unsigned int i=0; i<args->qdepth; i++)

@@ -622,7 +622,6 @@ static void test_ioworker_send_one_is_finish_none_full()
   CU_ASSERT_EQUAL(ret, false);
 }
                                                       
-
 static int suite_ioworker_send_one_is_finish()
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
@@ -640,6 +639,121 @@ static int suite_ioworker_send_one_is_finish()
 }
 
 
+static void test_ioworker_get_duration_small()
+{
+  struct timeval now;
+  struct timeval start;
+  uint32_t ret;
+  
+  now.tv_sec = 100;
+  now.tv_usec = 8801;
+  start.tv_sec = 100;
+  start.tv_usec = 8800;
+  
+  ret = ioworker_get_duration(&start, &now);
+
+  CU_ASSERT_EQUAL(ret, 0);
+}
+
+static void test_ioworker_get_duration_1ms()
+{
+  struct timeval now;
+  struct timeval start;
+  uint32_t ret;
+  
+  now.tv_sec = 100;
+  now.tv_usec = 9801;
+  start.tv_sec = 100;
+  start.tv_usec = 8800;
+  
+  ret = ioworker_get_duration(&start, &now);
+
+  CU_ASSERT_EQUAL(ret, 1);
+}
+
+static void test_ioworker_get_duration_1001ms()
+{
+  struct timeval now;
+  struct timeval start;
+  uint32_t ret;
+  
+  now.tv_sec = 101;
+  now.tv_usec = 9801;
+  start.tv_sec = 100;
+  start.tv_usec = 8800;
+  
+  ret = ioworker_get_duration(&start, &now);
+
+  CU_ASSERT_EQUAL(ret, 1001);
+}
+
+static void test_ioworker_get_duration_999ms()
+{
+  struct timeval now;
+  struct timeval start;
+  uint32_t ret;
+  
+  now.tv_sec = 101;
+  now.tv_usec = 0;
+  start.tv_sec = 100;
+  start.tv_usec = 1499;
+  
+  ret = ioworker_get_duration(&start, &now);
+
+  CU_ASSERT_EQUAL(ret, 999);
+}
+
+static void test_ioworker_get_duration_998ms()
+{
+  struct timeval now;
+  struct timeval start;
+  uint32_t ret;
+  
+  now.tv_sec = 101;
+  now.tv_usec = 0;
+  start.tv_sec = 100;
+  start.tv_usec = 1501;
+  
+  ret = ioworker_get_duration(&start, &now);
+
+  CU_ASSERT_EQUAL(ret, 998);
+}
+
+static void test_ioworker_get_duration_large()
+{
+  struct timeval now;
+  struct timeval start;
+  uint32_t ret;
+  
+  now.tv_sec = 1000*3600UL;
+  now.tv_usec = 0;
+  start.tv_sec = 0;
+  start.tv_usec = 0;
+  
+  ret = ioworker_get_duration(&start, &now);
+
+  CU_ASSERT_EQUAL(ret, 3600000000UL);
+}
+
+static int suite_ioworker_get_duration()
+{
+  CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
+	if (s == NULL) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
+  CU_ADD_TEST(s, test_ioworker_get_duration_small);
+  CU_ADD_TEST(s, test_ioworker_get_duration_1ms);
+  CU_ADD_TEST(s, test_ioworker_get_duration_1001ms);
+  CU_ADD_TEST(s, test_ioworker_get_duration_999ms);
+  CU_ADD_TEST(s, test_ioworker_get_duration_998ms);
+  CU_ADD_TEST(s, test_ioworker_get_duration_large);
+  
+	return 0;
+}
+
+
 int main()
 {
 	unsigned int	num_failures;
@@ -651,6 +765,7 @@ int main()
   suite_timeradd_second();
   suite_ioworker_distribution_init();
   suite_ioworker_send_one_is_finish();
+  suite_ioworker_get_duration();
   
   CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();
