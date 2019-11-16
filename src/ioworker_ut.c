@@ -549,6 +549,97 @@ static int suite_timeradd_second()
 }
 
 
+static void test_ioworker_send_one_is_finish_io_count_full()
+{
+  struct ioworker_args args;
+  struct ioworker_global_ctx ctx;
+  struct timeval now;
+  bool ret;
+  
+  args.io_count = 100;
+  ctx.io_count_sent = 100;
+
+  ret = ioworker_send_one_is_finish(&args, &ctx, &now);
+
+  CU_ASSERT_EQUAL(ret, true);
+}
+                                                      
+
+static void test_ioworker_send_one_is_finish_time_full()
+{
+  struct ioworker_args args;
+  struct ioworker_global_ctx ctx;
+  struct timeval now;
+  bool ret;
+  
+  args.io_count = 100;
+  ctx.io_count_sent = 99;
+  now.tv_sec = 100;
+  now.tv_usec = 8800;
+  ctx.due_time.tv_sec = 100;
+  ctx.due_time.tv_usec = 8000;
+  
+  ret = ioworker_send_one_is_finish(&args, &ctx, &now);
+
+  CU_ASSERT_EQUAL(ret, true);
+}
+                                                      
+static void test_ioworker_send_one_is_finish_both_full()
+{
+  struct ioworker_args args;
+  struct ioworker_global_ctx ctx;
+  struct timeval now;
+  bool ret;
+  
+  args.io_count = 99;
+  ctx.io_count_sent = 99;
+  now.tv_sec = 100;
+  now.tv_usec = 8800;
+  ctx.due_time.tv_sec = 99;
+  ctx.due_time.tv_usec = 8000;
+  
+  ret = ioworker_send_one_is_finish(&args, &ctx, &now);
+
+  CU_ASSERT_EQUAL(ret, true);
+}
+
+static void test_ioworker_send_one_is_finish_none_full()
+{
+  struct ioworker_args args;
+  struct ioworker_global_ctx ctx;
+  struct timeval now;
+  bool ret;
+  
+  args.io_count = 99;
+  ctx.io_count_sent = 9;
+  now.tv_sec = 100;
+  now.tv_usec = 8800;
+  ctx.due_time.tv_sec = 999;
+  ctx.due_time.tv_usec = 8000;
+  
+  ret = ioworker_send_one_is_finish(&args, &ctx, &now);
+
+  CU_ASSERT_EQUAL(ret, false);
+}
+                                                      
+
+static int suite_ioworker_send_one_is_finish()
+{
+  CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
+	if (s == NULL) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
+  CU_ADD_TEST(s, test_ioworker_send_one_is_finish_io_count_full);
+  CU_ADD_TEST(s, test_ioworker_send_one_is_finish_time_full);
+  CU_ADD_TEST(s, test_ioworker_send_one_is_finish_both_full);
+  CU_ADD_TEST(s, test_ioworker_send_one_is_finish_none_full);
+  
+	return 0;
+}
+
+
 int main()
 {
 	unsigned int	num_failures;
@@ -559,6 +650,7 @@ int main()
 
   suite_timeradd_second();
   suite_ioworker_distribution_init();
+  suite_ioworker_send_one_is_finish();
   
   CU_basic_set_mode(CU_BRM_VERBOSE);
   CU_basic_run_tests();

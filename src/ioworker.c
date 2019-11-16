@@ -84,10 +84,9 @@ static inline void timeradd_second(struct timeval* now,
 }
 
 static bool ioworker_send_one_is_finish(struct ioworker_args* args,
-                                        struct ioworker_global_ctx* c)
+                                        struct ioworker_global_ctx* c,
+                                        struct timeval* now)
 {
-  struct timeval now;
-
   // limit by io count, and/or time, which happens first
   if (c->io_count_sent == args->io_count)
   {
@@ -96,8 +95,8 @@ static bool ioworker_send_one_is_finish(struct ioworker_args* args,
   }
 
   assert(c->io_count_sent < args->io_count);
-  timeval_gettimeofday(&now);
-  if (timercmp(&now, &c->due_time, >))
+  
+  if (timercmp(now, &c->due_time, >))
   {
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "ioworker finish, due time %ld us\n", c->due_time.tv_usec);
     return true;
@@ -224,7 +223,9 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
   if (gctx->flag_finish != true)
   {
     //update finish flag
-    gctx->flag_finish = ioworker_send_one_is_finish(args, gctx);
+    struct timeval now;
+    timeval_gettimeofday(&now);
+    gctx->flag_finish = ioworker_send_one_is_finish(args, gctx, &now);
   }
 
   if (gctx->flag_finish != true)
