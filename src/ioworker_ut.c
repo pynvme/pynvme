@@ -578,6 +578,36 @@ static void test_ioworker_send_one_is_finish_time_full()
 
   CU_ASSERT_EQUAL(ret, true);
 }
+
+static void test_ioworker_send_one_is_finish_time_long_full()
+{
+  struct ioworker_args args;
+  struct ioworker_global_ctx ctx;
+  struct timeval now;
+  bool ret;
+  
+  args.io_count = 100;
+  ctx.io_count_sent = 99;
+  now.tv_sec = 10000000UL+500*3600UL;
+  now.tv_usec = 8800;
+  ctx.due_time.tv_sec = 10000000UL+500*3600UL;
+  ctx.due_time.tv_usec = 8000;
+  
+  ret = ioworker_send_one_is_finish(&args, &ctx, &now);
+
+  CU_ASSERT_EQUAL(ret, true);
+  
+  args.io_count = 100;
+  ctx.io_count_sent = 99;
+  now.tv_sec = 10000000UL+500*3600UL;
+  now.tv_usec = 8800;
+  ctx.due_time.tv_sec = 10000000UL+500*3600UL;
+  ctx.due_time.tv_usec = 8801;
+  
+  ret = ioworker_send_one_is_finish(&args, &ctx, &now);
+
+  CU_ASSERT_EQUAL(ret, false);
+}
                                                       
 static void test_ioworker_send_one_is_finish_both_full()
 {
@@ -627,6 +657,7 @@ static int suite_ioworker_send_one_is_finish()
 
   CU_ADD_TEST(s, test_ioworker_send_one_is_finish_io_count_full);
   CU_ADD_TEST(s, test_ioworker_send_one_is_finish_time_full);
+  CU_ADD_TEST(s, test_ioworker_send_one_is_finish_time_long_full);
   CU_ADD_TEST(s, test_ioworker_send_one_is_finish_both_full);
   CU_ADD_TEST(s, test_ioworker_send_one_is_finish_none_full);
   
