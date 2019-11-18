@@ -120,7 +120,8 @@ def test_aer_smart_temperature(nvme0, loading, aer):
 
 def test_multiple_controllers_and_namespaces():
     # address list of the devices to test
-    addr_list = [b'3a:00.0', b'127.0.0.1']
+    addr_list = [b'02:00.0', b'03:00.0', b'71:00.0', b'72:00.0']
+    test_seconds = 10
     
     nvme_list = [d.Controller(a) for a in addr_list]
     ns_list = [d.Namespace(n) for n in nvme_list]
@@ -132,18 +133,18 @@ def test_multiple_controllers_and_namespaces():
     # multiple namespaces and ioworkers
     ioworkers = {}
     for ns in ns_list:
-        a = ns.ioworker(io_size=8, lba_align=8,
+        a = ns.ioworker(io_size=256, lba_align=256,
                         region_start=0, region_end=256*1024*8, # 1GB space
-                        lba_random=False, qdepth=16,
-                        read_percentage=100, time=10).start()
+                        lba_random=False, qdepth=64,
+                        read_percentage=100, time=test_seconds).start()
         ioworkers[ns] = a
 
     # test results
+    io_total = 0
     for ns in ioworkers:
         r = ioworkers[ns].close()
-        io_total = (r.io_count_read+r.io_count_write)
-        logging.info("capacity: %u, IOPS: %.3fK" %
-                     (ns.id_data(7, 0), io_total/10000))
+        io_total += (r.io_count_read+r.io_count_write)
+    logging.info("total bandwidth: %.3fMB/s" % ((128*io_total)/1000/test_seconds))
     
         
 def test_spdk_summit_demo(nvme0, nvme0n1):
