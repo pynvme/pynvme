@@ -327,7 +327,11 @@ static inline uint64_t ioworker_send_one_lba(struct ioworker_args* args,
   }
 
   ret = ALIGN_UP(ret, lba_align);
-  assert(ret <= args->region_end);
+  if (ret > args->region_end)
+  {
+    SPDK_ERRLOG("ret 0x%lx, align 0x%x, end 0x%lx, seq 0x%lx\n",
+                ret, lba_align, args->region_end, gctx->sequential_lba);
+  }
 
   if (args->lba_random == 0)
   {
@@ -451,6 +455,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   args->region_start = ALIGN_UP(args->region_start, args->lba_align_max);
   args->region_end = args->region_end-args->lba_size_max;
   args->region_end = ALIGN_DOWN(args->region_end, args->lba_size_max);
+  args->region_end = ALIGN_DOWN(args->region_end, args->lba_align_max);
   if (args->lba_start < args->region_start)
   {
     args->lba_start = args->region_start;
