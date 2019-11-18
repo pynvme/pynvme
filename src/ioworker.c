@@ -447,8 +447,8 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 
   //adjust region to start_lba's region
   args->region_start = ALIGN_UP(args->region_start, args->lba_align_max);
-  args->region_end = args->region_end-args->lba_size_max;
-  args->region_end = ALIGN_DOWN(args->region_end, args->lba_align_max);
+  args->region_end = args->region_end-args->lba_size_max+1;
+  args->region_end = ALIGN_UP(args->region_end, args->lba_align_max);
   if (args->lba_start < args->region_start)
   {
     args->lba_start = args->region_start;
