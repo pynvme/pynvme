@@ -116,6 +116,7 @@ cdef struct _cpl:
     unsigned short cid
     unsigned short status1  #this word actully inculdes some other bites
 
+
 cdef void cmd_cb(void* f, const d.cpl* cpl):
     arg = <_cpl*>cpl  # no qa
     status1 = arg.status1
@@ -127,11 +128,13 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
             func(arg.cdw0, status1)
         except AssertionError as e:
             warnings.warn("ASSERT: "+str(e))
-    elif d.nvme_cpl_is_error(cpl):
+
+    if d.nvme_cpl_is_error(cpl):
         # script not check, so driver check cpl
         sc = (status1>>1) & 0xff
         sct = (status1>>9) & 0x7
         warnings.warn("ERROR status: %02x/%02x" % (sct, sc))
+
 
 cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
     arg = <_cpl*>cpl  # no qa
@@ -225,15 +228,15 @@ cdef class Buffer(object):
     @property
     def data_head(self):
         return self.dump().split('\n')[0][:-2].encode('ascii')
-        
+
     @property
     def data_tail(self):
         return self.dump().split('\n')[-2][:-2].encode('ascii')
-        
+
     @property
     def phys_addr(self):
         """physical address of the buffer"""
-        
+
         return self.phys_addr
 
     def dump(self, size=None):
@@ -389,7 +392,7 @@ cdef class Pcie(object):
         self._pcie = d.pcie_init(nvme._ctrlr)
         if self._pcie is NULL:
             raise SystemError()
-        
+
         self.vid = self.register(0, 2)
         self.did = self.register(2, 2)
 
@@ -571,10 +574,10 @@ cdef class Controller(object):
                 raise NvmeDeletionError("fail to close the controller, check if any qpair is not deleted: %d" % ret)
             self._ctrlr = NULL
 
-        
+
     def enable_hmb(self):
         """enable HMB function"""
-        
+
         hmb_size = self.id_data(275, 272)
         if hmb_size:
             self.hmb_buf = Buffer(4096*hmb_size)
@@ -588,7 +591,7 @@ cdef class Controller(object):
 
     def disable_hmb(self):
         """disable HMB function """
-        
+
         self.setfeatures(0x0d, 0).waitdone()
 
     @property
@@ -619,17 +622,17 @@ cdef class Controller(object):
         # it's an assert fail, needs longer than drive's timeout
         return self._timeout//1000 + 20
 
-    
+
     @property
     def timeout(self):
         """timeout value of this controller in milli-seconds.
 
-        It is configurable by assigning new value in milli-seconds. 
+        It is configurable by assigning new value in milli-seconds.
         """
-        
+
         return self._timeout
 
-    
+
     @timeout.setter
     def timeout(self, msec):
         """set new timeout time for this controller
@@ -640,7 +643,7 @@ cdef class Controller(object):
 
         self._timeout = msec
         d.nvme_register_timeout_cb(self._ctrlr, timeout_driver_cb, self._timeout)
-        
+
 
     def __getitem__(self, index):
         """read nvme registers in BAR memory space by dwords."""
@@ -682,7 +685,7 @@ cdef class Controller(object):
         Notice
             Test scripts should delete all io qpairs before reset!
         """
-        
+
         # reset controller
         self._reinit()
 
@@ -734,7 +737,7 @@ cdef class Controller(object):
         logging.debug("to reap %d admin commands" % expected)
         # some admin commands need long timeout limit, like: format,
         signal.alarm(self._timeout_pynvme)
-        
+
         while reaped < expected:
             # wait admin Q pair done
             reaped += d.nvme_wait_completion_admin(self._ctrlr)
@@ -915,7 +918,7 @@ cdef class Controller(object):
         """format admin command
 
         Notice
-            This Controller.format only send the admin command. Use Namespace.format to maintain pynvme internal data! 
+            This Controller.format only send the admin command. Use Namespace.format to maintain pynvme internal data!
 
         # Parameters
             lbaf (int): lbaf (lba format) field in the command. Default: 0
@@ -959,7 +962,7 @@ cdef class Controller(object):
         for nsid in range(1, self.id_data(519, 516)+1):
             ns = d.nvme_get_ns(self._ctrlr, nsid)
             d.ns_crc32_clear(ns, 0, 0, True, False)
-            
+
         self.send_admin_raw(None, 0x84,
                             nsid=0,
                             cdw10=option,
@@ -1254,7 +1257,7 @@ cdef class Qpair(object):
 
         logging.debug("to reap %d io commands, sqid %d" % (expected, self.sqid))
         signal.alarm(self._nvme._timeout_pynvme)
-        
+
         while reaped < expected:
             # wait IO Q pair done, max 8 cpl in one time
             max_to_reap = (expected-reaped) % 8
@@ -1390,7 +1393,7 @@ cdef class Namespace(object):
         # clear crc table
         logging.debug("clear crc table")
         d.ns_crc32_clear(self._ns, 0, 0, True, False)
-            
+
 
     def get_lba_format(self, data_size=512, meta_size=0):
         """find the lba format by its data size and meta data size
@@ -1413,7 +1416,7 @@ cdef class Namespace(object):
                  read_percentage=100, time=0, qdepth=64,
                  region_start=0, region_end=0xffff_ffff_ffff_ffff,
                  iops=0, io_count=0, lba_start=0, qprio=0,
-                 distribution=None, pvalue=0, ptype=0, 
+                 distribution=None, pvalue=0, ptype=0,
                  output_io_per_second=None,
                  output_percentile_latency=None):
         """workers sending different read/write IO on different CPU cores.
@@ -1481,7 +1484,7 @@ cdef class Namespace(object):
         return _IOWorker(pciaddr, nsid, lba_start, io_size, lba_align,
                          lba_random, region_start, region_end,
                          read_percentage, iops, io_count, time, qdepth, qprio,
-                         distribution, pvalue, ptype, 
+                         distribution, pvalue, ptype,
                          output_io_per_second, output_percentile_latency)
 
     def read(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
@@ -1764,11 +1767,11 @@ class _IOWorker(object):
     """A process-worker executing user functions. Use its wrapper function Namespace.ioworker() in scripts. """
 
     target_start_time = 0
-    
+
     def __init__(self, pciaddr, nsid, lba_start, lba_size, lba_align,
                  lba_random, region_start, region_end,
                  read_percentage, iops, io_count, time, qdepth, qprio,
-                 distribution, pvalue, ptype, 
+                 distribution, pvalue, ptype,
                  output_io_per_second, output_percentile_latency):
         # queue for returning result
         self.q = _mp.Queue()
@@ -1778,11 +1781,11 @@ class _IOWorker(object):
 
         # create the child process
         self.p = _mp.Process(target = self._ioworker,
-                             args = (self.q, self.l, pciaddr, nsid, _random_seed, 
+                             args = (self.q, self.l, pciaddr, nsid, _random_seed,
                                      lba_start, lba_size, lba_align, lba_random,
                                      region_start, region_end, read_percentage,
                                      iops, io_count, time, qdepth, qprio,
-                                     distribution, pvalue, ptype, 
+                                     distribution, pvalue, ptype,
                                      output_io_per_second, output_percentile_latency))
         self.output_io_per_second = output_io_per_second
         self.output_percentile_latency = output_percentile_latency
@@ -1815,7 +1818,7 @@ class _IOWorker(object):
 
         if error != 0:
             warnings.warn("ioworker host ERROR %d" % error)
-            
+
         if rets.error != 0:
             warnings.warn("ioworker device ERROR status: %02x/%02x" %
                           ((rets.error>>8)&0x7, rets.error&0xff))
@@ -1873,11 +1876,11 @@ class _IOWorker(object):
         self.close()
         return True
 
-    def _ioworker(self, rqueue, locker, pciaddr, nsid, seed, 
+    def _ioworker(self, rqueue, locker, pciaddr, nsid, seed,
                   lba_start, lba_size, lba_align, lba_random,
                   region_start, region_end, read_percentage,
                   iops, io_count, seconds, qdepth, qprio,
-                  distribution, pvalue, ptype, 
+                  distribution, pvalue, ptype,
                   output_io_per_second, output_percentile_latency):
         cdef d.ioworker_args args
         cdef d.ioworker_rets rets
@@ -1894,7 +1897,7 @@ class _IOWorker(object):
             # setup random seed
             d.driver_srand(seed)
             random.seed(seed)
-            
+
             # init var
             _reentry_flag_init()
             memset(&args, 0, sizeof(args))
@@ -1918,7 +1921,7 @@ class _IOWorker(object):
                 args.lba_size_list_align[i] = lba_align[i]
                 assert io_size < 0x10000, "io_size is a 16bit-field in commands"
                 assert lba_align[i] < 0x10000, "io_size is a 16bit-field in commands"
-            
+
             # check distribution
             if distribution is not None:
                 assert region_start == 0, "distribution has to be on the full region"
@@ -1929,7 +1932,7 @@ class _IOWorker(object):
                 args.distribution = <unsigned int*>PyMem_Malloc(100*sizeof(unsigned int))
                 for i in range(100):
                     args.distribution[i] = distribution[i]
-                
+
             # create array for output data: io counter per second
             if output_io_per_second is not None:
                 # need time duration to collect io counter per second data
@@ -1953,7 +1956,7 @@ class _IOWorker(object):
             args.qdepth = qdepth
             args.pvalue = pvalue
             args.ptype = ptype
-            
+
             # ready: create resources
             with locker:
                 nvme0 = Controller(pciaddr)
@@ -1964,7 +1967,7 @@ class _IOWorker(object):
             if time.time() > _IOWorker.target_start_time:
                 _IOWorker.target_start_time = math.ceil(time.time())+1
             time.sleep(_IOWorker.target_start_time-time.time())
-            
+
             # go: start at the same time
             error = d.ioworker_entry(nvme0n1._ns, qpair._qpair, &args, &rets)
 
@@ -2025,7 +2028,7 @@ class _IOWorker(object):
 
             if args.lba_size_list_ratio:
                 PyMem_Free(args.lba_size_list_ratio)
-                
+
             if args.lba_size_list_align:
                 PyMem_Free(args.lba_size_list_align)
 
@@ -2052,14 +2055,14 @@ def srand(seed):
     # Parameters
         seed (int): the seed to setup for both python and C library
     """
-    
+
     global _random_seed
     _random_seed = seed
-    
+
     logging.info("setup random seed: 0x%x" % seed)
     d.driver_srand(seed)
     random.seed(seed)
-    
+
 
 # module init, needs root privilege
 if os.geteuid() == 0:
@@ -2074,7 +2077,7 @@ if os.geteuid() == 0:
     subprocess.call("ulimit -n 10000", shell=True)
     subprocess.call("echo deep > /sys/power/mem_sleep", shell=True)
     subprocess.call("echo 0 > /proc/sys/kernel/randomize_va_space", shell=True)
-    
+
     # spawn only limited data from parent process
     _mp = multiprocessing.get_context("spawn")
 

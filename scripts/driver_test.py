@@ -46,13 +46,71 @@ class PRPList(Buffer):
     pass
 
 
+class IOSQ(object):
+    """I/O Submission Queue"""
+    
+    id = 0
+    ctrlr = None
+    
+    def __init__(self, ctrlr, qid, qsize, data, pc=True, cqid=None, qprio=0, nvmsetid=0):
+        """create IO submission queue
+        
+        # Parameters
+            ctrlr (Controller):
+            qid (int):
+            qsize (int):
+            data (Buffer, PRPList): the location of the queue
+            cqid (int): 
+            qprio (int): 
+            nvmsetid (int): 
+
+        """
+
+        if cqid is None:
+            cqid = qid
+
+        assert qid < 64*1024
+        assert cqid < 64*1024
+        assert qsize < 64*1024
+        assert qprio < 4
+        
+        def create_io_sq_cpl(cdw0, status1):
+            if status1>>1:
+                logging.info("create io sq fail: %d" % qid)
+            else:
+                self.id = qid
+
+        self.ctrlr = ctrlr
+        ctrlr.send_cmd(0x01, data,
+                       cdw10 = (qid|(qsize<<16)),
+                       cdw11 = (pc|(qprio<<1)|(cqid<<16)),
+                       cdw12 = nvmsetid, 
+                       cb = create_io_sq_cpl).waitdone()
+
+    def delete(self, qid=None):
+        def delete_io_sq_cpl(cdw0, status1):
+            if status1>>1:
+                logging.info("delete io sq fail: %d" % qid)
+            else:
+                self.id = 0
+
+        if qid == None:
+            qid = self.id
+
+        logging.debug("delete sqid %d" % qid)
+        if qid != 0:
+            self.ctrlr.send_cmd(0x00,
+                                cdw10 = qid,
+                                cb = delete_io_sq_cpl).waitdone()
+
+            
 class IOCQ(object):
     """I/O Completion Queue"""
     
     id = 0
     ctrlr = None
     
-    def __init__(self, ctrlr, qid, qsize, data, iv=0, ien=False):
+    def __init__(self, ctrlr, qid, qsize, data, pc=True, iv=0, ien=False):
         """create IO completion queue
         
         # Parameters
@@ -60,49 +118,113 @@ class IOCQ(object):
             qid (int):
             qsize (int):
             data (Buffer, PRPList):
-            iv (int): interrupt vector
-            ien (bool): interrupt enabled
+            iv (int, None): interrupt vector
 
         """
 
-        logging.info("create io cq")
         assert qid < 64*1024
         assert qsize < 64*1024
         assert iv < 2048, "a maximum of 2048 vectors are used"
         
-        def _cb(cdw0, status1):
-            logging.info("create io cq completed")
+        def create_io_cq_cpl(cdw0, status1):
+            if status1>>1:
+                logging.info("create io cq fail: %d" % qid)
+            else:
+                self.id = qid
 
-        self.id = qid
         self.ctrlr = ctrlr
-        pc = True if type(data) is Buffer else False
         ctrlr.send_cmd(0x05, data,
                        cdw10 = (qid|(qsize<<16)),
                        cdw11 = (pc|(ien<<1)|(iv<<16)),
-                       cb = _cb).waitdone()
+                       cb = create_io_cq_cpl).waitdone()
 
-    def __del__(self):
-        def _cb(cdw0, status1):
-            logging.info("delete io cq completed")
+    def delete(self, qid=None):
+        def delete_io_cq_cpl(cdw0, status1):
+            if status1>>1:
+                logging.info("delete io cq fail: %d" % qid)
+            else:
+                self.id = 0
+
+        if qid is None:
+            qid = self.id
             
-        self.ctrlr.send_cmd(0x04,
-                            cdw10 = self.id,
-                            cb = _cb).waitdone()
+        logging.debug("delete cqid %d" % qid)
+        if qid != 0:
+            self.ctrlr.send_cmd(0x04,
+                                cdw10 = qid,
+                                cb = delete_io_cq_cpl).waitdone()
 
         
 def test_create_delete_iocq(nvme0):
-    buf = Buffer(512)
-    cq = IOCQ(nvme0, 5, 5, buf)
-    del cq
+    buf = Buffer(4096)
 
+    cq1 = IOCQ(nvme0, 5, 5, buf)
 
+    # Invalid Queue Identifier
+    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+        cq2 = IOCQ(nvme0, 5, 10, buf)
+
+    cq1.delete()
+
+    # Invalid Queue Size
+    with pytest.warns(UserWarning, match="ERROR status: 01/02"):
+        cq = IOCQ(nvme0, 5, 0, buf)
+
+    # Invalid Queue Identifier
+    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+        cq = IOCQ(nvme0, 0, 0, buf)
+
+    # Invalid Queue Identifier
+    with pytest.warns(UserWarning, match="ERROR status: 01/08"):
+        cq = IOCQ(nvme0, 5, 5, buf, iv=2047, ien=True)
+
+    cq = IOCQ(nvme0, 5, 5, buf, iv=5)
+    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+        cq.delete(4)
+    cq.delete()
+    
+    cq = IOCQ(nvme0, 5, 5, buf, iv=5, ien=True)
+    cq.delete()
+
+    cq1 = IOCQ(nvme0, 5, 5, buf)
+    cq2 = IOCQ(nvme0, 6, 5, buf)
+    cq3 = IOCQ(nvme0, 7, 5, buf)
+    cq3.delete()
+    cq2.delete()
+    cq1.delete()
+
+    
 def test_create_delete_iocq_non_contig(nvme0):
     pass
 
 
 def test_create_delete_iosq(nvme0):
-    pass
+    buf_cq = Buffer(4096)
+    cq = IOCQ(nvme0, 4, 5, buf_cq)
 
+    buf_sq = Buffer(4096)
+
+    # Completion Queue Invalid
+    with pytest.warns(UserWarning, match="ERROR status: 01/00"):
+        sq = IOSQ(nvme0, 4, 10, buf_sq, cqid=1)
+
+    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+        sq = IOSQ(nvme0, 400, 10, buf_sq, cqid=4)
+        
+    with pytest.warns(UserWarning, match="ERROR status: 01/02"):
+        sq = IOSQ(nvme0, 4, 0, buf_sq, cqid=4)
+        
+    sq = IOSQ(nvme0, 5, 10, buf_sq, cqid=4)
+    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+        sq.delete(4)
+
+    # Invalid Queue Deletion
+    with pytest.warns(UserWarning, match="ERROR status: 01/0c"):
+        cq.delete()
+        
+    sq.delete()
+    cq.delete()
+    
 
 def test_send_cmd_write_zeroes(nvme0):
     pass
