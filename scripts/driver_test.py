@@ -92,7 +92,7 @@ class IOCQ(object):
         
 def test_create_delete_iocq(nvme0):
     buf = Buffer(512)
-    cq = IOCQ(nvme0, 0, 0, buf)
+    cq = IOCQ(nvme0, 5, 5, buf)
     del cq
 
 
