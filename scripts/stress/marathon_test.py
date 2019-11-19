@@ -39,12 +39,12 @@ def test_write_and_read_to_eol(nvme0, subsystem, nvme0n1: d.Namespace, verify):
         subsystem.power_cycle(15)
 
 
-def test_read_multiple_devices_500hr(verify):
+def test_read_multiple_devices_50hr(verify):
     assert verify
 
     # address list of the devices to test
-    addr_list = [b'01:00.0', b'03:00.0']
-    test_seconds = 500*3600
+    addr_list = [b'71:00.0', b'72:00.0', b'02:00.0', b'03:00.0']
+    test_seconds = 50*3600
     
     nvme_list = [d.Controller(a) for a in addr_list]
     ns_list = [d.Namespace(n) for n in nvme_list]
@@ -56,7 +56,6 @@ def test_read_multiple_devices_500hr(verify):
     logging.info("sequential write to fill the whole namespace")
     ioworkers = {}
     for ns in ns_list:
-        ns.format()
         lba_max = ns.id_data(7, 0)
         io_size = 128 # 64K
         a = ns.ioworker(io_size=io_size, lba_random=False, qdepth=16,
@@ -74,8 +73,8 @@ def test_read_multiple_devices_500hr(verify):
         ioworkers[ns] = a
 
     # display progress
-    for i in range(0, test_seconds, 10):
-        time.sleep(10)
+    for i in range(test_seconds):
+        time.sleep(1)
         buf = d.Buffer(512)
         for nvme in nvme_list:
             nvme.getlogpage(2, buf).waitdone()

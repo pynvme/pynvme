@@ -1528,7 +1528,7 @@ int driver_init(void)
 
   // distribute multiprocessing to different cores
   spdk_env_opts_init(&opts);
-  sprintf(buf, "0x%llx", 1ULL<<(getpid()%get_nprocs()));
+  sprintf(buf, "0x%llx", 1ULL<<((getpid()%(get_nprocs()-1))+1));
   opts.core_mask = buf;
   opts.shm_id = 0;
   opts.name = "pynvme";
