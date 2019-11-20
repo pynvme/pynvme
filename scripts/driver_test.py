@@ -58,7 +58,7 @@ class IOSQ(object):
         # Parameters
             ctrlr (Controller):
             qid (int):
-            qsize (int):
+            qsize (int): 1based value
             data (Buffer, PRPList): the location of the queue
             cqid (int): 
             qprio (int): 
@@ -69,9 +69,15 @@ class IOSQ(object):
         if cqid is None:
             cqid = qid
 
+        # 1base to 0base
+        qsize -= 1
+
         assert qid < 64*1024
+        assert qid >= 0
         assert cqid < 64*1024
+        assert cqid >= 0
         assert qsize < 64*1024
+        assert qsize >= 0
         assert qprio < 4
         
         def create_io_sq_cpl(cdw0, status1):
@@ -116,14 +122,19 @@ class IOCQ(object):
         # Parameters
             ctrlr (Controller):
             qid (int):
-            qsize (int):
+            qsize (int): 1based value
             data (Buffer, PRPList):
             iv (int, None): interrupt vector
 
         """
+        
+        # 1base to 0base
+        qsize -= 1
 
         assert qid < 64*1024
+        assert qid >= 0
         assert qsize < 64*1024
+        assert qsize >= 0
         assert iv < 2048, "a maximum of 2048 vectors are used"
         
         def create_io_cq_cpl(cdw0, status1):
@@ -137,7 +148,7 @@ class IOCQ(object):
                        cdw10 = (qid|(qsize<<16)),
                        cdw11 = (pc|(ien<<1)|(iv<<16)),
                        cb = create_io_cq_cpl).waitdone()
-
+        
     def delete(self, qid=None):
         def delete_io_cq_cpl(cdw0, status1):
             if status1>>1:
@@ -168,11 +179,11 @@ def test_create_delete_iocq(nvme0):
 
     # Invalid Queue Size
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
-        cq = IOCQ(nvme0, 5, 0, buf)
+        cq = IOCQ(nvme0, 5, 1, buf)
 
     # Invalid Queue Identifier
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
-        cq = IOCQ(nvme0, 0, 0, buf)
+        cq = IOCQ(nvme0, 0, 5, buf)
 
     # Invalid Queue Identifier
     with pytest.warns(UserWarning, match="ERROR status: 01/08"):
@@ -193,6 +204,13 @@ def test_create_delete_iocq(nvme0):
     cq2.delete()
     cq1.delete()
 
+
+@pytest.mark.parametrize("pgsz", [1, 2, 3, 10, 256, 512, 1024])
+def test_create_delete_iocq_large(nvme0, pgsz):
+    buf_cq = Buffer(4096*pgsz)
+    cq = IOCQ(nvme0, 4, 5, buf_cq)
+    cq.delete()
+
     
 def test_create_delete_iocq_non_contig(nvme0):
     pass
@@ -212,7 +230,7 @@ def test_create_delete_iosq(nvme0):
         sq = IOSQ(nvme0, 400, 10, buf_sq, cqid=4)
         
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
-        sq = IOSQ(nvme0, 4, 0, buf_sq, cqid=4)
+        sq = IOSQ(nvme0, 4, 1, buf_sq, cqid=4)
         
     sq = IOSQ(nvme0, 5, 10, buf_sq, cqid=4)
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
