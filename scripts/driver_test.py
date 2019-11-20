@@ -43,12 +43,17 @@ from nvme import *
 
 
 class PRPList(Buffer):
-    def __setitem__(self, index, value):
-        logging.debug("insert buffer 0x%lx at %d" % (value, index))
-        assert index < 4096/8
-        for i in range(8):
-            super(PRPList, self).__setitem__(index*8+i, value&0xff)
-            value = value>>8
+    buf_list = {}
+    
+    def __setitem__(self, index, buf: Buffer):
+        addr = buf.phys_addr
+        logging.debug("insert buffer 0x%lx at %d" % (addr, index))
+        assert index < 4096/8, "4K PRP List contains 512 PRP entries only"
+        self.buf_list[index] = buf
+
+        # fill PRP into PRP List
+        for i, b in enumerate(addr.to_bytes(8, byteorder='little')):
+            super(PRPList, self).__setitem__(index*8 + i, b) 
 
             
 class IOSQ(object):
@@ -56,6 +61,7 @@ class IOSQ(object):
     
     id = 0
     ctrlr = None
+    prp = None
     
     def __init__(self, ctrlr, qid, qsize, prp1, pc=True, cqid=None, qprio=0, nvmsetid=0):
         """create IO submission queue
@@ -90,6 +96,7 @@ class IOSQ(object):
                 logging.info("create io sq fail: %d" % qid)
             else:
                 self.id = qid
+                self.prp = prp1
 
         self.ctrlr = ctrlr
         ctrlr.send_cmd(0x01, prp1,
@@ -120,6 +127,7 @@ class IOCQ(object):
     
     id = 0
     ctrlr = None
+    prp = None
     
     def __init__(self, ctrlr, qid, qsize, prp1, pc=True, iv=0, ien=False):
         """create IO completion queue
@@ -147,6 +155,7 @@ class IOCQ(object):
                 logging.info("create io cq fail: %d" % qid)
             else:
                 self.id = qid
+                self.prp = prp1
 
         self.ctrlr = ctrlr
         ctrlr.send_cmd(0x05, prp1,
@@ -267,8 +276,12 @@ def test_reap_cpl_write_zeroes(nvme0):
 @pytest.mark.parametrize("count", [1, 2, 8, 500, 512])
 def test_prp_and_prp_list(count):
     l = PRPList()
-    bl = []
     for i in range(count):
-        buf = Buffer()
-        bl.append(buf)
-        l[i] = buf.phys_addr
+        l[i] = Buffer()
+
+
+def test_prp_and_prp_list_invalid():
+    l = PRPList()
+    with pytest.raises(AssertionError):
+        l[512] = Buffer()
+        
