@@ -224,10 +224,9 @@ def test_create_delete_iocq_non_contig(nvme0):
     prp_list[0] = buf0.phys_addr
     prp_list[1] = buf1.phys_addr
     
-    # Invalid Field in Command
-    with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        cq = IOCQ(nvme0, 4, 5, prp_list, pc=False)
-
+    cq = IOCQ(nvme0, 4, 5, prp_list, pc=False)
+    cq.delete()
+    
 
 def test_create_delete_iosq(nvme0):
     buf_cq = Buffer(4096)
