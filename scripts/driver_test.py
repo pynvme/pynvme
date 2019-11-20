@@ -228,10 +228,8 @@ def test_create_delete_iocq_large(nvme0, pgsz):
     
 def test_create_delete_iocq_non_contig(nvme0):
     prp_list = PRPList()
-    buf0 = Buffer()
-    buf1 = Buffer()
-    prp_list[0] = buf0.phys_addr
-    prp_list[1] = buf1.phys_addr
+    prp_list[0] = Buffer()
+    prp_list[1] = Buffer()
     
     cq = IOCQ(nvme0, 4, 5, prp_list, pc=False)
     cq.delete()
