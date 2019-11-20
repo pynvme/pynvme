@@ -71,7 +71,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "1.5"
+__version__ = "1.6"
 
 
 # random seed in all processes

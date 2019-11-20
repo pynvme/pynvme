@@ -21,7 +21,7 @@ import sphinx_rtd_theme
 project = u'pynvme'
 copyright = '2019, Crane Chu'
 author = 'cranechu@gmail.com'
-version = '1.5'
+version = '1.6'
 release = version
 language = 'en'
 master_doc = 'index'
