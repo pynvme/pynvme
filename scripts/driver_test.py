@@ -43,23 +43,28 @@ from nvme import *
 
 
 class PRPList(Buffer):
-    pass
+    def __setitem__(self, index, value):
+        logging.debug("insert buffer 0x%lx at %d" % (value, index))
+        assert index < 4096/8
+        for i in range(8):
+            super(PRPList, self).__setitem__(index*8+i, value&0xff)
+            value = value>>8
 
-
+            
 class IOSQ(object):
     """I/O Submission Queue"""
     
     id = 0
     ctrlr = None
     
-    def __init__(self, ctrlr, qid, qsize, data, pc=True, cqid=None, qprio=0, nvmsetid=0):
+    def __init__(self, ctrlr, qid, qsize, prp1, pc=True, cqid=None, qprio=0, nvmsetid=0):
         """create IO submission queue
         
         # Parameters
             ctrlr (Controller):
             qid (int):
             qsize (int): 1based value
-            data (Buffer, PRPList): the location of the queue
+            prp1 (Buffer, PRPList): the location of the queue
             cqid (int): 
             qprio (int): 
             nvmsetid (int): 
@@ -87,7 +92,7 @@ class IOSQ(object):
                 self.id = qid
 
         self.ctrlr = ctrlr
-        ctrlr.send_cmd(0x01, data,
+        ctrlr.send_cmd(0x01, prp1,
                        cdw10 = (qid|(qsize<<16)),
                        cdw11 = (pc|(qprio<<1)|(cqid<<16)),
                        cdw12 = nvmsetid, 
@@ -116,14 +121,14 @@ class IOCQ(object):
     id = 0
     ctrlr = None
     
-    def __init__(self, ctrlr, qid, qsize, data, pc=True, iv=0, ien=False):
+    def __init__(self, ctrlr, qid, qsize, prp1, pc=True, iv=0, ien=False):
         """create IO completion queue
         
         # Parameters
             ctrlr (Controller):
             qid (int):
             qsize (int): 1based value
-            data (Buffer, PRPList):
+            prp1 (Buffer, PRPList):
             iv (int, None): interrupt vector
 
         """
@@ -144,7 +149,7 @@ class IOCQ(object):
                 self.id = qid
 
         self.ctrlr = ctrlr
-        ctrlr.send_cmd(0x05, data,
+        ctrlr.send_cmd(0x05, prp1,
                        cdw10 = (qid|(qsize<<16)),
                        cdw11 = (pc|(ien<<1)|(iv<<16)),
                        cb = create_io_cq_cpl).waitdone()
@@ -213,7 +218,15 @@ def test_create_delete_iocq_large(nvme0, pgsz):
 
     
 def test_create_delete_iocq_non_contig(nvme0):
-    pass
+    prp_list = PRPList()
+    buf0 = Buffer()
+    buf1 = Buffer()
+    prp_list[0] = buf0.phys_addr
+    prp_list[1] = buf1.phys_addr
+    
+    # Invalid Field in Command
+    with pytest.warns(UserWarning, match="ERROR status: 00/02"):
+        cq = IOCQ(nvme0, 4, 5, prp_list, pc=False)
 
 
 def test_create_delete_iosq(nvme0):
@@ -252,6 +265,11 @@ def test_reap_cpl_write_zeroes(nvme0):
     pass
 
 
-def test_prp_and_prp_list(nvme0):
-    pass
-
+@pytest.mark.parametrize("count", [1, 2, 8, 500, 512])
+def test_prp_and_prp_list(count):
+    l = PRPList()
+    bl = []
+    for i in range(count):
+        buf = Buffer()
+        bl.append(buf)
+        l[i] = buf.phys_addr
