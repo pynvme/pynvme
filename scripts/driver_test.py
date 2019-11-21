@@ -316,7 +316,7 @@ def test_send_single_cmd(nvme0):
     sq[0] = [8] + [0]*15
     sq.tail = 1
     time.sleep(0.1)
-    status = cq[0][3]>>17
+    status = (cq[0][3]>>17)&0x7ff
     assert status == 0x000b
 
     sq.delete()
