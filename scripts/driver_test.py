@@ -336,29 +336,12 @@ def test_send_cmd_different_qdepth(nvme0, qdepth):
         time.sleep(0.01)
         assert (cq[index-1][3]>>17) == 0
         assert (cq[index-1][2]&0xffff) == index
+        cq.head = index
 
     sq.delete()
     cq.delete()
 
 
-@pytest.mark.skip("to debug")
-def test_send_multiple_cmd_in_sq(nvme0):
-    cq = IOCQ(nvme0, 5, 7, Buffer(4096))
-    sq = IOSQ(nvme0, 8, 7, Buffer(4096), cqid=5)
-
-    # once again: first cmd, invalid namespace
-    for i in range(16):
-        index = (i+1)%7
-        sq[index-1] = [8, 1] + [0]*14
-        sq.tail = index
-        time.sleep(0.01)
-        assert (cq[index-1][3]>>17) == 0
-        assert (cq[index-1][2]&0xffff) == index
-
-    sq.delete()
-    cq.delete()
-
-    
 def test_reap_cpl_write_zeroes(nvme0):
     pass
 
