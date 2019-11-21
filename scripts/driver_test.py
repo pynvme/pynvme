@@ -125,6 +125,7 @@ class IOSQ(object):
 
     @tail.setter
     def tail(self, tail):
+        logging.debug(tail)
         self.ctrlr[0x1000+2*self.id*4] = tail
     
     def delete(self, qid=None):
@@ -307,7 +308,7 @@ def test_create_delete_iosq(nvme0):
     cq.delete()
     
 
-def test_send_cmd_write_zeroes(nvme0):
+def test_send_single_cmd(nvme0):
     cq = IOCQ(nvme0, 1, 10, Buffer(4096))
     sq = IOSQ(nvme0, 1, 10, Buffer(4096), cqid=1)
 
@@ -317,15 +318,47 @@ def test_send_cmd_write_zeroes(nvme0):
     time.sleep(0.1)
     status = cq[0][3]>>17
     assert status == 0x000b
-    
-    # second cmd
-    sq[1] = [8, 1] + [0]*14
-    sq.tail = 2
-    time.sleep(0.1)
-    status = cq[1][3]>>17
-    assert status == 0
-    
 
+    sq.delete()
+    cq.delete()
+
+    
+@pytest.mark.parametrize("qdepth", [7, 2, 3, 4, 5, 10, 16, 17, 31])
+def test_send_cmd_different_qdepth(nvme0, qdepth):
+    cq = IOCQ(nvme0, 3, qdepth, Buffer(4096))
+    sq = IOSQ(nvme0, 3, qdepth, Buffer(4096), cqid=3)
+
+    # once again: first cmd, invalid namespace
+    for i in range(qdepth*3 + 3):
+        index = (i+1)%qdepth
+        sq[index-1] = [8, 1] + [0]*14
+        sq.tail = index
+        time.sleep(0.01)
+        assert (cq[index-1][3]>>17) == 0
+        assert (cq[index-1][2]&0xffff) == index
+
+    sq.delete()
+    cq.delete()
+
+
+@pytest.mark.skip("to debug")
+def test_send_multiple_cmd_in_sq(nvme0):
+    cq = IOCQ(nvme0, 5, 7, Buffer(4096))
+    sq = IOSQ(nvme0, 8, 7, Buffer(4096), cqid=5)
+
+    # once again: first cmd, invalid namespace
+    for i in range(16):
+        index = (i+1)%7
+        sq[index-1] = [8, 1] + [0]*14
+        sq.tail = index
+        time.sleep(0.01)
+        assert (cq[index-1][3]>>17) == 0
+        assert (cq[index-1][2]&0xffff) == index
+
+    sq.delete()
+    cq.delete()
+
+    
 def test_reap_cpl_write_zeroes(nvme0):
     pass
 
