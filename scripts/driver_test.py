@@ -46,6 +46,7 @@ class PRPList(Buffer):
     buf_list = {}
     
     def __setitem__(self, index, buf: Buffer):
+        """insert buffer PRP to PRP List"""
         addr = buf.phys_addr
         logging.debug("insert buffer 0x%lx at %d" % (addr, index))
         assert index < 4096/8, "4K PRP List contains 512 PRP entries only"
@@ -61,7 +62,7 @@ class IOSQ(object):
     
     id = 0
     ctrlr = None
-    prp = None
+    queue = None
     
     def __init__(self, ctrlr, qid, qsize, prp1, pc=True, cqid=None, qprio=0, nvmsetid=0):
         """create IO submission queue
@@ -96,7 +97,7 @@ class IOSQ(object):
                 logging.info("create io sq fail: %d" % qid)
             else:
                 self.id = qid
-                self.prp = prp1
+                self.queue = prp1
 
         self.ctrlr = ctrlr
         ctrlr.send_cmd(0x01, prp1,
@@ -105,6 +106,10 @@ class IOSQ(object):
                        cdw12 = nvmsetid, 
                        cb = create_io_sq_cpl).waitdone()
 
+    def __setitem__(self, index, cmd: []):
+        """insert command 16 dwords to the queue"""
+        pass
+        
     def delete(self, qid=None):
         def delete_io_sq_cpl(cdw0, status1):
             if status1>>1:
@@ -127,7 +132,7 @@ class IOCQ(object):
     
     id = 0
     ctrlr = None
-    prp = None
+    queue = None
     
     def __init__(self, ctrlr, qid, qsize, prp1, pc=True, iv=0, ien=False):
         """create IO completion queue
@@ -155,7 +160,7 @@ class IOCQ(object):
                 logging.info("create io cq fail: %d" % qid)
             else:
                 self.id = qid
-                self.prp = prp1
+                self.queue = prp1
 
         self.ctrlr = ctrlr
         ctrlr.send_cmd(0x05, prp1,
