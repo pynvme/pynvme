@@ -84,13 +84,10 @@ class IOSQ(object):
         # 1base to 0base
         qsize -= 1
 
-        assert qid < 64*1024
-        assert qid >= 0
-        assert cqid < 64*1024
-        assert cqid >= 0
-        assert qsize < 64*1024
-        assert qsize >= 0
-        assert qprio < 4
+        assert qid < 64*1024 and qid >= 0
+        assert cqid < 64*1024 and cqid >= 0
+        assert qsize < 64*1024 and qsize >= 0
+        assert qprio < 4 and qprio >= 0
         
         def create_io_sq_cpl(cdw0, status1):
             if status1>>1:
@@ -108,8 +105,28 @@ class IOSQ(object):
 
     def __setitem__(self, index, cmd: []):
         """insert command 16 dwords to the queue"""
-        pass
+        assert len(cmd) == 16
+
+        buf = self.queue
+        if isinstance(buf, PRPList):
+            # find the PRP entry of the target buffer to write
+            assert False
+
+        assert isinstance(buf, Buffer)
+        for i, dword in enumerate(cmd):
+            for j, b in enumerate(dword.to_bytes(4, byteorder='little')):
+                buf[index*64 + i*4 + j] = b
+                
+        print(buf.dump(64))
         
+    @property
+    def tail(self):
+        return self.ctrlr[0x1000+2*self.id*4]
+
+    @tail.setter
+    def tail(self, tail):
+        self.ctrlr[0x1000+2*self.id*4] = tail
+    
     def delete(self, qid=None):
         def delete_io_sq_cpl(cdw0, status1):
             if status1>>1:
@@ -149,10 +166,8 @@ class IOCQ(object):
         # 1base to 0base
         qsize -= 1
 
-        assert qid < 64*1024
-        assert qid >= 0
-        assert qsize < 64*1024
-        assert qsize >= 0
+        assert qid < 64*1024 and qid >= 0
+        assert qsize < 64*1024 and qsize >= 0
         assert iv < 2048, "a maximum of 2048 vectors are used"
         
         def create_io_cq_cpl(cdw0, status1):
@@ -167,6 +182,30 @@ class IOCQ(object):
                        cdw10 = (qid|(qsize<<16)),
                        cdw11 = (pc|(ien<<1)|(iv<<16)),
                        cb = create_io_cq_cpl).waitdone()
+
+    def __getitem__(self, index):
+        """get 4 dwords completion from the queue"""
+
+        cpl = [0]*4
+        buf = self.queue
+        if isinstance(buf, PRPList):
+            # find the PRP entry of the target buffer to write
+            assert False
+
+        assert isinstance(buf, Buffer)
+        for i in range(4):
+            cpl[i] = buf.data(index*16 + i*4 + 3, index*16 + i*4)
+
+        assert len(cpl) == 4
+        return cpl
+
+    @property
+    def head(self):
+        return self.ctrlr[0x1000+(2*self.id+1)*4]
+    
+    @head.setter
+    def head(self, head):
+        self.ctrlr[0x1000+(2*self.id+1)*4] = head
         
     def delete(self, qid=None):
         def delete_io_cq_cpl(cdw0, status1):
@@ -269,8 +308,23 @@ def test_create_delete_iosq(nvme0):
     
 
 def test_send_cmd_write_zeroes(nvme0):
-    pass
+    cq = IOCQ(nvme0, 1, 10, Buffer(4096))
+    sq = IOSQ(nvme0, 1, 10, Buffer(4096), cqid=1)
 
+    # first cmd, invalid namespace
+    sq[0] = [8] + [0]*15
+    sq.tail = 1
+    time.sleep(0.1)
+    status = cq[0][3]>>17
+    assert status == 0x000b
+    
+    # second cmd
+    sq[1] = [8, 1] + [0]*14
+    sq.tail = 2
+    time.sleep(0.1)
+    status = cq[1][3]>>17
+    assert status == 0
+    
 
 def test_reap_cpl_write_zeroes(nvme0):
     pass
