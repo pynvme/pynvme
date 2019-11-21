@@ -36,7 +36,7 @@ Users can identify the data pattern of the `Buffer`. Pynvme supports following d
      - 0
      - 1
    * - repeated dwords
-     - 1
+     - 32
      - 32-bit data
    * - random data
      - 0xBEEF
