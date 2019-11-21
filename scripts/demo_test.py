@@ -131,8 +131,8 @@ def test_multiple_controllers_and_namespaces():
         logging.info("device: %s" % nvme.id_data(63, 24, str))
 
     # format for faster read
-    for ns in ns_list:
-        ns.format(512)
+    # for ns in ns_list:
+    #     ns.format(512)
         
     # multiple namespaces and ioworkers
     ioworkers = {}
