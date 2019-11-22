@@ -392,7 +392,7 @@ The IOWorker result data includes these information:
      - int
      - error code of the IOWorker
 
-To get more result of the ioworkers, we should provide arguments output_io_per_second and/or output_percentile_latency. When an empty list is provided to output_io_per_second, ioworker will fill the io count of every seconds during the whole test. When a dict, whose keys are a serie of percentiles, is provided to output_percentile_latency, ioworker will fill the latency of these percentiles as the values of the dict. With these detail output data, we can test IOPS consistency, latency QoS, and etc. Here is an example: 
+To get more result of the ioworkers, we should provide arguments output_io_per_second and/or output_percentile_latency. When an empty list is provided to output_io_per_second, ioworker will fill the io count of every seconds during the whole test. When a dict, whose keys are a series of percentiles, is provided to output_percentile_latency, ioworker will fill the latency of these percentiles as the values of the dict. With these detail output data, we can test IOPS consistency, latency QoS, and etc. Here is an example: 
 
 .. code-block:: python
 
@@ -521,9 +521,9 @@ IOWorker can accurately control the IO speed by the parameter `iops`. Here is an
 
 The result of the IOWorker shows that it takes 7 seconds, and it sends 1234 IOs in each second. In this way, we can measure the latency against different IOPS pressure.
 
-We can create an ioworker upto 24 hours. We can also specify different data pattern in the IOWorker with arguments pvalue and ptype, which are the same definition as that in class Buffer.
+We can create an ioworker up to 24 hours. We can also specify different data pattern in the IOWorker with arguments pvalue and ptype, which are the same definition as that in class Buffer.
 
-We can send differnt size IO in an ioworker through parameter io_size, which accepts different types of input: int, range, list, and dict.
+We can send different size IO in an ioworker through parameter io_size, which accepts different types of input: int, range, list, and dict.
 
 .. list-table::
    :header-rows: 1
@@ -683,9 +683,9 @@ Based on SPDK, pynvme provides a high performance NVMe driver for product test. 
 
 #. Multiple SQ share one CQ. Pynvme abstracts CQ and SQ as the Qpair.
 #. Non-contiguous memory for SQ and/or CQ. Pynvme always allocates contiguous memory when creating Qpairs.
-#. Complicated PRP tests. Pynvme creates PRP with some reasonable limitations, but it cannot cover all corner cases in protocal tests.
+#. Complicated PRP tests. Pynvme creates PRP with some reasonable limitations, but it cannot cover all corner cases in protocol tests.
 
-In order to cover these considerations, pynvme provides an extension of **Python Space Driver** (PSD). It is an NVMe driver impletemented in pure Python based on some fundermental capabilities provided by Pynvme. Specifically, they are:
+In order to cover these considerations, pynvme provides an extension of **Python Space Driver** (PSD). It is an NVMe driver implemented in pure Python based on some fundamental capabilities provided by Pynvme. Specifically, they are:
 
 #. DMA memory allocation abstracted by class `Buffer`.
 #. NVMe register access provided by class `Controller`.
