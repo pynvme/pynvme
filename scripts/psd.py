@@ -200,36 +200,36 @@ class IOSQ(object):
 
         """
 
+        # some id cq
         if cqid is None:
             cqid = qid
 
-        # 1base to 0base
-        self.sqe_list = [None]*qsize
-        qsize -= 1
-
-        assert qid < 64*1024 and qid >= 0
-        assert cqid < 64*1024 and cqid >= 0
-        assert qsize < 64*1024 and qsize >= 0
+        assert qid < 64*1024 and qid > 0
+        assert cqid < 64*1024 and cqid > 0
+        assert qsize < 64*1024 and qsize > 0
         assert qprio < 4 and qprio >= 0
-        
+
         def create_io_sq_cpl(cdw0, status1):
             if status1>>1:
                 logging.info("create io sq fail: %d" % qid)
             else:
                 self.id = qid
                 self.queue = prp1
-
+                self.sqe_list = [None]*qsize
+                
         self.ctrlr = ctrlr
         ctrlr.send_cmd(0x01, prp1,
-                       cdw10 = (qid|(qsize<<16)),
+                       cdw10 = (qid|((qsize-1)<<16)),
                        cdw11 = (pc|(qprio<<1)|(cqid<<16)),
                        cdw12 = nvmsetid, 
                        cb = create_io_sq_cpl).waitdone()
 
     def __setitem__(self, index, cmd: SQE):
         """insert command 16 dwords to the queue"""
+        
         assert len(cmd) == 16
-
+        assert index < len(self.sqe_list)
+        
         buf = self.queue
         if isinstance(buf, PRPList):
             # find the PRP entry of the target buffer to write
@@ -275,6 +275,7 @@ class IOCQ(object):
     id = 0
     ctrlr = None
     queue = None
+    qsize = 0
     
     def __init__(self, ctrlr, qid, qsize, prp1, pc=True, iv=0, ien=False):
         """create IO completion queue
@@ -288,11 +289,8 @@ class IOCQ(object):
 
         """
         
-        # 1base to 0base
-        qsize -= 1
-
-        assert qid < 64*1024 and qid >= 0
-        assert qsize < 64*1024 and qsize >= 0
+        assert qid < 64*1024 and qid > 0
+        assert qsize < 64*1024 and qsize > 0
         assert iv < 2048, "a maximum of 2048 vectors are used"
         
         def create_io_cq_cpl(cdw0, status1):
@@ -301,16 +299,19 @@ class IOCQ(object):
             else:
                 self.id = qid
                 self.queue = prp1
+                self.qsize = qsize
 
         self.ctrlr = ctrlr
         ctrlr.send_cmd(0x05, prp1,
-                       cdw10 = (qid|(qsize<<16)),
+                       cdw10 = (qid|((qsize-1)<<16)),
                        cdw11 = (pc|(ien<<1)|(iv<<16)),
                        cb = create_io_cq_cpl).waitdone()
 
     def __getitem__(self, index):
-        """get 4 dwords completion from the queue"""
+        """get 4-dword CQE from the queue"""
 
+        assert index < self.qsize
+        
         cpl = [0]*4
         buf = self.queue
         if isinstance(buf, PRPList):
