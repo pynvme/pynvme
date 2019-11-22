@@ -230,7 +230,49 @@ class SQE(list):
         for i, e in enumerate(arg):
             list.__setitem__(self, i, e)
 
+    @property
+    def opc(self):
+        return self[0]&0xff
+            
+    @opc.setter
+    def opc(self, opc):
+        self[0] = (self[0]&0xffffff00) | opc
 
+    @property
+    def cid(self):
+        return self[0]>>16
+
+    @cid.setter
+    def cid(self, cid):
+        self[0] = (self[0]&0xffff) | (cid<<16)
+
+    @property
+    def nsid(self):
+        return self[1]
+
+    @nsid.setter
+    def nsid(self, nsid):
+        self[1] = nsid
+
+    @property
+    def prp1(self):
+        return (self[7]<<32) | self[6]
+
+    @prp1.setter
+    def prp1(self, prp):
+        self[6] = prp&0xffffffff
+        self[7] = (prp>>32)&0xffffffff
+
+    @property
+    def prp2(self):
+        return (self[9]<<32) | self[8]
+
+    @prp2.setter
+    def prp2(self, prp):
+        self[8] = prp&0xffffffff
+        self[9] = (prp>>32)&0xffffffff
+
+        
 class CQE(list):
     def __init__(self, arg):
         assert len(arg) == 4
@@ -385,10 +427,14 @@ def test_send_cmd_2sq_1cq(nvme0):
     sq1 = IOSQ(nvme0, 1, 10, Buffer(4096), cqid=1)
     sq2 = IOSQ(nvme0, 2, 16, Buffer(4096), cqid=1)
 
-    sqe = SQE(8, 0, 0)
-    sqe[1] = 1  # namespace id
-    
-    sq1[0] = sqe
+    cdw = SQE(8, 0, 0)
+    cdw.nsid = 1  # namespace id
+    cdw.cid = 222
+    sq1[0] = cdw
+
+    sqe = SQE(*cdw)
+    assert sqe[1] == 1
+    sqe.cid = 111
     sq2[0] = sqe
     sq2.tail = 1
     time.sleep(0.1)
@@ -401,6 +447,7 @@ def test_send_cmd_2sq_1cq(nvme0):
     assert cqe.sqid == 2
     assert cqe.sqhd == 1
     assert cqe.p == 1
+    assert cqe.cid == 111
     
     cqe = CQE(cq[1])
     assert cqe.sct == 0
@@ -408,6 +455,7 @@ def test_send_cmd_2sq_1cq(nvme0):
     assert cqe.sqid == 1
     assert cqe.sqhd == 1
     assert cqe.p == 1
+    assert cqe.cid == 222
 
     cq.head = 2
 
