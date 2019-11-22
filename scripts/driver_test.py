@@ -116,8 +116,6 @@ class IOSQ(object):
         for i, dword in enumerate(cmd):
             for j, b in enumerate(dword.to_bytes(4, byteorder='little')):
                 buf[index*64 + i*4 + j] = b
-                
-        print(buf.dump(64))
         
     @property
     def tail(self):
@@ -224,7 +222,66 @@ class IOCQ(object):
                                 cdw10 = qid,
                                 cb = delete_io_cq_cpl).waitdone()
 
-        
+
+class SQE(list):
+    def __init__(self, *arg):
+        assert len(arg) <= 16
+        list.extend(self, [0]*16)
+        for i, e in enumerate(arg):
+            list.__setitem__(self, i, e)
+
+
+class CQE(list):
+    def __init__(self, arg):
+        assert len(arg) == 4
+        for e in arg:
+            list.append(self, e)
+
+    @property
+    def cdw0(self):
+        return self[0]
+
+    @property
+    def sqhd(self):
+        return self[2]&0xffff
+
+    @property
+    def sqid(self):
+        return (self[2]>>16)&0xffff
+
+    @property
+    def cid(self):
+        return self[3]&0xffff
+    
+    @property
+    def p(self):
+        return (self[3]>>16)&0x1
+    
+    @property
+    def status(self):
+        return (self[3]>>17)&0x8fff
+
+    @property
+    def sc(self):
+        return (self[3]>>17)&0xff
+
+    @property
+    def sct(self):
+        return (self[3]>>25)&0x7
+
+    @property
+    def crd(self):
+        return (self[3]>>28)&0x3
+
+    @property
+    def m(self):
+        return (self[3]>>30)&0x1
+
+    @property
+    def dnr(self):
+        return (self[3]>>31)&0x1
+
+    
 def test_create_delete_iocq(nvme0):
     buf = Buffer(4096)
 
@@ -323,6 +380,42 @@ def test_send_single_cmd(nvme0):
     cq.delete()
 
     
+def test_send_cmd_2sq_1cq(nvme0):
+    cq = IOCQ(nvme0, 1, 10, Buffer(4096))
+    sq1 = IOSQ(nvme0, 1, 10, Buffer(4096), cqid=1)
+    sq2 = IOSQ(nvme0, 2, 16, Buffer(4096), cqid=1)
+
+    sqe = SQE(8, 0, 0)
+    sqe[1] = 1  # namespace id
+    
+    sq1[0] = sqe
+    sq2[0] = sqe
+    sq2.tail = 1
+    time.sleep(0.1)
+    sq1.tail = 1
+    time.sleep(0.1)
+    
+    cqe = CQE(cq[0])
+    assert cqe.sct == 0
+    assert cqe.sc == 0
+    assert cqe.sqid == 2
+    assert cqe.sqhd == 1
+    assert cqe.p == 1
+    
+    cqe = CQE(cq[1])
+    assert cqe.sct == 0
+    assert cqe.sc == 0
+    assert cqe.sqid == 1
+    assert cqe.sqhd == 1
+    assert cqe.p == 1
+
+    cq.head = 2
+
+    sq1.delete()
+    sq2.delete()
+    cq.delete()
+
+    
 @pytest.mark.parametrize("qdepth", [7, 2, 3, 4, 5, 10, 16, 17, 31])
 def test_send_cmd_different_qdepth(nvme0, qdepth):
     cq = IOCQ(nvme0, 3, qdepth, Buffer(4096))
@@ -342,10 +435,6 @@ def test_send_cmd_different_qdepth(nvme0, qdepth):
     cq.delete()
 
 
-def test_reap_cpl_write_zeroes(nvme0):
-    pass
-
-
 @pytest.mark.parametrize("count", [1, 2, 8, 500, 512])
 def test_prp_and_prp_list(count):
     l = PRPList()
@@ -357,4 +446,7 @@ def test_prp_and_prp_list_invalid():
     l = PRPList()
     with pytest.raises(AssertionError):
         l[512] = Buffer()
-        
+
+
+def test_read_write_on_non_contig_cq_sq(nvme0):
+    pass
