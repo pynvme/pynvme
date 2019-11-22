@@ -33,16 +33,30 @@
 # -*- coding: utf-8 -*-
 
 
-import os
 import time
 import pytest
 import logging
-import warnings
 
 from nvme import *
 
 
-class PRPList(Buffer):
+class PRP(Buffer):
+    _offset = 0
+
+    @property
+    def offset(self):
+        return self._offset
+
+    @offset.setter
+    def offset(self, offset):
+        self._offset = offset
+
+    @property
+    def phys_addr(self):
+        return super(PRP, self).phys_addr + self._offset
+
+    
+class PRPList(PRP):
     buf_list = {}
     
     def __setitem__(self, index, buf: Buffer):
@@ -56,6 +70,113 @@ class PRPList(Buffer):
         for i, b in enumerate(addr.to_bytes(8, byteorder='little')):
             super(PRPList, self).__setitem__(index*8 + i, b) 
 
+
+class SQE(list):
+    _buf_list = []
+    
+    def __init__(self, *arg):
+        assert len(arg) <= 16
+        list.extend(self, [0]*16)
+        for i, e in enumerate(arg):
+            list.__setitem__(self, i, e)
+
+    @property
+    def opc(self):
+        return self[0]&0xff
+            
+    @opc.setter
+    def opc(self, opc):
+        self[0] = (self[0]&0xffffff00) | opc
+
+    @property
+    def cid(self):
+        return self[0]>>16
+
+    @cid.setter
+    def cid(self, cid):
+        self[0] = (self[0]&0xffff) | (cid<<16)
+
+    @property
+    def nsid(self):
+        return self[1]
+
+    @nsid.setter
+    def nsid(self, nsid):
+        self[1] = nsid
+
+    @property
+    def prp1(self):
+        return (self[7]<<32) | self[6]
+
+    @prp1.setter
+    def prp1(self, buf: Buffer):
+        prp = buf.phys_addr
+        self[6] = prp&0xffffffff
+        self[7] = (prp>>32)&0xffffffff
+        self._buf_list.append(buf)
+
+    @property
+    def prp2(self):
+        return (self[9]<<32) | self[8]
+
+    @prp2.setter
+    def prp2(self, buf: Buffer):
+        prp = buf.phys_addr
+        self[8] = prp&0xffffffff
+        self[9] = (prp>>32)&0xffffffff
+        self._buf_list.append(buf)
+
+        
+class CQE(list):
+    def __init__(self, arg):
+        assert len(arg) == 4
+        for e in arg:
+            list.append(self, e)
+
+    @property
+    def cdw0(self):
+        return self[0]
+
+    @property
+    def sqhd(self):
+        return self[2]&0xffff
+
+    @property
+    def sqid(self):
+        return (self[2]>>16)&0xffff
+
+    @property
+    def cid(self):
+        return self[3]&0xffff
+    
+    @property
+    def p(self):
+        return (self[3]>>16)&0x1
+    
+    @property
+    def status(self):
+        return (self[3]>>17)&0x8fff
+
+    @property
+    def sc(self):
+        return (self[3]>>17)&0xff
+
+    @property
+    def sct(self):
+        return (self[3]>>25)&0x7
+
+    @property
+    def crd(self):
+        return (self[3]>>28)&0x3
+
+    @property
+    def m(self):
+        return (self[3]>>30)&0x1
+
+    @property
+    def dnr(self):
+        return (self[3]>>31)&0x1
+            
             
 class IOSQ(object):
     """I/O Submission Queue"""
@@ -63,6 +184,7 @@ class IOSQ(object):
     id = 0
     ctrlr = None
     queue = None
+    sqe_list = None
     
     def __init__(self, ctrlr, qid, qsize, prp1, pc=True, cqid=None, qprio=0, nvmsetid=0):
         """create IO submission queue
@@ -82,6 +204,7 @@ class IOSQ(object):
             cqid = qid
 
         # 1base to 0base
+        self.sqe_list = [None]*qsize
         qsize -= 1
 
         assert qid < 64*1024 and qid >= 0
@@ -103,7 +226,7 @@ class IOSQ(object):
                        cdw12 = nvmsetid, 
                        cb = create_io_sq_cpl).waitdone()
 
-    def __setitem__(self, index, cmd: []):
+    def __setitem__(self, index, cmd: SQE):
         """insert command 16 dwords to the queue"""
         assert len(cmd) == 16
 
@@ -112,6 +235,9 @@ class IOSQ(object):
             # find the PRP entry of the target buffer to write
             assert False
 
+        # track the cmd in the queue
+        self.sqe_list[index] = cmd
+        
         assert isinstance(buf, Buffer)
         for i, dword in enumerate(cmd):
             for j, b in enumerate(dword.to_bytes(4, byteorder='little')):
@@ -196,7 +322,7 @@ class IOCQ(object):
             cpl[i] = buf.data(index*16 + i*4 + 3, index*16 + i*4)
 
         assert len(cpl) == 4
-        return cpl
+        return CQE(cpl)
 
     @property
     def head(self):
@@ -221,107 +347,6 @@ class IOCQ(object):
             self.ctrlr.send_cmd(0x04,
                                 cdw10 = qid,
                                 cb = delete_io_cq_cpl).waitdone()
-
-
-class SQE(list):
-    def __init__(self, *arg):
-        assert len(arg) <= 16
-        list.extend(self, [0]*16)
-        for i, e in enumerate(arg):
-            list.__setitem__(self, i, e)
-
-    @property
-    def opc(self):
-        return self[0]&0xff
-            
-    @opc.setter
-    def opc(self, opc):
-        self[0] = (self[0]&0xffffff00) | opc
-
-    @property
-    def cid(self):
-        return self[0]>>16
-
-    @cid.setter
-    def cid(self, cid):
-        self[0] = (self[0]&0xffff) | (cid<<16)
-
-    @property
-    def nsid(self):
-        return self[1]
-
-    @nsid.setter
-    def nsid(self, nsid):
-        self[1] = nsid
-
-    @property
-    def prp1(self):
-        return (self[7]<<32) | self[6]
-
-    @prp1.setter
-    def prp1(self, prp):
-        self[6] = prp&0xffffffff
-        self[7] = (prp>>32)&0xffffffff
-
-    @property
-    def prp2(self):
-        return (self[9]<<32) | self[8]
-
-    @prp2.setter
-    def prp2(self, prp):
-        self[8] = prp&0xffffffff
-        self[9] = (prp>>32)&0xffffffff
-
-        
-class CQE(list):
-    def __init__(self, arg):
-        assert len(arg) == 4
-        for e in arg:
-            list.append(self, e)
-
-    @property
-    def cdw0(self):
-        return self[0]
-
-    @property
-    def sqhd(self):
-        return self[2]&0xffff
-
-    @property
-    def sqid(self):
-        return (self[2]>>16)&0xffff
-
-    @property
-    def cid(self):
-        return self[3]&0xffff
-    
-    @property
-    def p(self):
-        return (self[3]>>16)&0x1
-    
-    @property
-    def status(self):
-        return (self[3]>>17)&0x8fff
-
-    @property
-    def sc(self):
-        return (self[3]>>17)&0xff
-
-    @property
-    def sct(self):
-        return (self[3]>>25)&0x7
-
-    @property
-    def crd(self):
-        return (self[3]>>28)&0x3
-
-    @property
-    def m(self):
-        return (self[3]>>30)&0x1
-
-    @property
-    def dnr(self):
-        return (self[3]>>31)&0x1
 
     
 def test_create_delete_iocq(nvme0):
@@ -489,12 +514,106 @@ def test_prp_and_prp_list(count):
     for i in range(count):
         l[i] = Buffer()
 
+        
+def test_prp_and_prp_list_with_offset():
+    p = PRP()
+    p.offset = 0x20
 
+    l = PRPList()
+    l.offset = 0x40
+    l[8] = p
+    
+    p.offset = 0x30
+    l[9] = p
+
+    assert l.phys_addr & 0x7 == 0
+    assert l.phys_addr & 0xfff == 0x40
+    assert l.data(0x40) == 0x20
+    assert l.data(0x48) == 0x30
+
+    
 def test_prp_and_prp_list_invalid():
     l = PRPList()
     with pytest.raises(AssertionError):
         l[512] = Buffer()
 
+        
+def test_psd_write_2sq_1cq_prp_list(nvme0):
+    # cqid: 1, PC, depth: 120
+    cq = IOCQ(nvme0, 1, 120, PRP(4096))
 
-def test_read_write_on_non_contig_cq_sq(nvme0):
-    pass
+    # create two SQ, both use the same CQ
+    # sqid: 3, depth: 16
+    sq3 = IOSQ(nvme0, 3, 16, PRP(), cqid=1)
+    # sqid: 5, depth: 100, so need 2 pages of memory
+    sq5 = IOSQ(nvme0, 5, 100, PRP(4096*2), cqid=1)
+
+    # IO command templates: opcode and namespace
+    write_cmd = SQE(1, 1)
+    read_cmd = SQE(2, 1)
+    
+    # write in sq3, lba1-lba2, 1 page, aligned
+    w1 = SQE(*write_cmd)
+    write_buf = PRP(ptype=32, pvalue=0xaaaaaaaa)
+    w1.prp1 = write_buf
+    w1[10] = 1
+    w1[12] = 1 # 0based
+    w1.cid = 0x123
+    sq3[0] = w1
+    sq3.tail = 1
+
+    # add some delay, so ssd should finish w1 before w2
+    time.sleep(0.1) 
+
+    # write in sq5, lba5-lba16, 2 page, non aligned
+    w2 = SQE(*write_cmd)
+    buf1 = PRP(ptype=32, pvalue=0xbbbbbbbb)
+    buf1.offset = 2048
+    w2.prp1 = buf1
+    w2.prp2 = PRP(ptype=32, pvalue=0xcccccccc)
+    w2[10] = 5
+    w2[12] = 11 # 0based
+    w2.cid = 0x567
+    sq5[0] = w2
+    sq5.tail = 1
+    
+    # cqe for w1
+    while CQE(cq[0]).p == 0: pass
+    cqe = CQE(cq[0])
+    assert cqe.cid == 0x123
+    assert cqe.sqid == 3
+    assert cqe.sqhd == 1
+    cq.head = 1
+
+    # cqe for w2
+    while CQE(cq[1]).p == 0: pass
+    cqe = CQE(cq[1])
+    assert cqe.cid == 0x567
+    assert cqe.sqid == 5
+    assert cqe.sqhd == 1
+    cq.head = 2
+
+    # read in sq3, lba0-lba23, 3 page with PRP list
+    r1 = SQE(*read_cmd)
+    read_buf = [PRP() for i in range(3)]
+    r1.prp1 = read_buf[0]
+    prp_list = PRPList()
+    prp_list[0] = read_buf[1]
+    prp_list[1] = read_buf[2]
+    r1.prp2 = prp_list
+    r1[10] = 0
+    r1[12] = 23 # 0based
+    sq3[1] = r1
+    sq3.tail = 2
+
+    # verify read data
+    while cq[2].p == 0: pass
+    cq.head = 3
+    assert read_buf[0].data(0xfff, 0xffc) == 0xbbbbbbbb
+    assert read_buf[2].data(3, 0) == 0xcccccccc
+    assert read_buf[2].data(0x1ff, 0x1fc) == 0xcccccccc
+    
+    # delete all sq/cq
+    sq3.delete()
+    sq5.delete()
+    cq.delete()

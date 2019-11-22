@@ -675,3 +675,82 @@ At last, we can reset the subsystem by writing NVMe register NSSR.NSSRC in API `
 In the next chapter, let's read more real pynvme test scripts to find how we use pynvme in practical NVMe testing.
 
 In the last chapter, we can refer to the API document along with your script development. VSCode can also show you the online docstring when editing the code. 
+
+PSD
+---
+
+Based on SPDK, pynvme provides a high performance NVMe driver for product test. However, it lacks of flexibility to test every details defined in the NVMe Specification. Here are some of the examples:
+
+#. Multiple SQ share one CQ. Pynvme abstracts CQ and SQ as the Qpair.
+#. Non-contiguous memory for SQ and/or CQ. Pynvme always allocates contiguous memory when creating Qpairs.
+#. Complicated PRP tests. Pynvme creates PRP with some reasonable limitations, but it cannot cover all corner cases in protocal tests.
+
+In order to cover these considerations, pynvme provides an extension of **Python Space Driver** (PSD). It is an NVMe driver impletemented in pure Python based on some fundermental capabilities provided by Pynvme. Specifically, they are:
+
+#. DMA memory allocation abstracted by class `Buffer`.
+#. NVMe register access provided by class `Controller`.
+
+PSD implements NVMe data structures and operations in the module *scripts/psd.py*. It consists of classes below:
+
+#. PRP: alias of Buffer, and the size is the memory page by default.
+#. PRPList: maintain the list of PRP entries, which are physical addresses of `Buffer`.
+#. IOSQ: create and maintain IO Submission Queue.
+#. IOCQ: create and maintain IO Completion Queue.
+#. SQE: submission queue entry for NVMe commands dwords.
+#. CQE: completion queue entry for NVMe completion dwords.
+
+Here is an example: 
+
+.. code-block:: python
+
+   # import psd classes
+   from psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
+
+   def test_send_cmd_2sq_1cq(nvme0):
+       # 2 SQ share one CQ
+       cq = IOCQ(nvme0, 1, 10, PRP())
+       sq1 = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
+       sq2 = IOSQ(nvme0, 2, 16, PRP(), cqid=1)
+   
+       # write lba0, 16K data organized by PRPList
+       write_cmd = SQE(1, 1)  # write to namespace 1
+       write_cmd.prp1 = PRP() # PRP1 is a 4K page
+       prp_list = PRPList()   # PRPList contains 3 pages
+       prp_list[0] = PRP()
+       prp_list[1] = PRP()
+       prp_list[2] = PRP()
+       write_cmd.prp2 = prp_list   # PRP2 points to the PRPList
+       write_cmd[10] = 0           # starting LBA
+       write_cmd[12] = 31          # LBA count: 32, 16K, 4 pages
+       write_cmd.cid = 123;        # verify cid later
+   
+       # send write commands in both SQ
+       sq1[0] = write_cmd          # fill command dwords in SQ1
+       write_cmd.cid = 567;        # verify cid later
+       sq2[0] = write_cmd          # fill command dwords in SQ2
+       sq2.tail = 1                # ring doorbell of SQ2 first
+       time.sleep(0.1)             # delay to ring SQ1, 
+       sq1.tail = 1                #  so command in SQ2 should comple first
+   
+       # wait for 2 command completions
+       while CQE(cq[1]).p == 0: pass
+   
+       # check first cpl
+       cqe = CQE(cq[0])
+       assert cqe.sqid == 2
+       assert cqe.sqhd == 1
+       assert cqe.cid == 567
+   
+       # check second cpl
+       cqe = CQE(cq[1])
+       assert cqe.sqid == 1
+       assert cqe.sqhd == 1
+       assert cqe.cid == 123
+   
+       # update cq head doorbell to device
+       cq.head = 2
+   
+       # delete all queues
+       sq1.delete()
+       sq2.delete()
+       cq.delete()
