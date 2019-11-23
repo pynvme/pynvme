@@ -58,8 +58,9 @@ class PRP(Buffer):
 
     
 class PRPList(PRP):
-    prp_per_list = 4096//8
-    buf_list = [None]*prp_per_list
+    def __init__(self):
+        self.prp_per_list = 4096//8
+        self.buf_list = [None]*self.prp_per_list
     
     def __setitem__(self, index, buf: PRP):
         """insert buffer PRP to PRP List"""
@@ -79,8 +80,8 @@ class PRPList(PRP):
     def find_buffer_by_offset(self, offset, start):
         """find the buffer of the non-contiguous queue contains the offset"""
         
-        first_index = self.offset/8
-        for buf in self.buf_list[first_index, self.prp_per_list]:
+        first_index = self.offset//8
+        for buf in self.buf_list[first_index : self.prp_per_list]:
             assert buf is not None
             if isinstance(buf, PRPList):
                 # the last entry could be another PRPList
@@ -90,7 +91,7 @@ class PRPList(PRP):
                 orig_start = start
                 start += (len(buf)-buf.offset)
                 if start > offset:
-                    return buf, offset-orig_start
+                    return buf, buf.offset+offset-orig_start
 
                 
 class SQE(list):
@@ -423,7 +424,7 @@ def test_create_delete_iocq_large(nvme0, pgsz):
     cq = IOCQ(nvme0, 4, 5, buf_cq)
     cq.delete()
 
-    
+
 def test_create_delete_iocq_non_contig(nvme0):
     prp_list = PRPList()
     prp_list[0] = PRP()
@@ -647,3 +648,32 @@ def test_psd_write_2sq_1cq_prp_list(nvme0):
     sq3.delete()
     sq5.delete()
     cq.delete()
+
+
+def test_iocq_prplist():
+    prp_list = PRPList()
+    p = PRP()
+    p.offset = 4096-64
+    prp_list[510] = p
+    prp_list.offset = 4096-16
+
+    prp_list2 = PRPList()
+    prp_list[511] = prp_list2
+
+    prp_list2[0] = PRP()
+    prp_list2[1] = PRP()
+    prp_list2[2] = PRP()
+    prp_list2[3] = PRP()
+
+    buffer, offset = prp_list.find_buffer_by_offset(0, 0)
+    assert buffer == p
+    assert offset == p.offset
+
+    buffer, offset = prp_list.find_buffer_by_offset(5*16, 0)
+    assert buffer == prp_list2[0]
+    assert offset == 16
+
+    buffer, offset = prp_list.find_buffer_by_offset(1000*16, 0)
+    assert buffer == prp_list2[3]
+    assert offset == 3648
+    
