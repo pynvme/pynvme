@@ -215,7 +215,7 @@ class IOSQ(object):
             ctrlr (Controller):
             qid (int):
             qsize (int): 1based value
-            prp1 (Buffer, PRPList): the location of the queue
+            prp1 (PRP, PRPList): the location of the queue
             cqid (int): 
             qprio (int): 
             nvmsetid (int): 
@@ -419,7 +419,7 @@ def test_create_delete_iocq(nvme0):
 
 @pytest.mark.parametrize("pgsz", [1, 2, 3, 10, 256, 512, 1024])
 def test_create_delete_iocq_large(nvme0, pgsz):
-    buf_cq = Buffer(4096*pgsz)
+    buf_cq = PRP(4096*pgsz)
     cq = IOCQ(nvme0, 4, 5, buf_cq)
     cq.delete()
 
@@ -434,10 +434,10 @@ def test_create_delete_iocq_non_contig(nvme0):
     
 
 def test_create_delete_iosq(nvme0):
-    buf_cq = Buffer(4096)
+    buf_cq = PRP(4096)
     cq = IOCQ(nvme0, 4, 5, buf_cq)
 
-    buf_sq = Buffer(4096)
+    buf_sq = PRP(4096)
 
     # Completion Queue Invalid
     with pytest.warns(UserWarning, match="ERROR status: 01/00"):
@@ -462,8 +462,8 @@ def test_create_delete_iosq(nvme0):
     
 
 def test_send_single_cmd(nvme0):
-    cq = IOCQ(nvme0, 1, 10, Buffer(4096))
-    sq = IOSQ(nvme0, 1, 10, Buffer(4096), cqid=1)
+    cq = IOCQ(nvme0, 1, 10, PRP())
+    sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
 
     # first cmd, invalid namespace
     sq[0] = [8] + [0]*15
@@ -477,9 +477,9 @@ def test_send_single_cmd(nvme0):
 
     
 def test_send_cmd_2sq_1cq(nvme0):
-    cq = IOCQ(nvme0, 1, 10, Buffer(4096))
-    sq1 = IOSQ(nvme0, 1, 10, Buffer(4096), cqid=1)
-    sq2 = IOSQ(nvme0, 2, 16, Buffer(4096), cqid=1)
+    cq = IOCQ(nvme0, 1, 10, PRP())
+    sq1 = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
+    sq2 = IOSQ(nvme0, 2, 16, PRP(), cqid=1)
 
     cdw = SQE(8, 0, 0)
     cdw.nsid = 1  # namespace id
@@ -520,8 +520,8 @@ def test_send_cmd_2sq_1cq(nvme0):
     
 @pytest.mark.parametrize("qdepth", [7, 2, 3, 4, 5, 10, 16, 17, 31])
 def test_send_cmd_different_qdepth(nvme0, qdepth):
-    cq = IOCQ(nvme0, 3, qdepth, Buffer(4096))
-    sq = IOSQ(nvme0, 3, qdepth, Buffer(4096), cqid=3)
+    cq = IOCQ(nvme0, 3, qdepth, PRP())
+    sq = IOSQ(nvme0, 3, qdepth, PRP(), cqid=3)
 
     # once again: first cmd, invalid namespace
     for i in range(qdepth*3 + 3):
@@ -552,13 +552,14 @@ def test_prp_and_prp_list_with_offset():
     l.offset = 0x40
     l[8] = p
     
+    p = PRP()
     p.offset = 0x30
     l[9] = p
 
-    assert l.phys_addr & 0x7 == 0
-    assert l.phys_addr & 0xfff == 0x40
-    assert l.data(0x40) == 0x20
-    assert l.data(0x48) == 0x30
+    assert l.phys_addr&0x7 == 0
+    assert l.phys_addr&0xfff == 0x40
+    assert l[8].phys_addr&0xfff == 0x20
+    assert l[9].phys_addr&0xfff == 0x30
 
     
 def test_prp_and_prp_list_invalid():
