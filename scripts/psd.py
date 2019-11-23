@@ -49,6 +49,7 @@ class PRP(Buffer):
 
     @offset.setter
     def offset(self, offset):
+        """set the offset of the PRP in bytes"""
         self._offset = offset
 
     @property
@@ -57,20 +58,41 @@ class PRP(Buffer):
 
     
 class PRPList(PRP):
-    buf_list = {}
+    prp_per_list = 4096//8
+    buf_list = [None]*prp_per_list
     
-    def __setitem__(self, index, buf: Buffer):
+    def __setitem__(self, index, buf: PRP):
         """insert buffer PRP to PRP List"""
         addr = buf.phys_addr
         logging.debug("insert buffer 0x%lx at %d" % (addr, index))
-        assert index < 4096/8, "4K PRP List contains 512 PRP entries only"
+        assert index < self.prp_per_list, "4K PRP List contains 512 PRP entries only"
         self.buf_list[index] = buf
 
         # fill PRP into PRP List
         for i, b in enumerate(addr.to_bytes(8, byteorder='little')):
             super(PRPList, self).__setitem__(index*8 + i, b) 
 
+    def __getitem__(self, index):
+        assert index < self.prp_per_list, "4K PRP List contains 512 PRP entries only"
+        return self.buf_list[index]
 
+    def find_buffer_by_offset(self, offset, start):
+        """find the buffer of the non-contiguous queue contains the offset"""
+        
+        first_index = self.offset/8
+        for buf in self.buf_list[first_index, self.prp_per_list]:
+            assert buf is not None
+            if isinstance(buf, PRPList):
+                # the last entry could be another PRPList
+                assert buf == self.buf_list[self.prp_per_list - 1]
+                return buf.find_buffer_by_offset(offset, start)
+            else:
+                orig_start = start
+                start += (len(buf)-buf.offset)
+                if start > offset:
+                    return buf, offset-orig_start
+
+                
 class SQE(list):
     _buf_list = []
     
@@ -204,8 +226,8 @@ class IOSQ(object):
         if cqid is None:
             cqid = qid
 
-        assert qid < 64*1024 and qid > 0
-        assert cqid < 64*1024 and cqid > 0
+        assert qid < 64*1024 and qid >= 0
+        assert cqid < 64*1024 and cqid >= 0
         assert qsize < 64*1024 and qsize > 0
         assert qprio < 4 and qprio >= 0
 
@@ -225,20 +247,23 @@ class IOSQ(object):
                        cb = create_io_sq_cpl).waitdone()
 
     def __setitem__(self, index, cmd: SQE):
-        """insert command 16 dwords to the queue"""
+        """insert 16-dword SQE to the queue"""
         
         assert len(cmd) == 16
         assert index < len(self.sqe_list)
-        
-        buf = self.queue
-        if isinstance(buf, PRPList):
-            # find the PRP entry of the target buffer to write
-            assert False
 
         # track the cmd in the queue
         self.sqe_list[index] = cmd
         
-        assert isinstance(buf, Buffer)
+        # locate the queue buffer
+        if isinstance(self.queue, PRPList):
+            # find the PRP entry in non-contig queue
+            buf, offset = self.queue.find_buffer_by_offset(index*64, 0)
+            index = offset/64 
+        else:
+            buf = self.queue
+
+        assert isinstance(buf, PRP)
         for i, dword in enumerate(cmd):
             for j, b in enumerate(dword.to_bytes(4, byteorder='little')):
                 buf[index*64 + i*4 + j] = b
@@ -289,7 +314,7 @@ class IOCQ(object):
 
         """
         
-        assert qid < 64*1024 and qid > 0
+        assert qid < 64*1024 and qid >= 0
         assert qsize < 64*1024 and qsize > 0
         assert iv < 2048, "a maximum of 2048 vectors are used"
         
@@ -315,10 +340,13 @@ class IOCQ(object):
         cpl = [0]*4
         buf = self.queue
         if isinstance(buf, PRPList):
-            # find the PRP entry of the target buffer to write
-            assert False
+            # find the PRP entry in non-contig queue
+            buf, offset = self.queue.find_buffer_by_offset(index*16, 0)
+            index = offset/16
+        else:
+            buf = self.queue
 
-        assert isinstance(buf, Buffer)
+        assert isinstance(buf, PRP)
         for i in range(4):
             cpl[i] = buf.data(index*16 + i*4 + 3, index*16 + i*4)
 
@@ -398,8 +426,8 @@ def test_create_delete_iocq_large(nvme0, pgsz):
     
 def test_create_delete_iocq_non_contig(nvme0):
     prp_list = PRPList()
-    prp_list[0] = Buffer()
-    prp_list[1] = Buffer()
+    prp_list[0] = PRP()
+    prp_list[1] = PRP()
     
     cq = IOCQ(nvme0, 4, 5, prp_list, pc=False)
     cq.delete()

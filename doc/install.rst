@@ -4,7 +4,7 @@ Install
 Quick Start
 -----------
 
-Normally, users can build pynvme by simply running *install.sh*. It generates the pynvme Python package *nvme.cpython-37m-x86_64-linux-gnu.so*. This is the recommended method to compile pynvme.
+Normally, users can build pynvme by simply running *install.sh*. It generates the pynvme Python package *nvme.so*. This is the recommended method to compile pynvme.
 
 .. code-block:: shell
 
