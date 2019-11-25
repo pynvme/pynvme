@@ -32,7 +32,7 @@
 
 
 #find the first NVMe device as the DUT
-pciaddr=$(shell lspci | grep 'Non-Volatile memory' | grep -o '..:..\..' | head -1)
+pciaddr=$(shell sudo ./spdk/scripts/setup.sh > /dev/null; sudo ./spdk/scripts/setup.sh status | grep 'uio_pci_generic' | head -1 | awk '{print ($$1)}')
 
 #reserve memory for driver
 memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%8)/8*5}')
@@ -89,7 +89,7 @@ info:
 setup: reset
 	-xhost +local:		# enable GUI with root/sudo
 	-sudo chmod 777 /tmp
-	sed -i 's/BB:DD.F/${pciaddr}/g' .vscode/settings.json
+	sed -i 's/XXXX:BB:DD.F/${pciaddr}/g' .vscode/settings.json
 	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh  	# use UIO only
 
 tags:

@@ -456,7 +456,7 @@ cdef class Pcie(object):
         vdid = '%04x %04x' % (vid, did)
         nvme = 'nvme'
         spdk = 'uio_pci_generic'
-        bdf = '0000:' + self._nvme._bdf.decode('utf-8')
+        bdf = self._nvme._bdf.decode('utf-8')
         logging.debug("pci reset %s on %s" % (vdid, bdf))
 
         # reset

@@ -140,9 +140,10 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
                                    0,
                                    0);
   assert(intr_info != NULL);
-  SPDK_INFOLOG(SPDK_LOG_NVME, "intr info 0x%lx\n", (uint64_t)intr_info);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "intr info 0x%lx\n", (uint64_t)intr_info);
   msix_ctrl = &intr_info->msix_info;
-  		// pynvme: enable msix interrupt
+  
+  // pynvme: enable msix interrupt
   //SPDK_ERRLOG("msix intr int, intr mgt 0x%lx\n", (uint64_t)intr_mgt);
   msix_base = pcie_find_cap_base_addr(pci, 0x11);
   if (msix_base == 0)
@@ -150,9 +151,10 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
     SPDK_ERRLOG("MSIX BASE == 0\n");
     return false;
   }
+  
   //find address of MSIX table.
   spdk_pci_device_cfg_read32(pci, &bir_val, (msix_base + 4));
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix bir %x\n", bir_val);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix bir %x\n", bir_val);
   bar_offset = bir_val & (~0x7);
   bir_val = bir_val & 0x7;
   if ((bir_val != 0x0) && (bir_val != 0x04))
@@ -161,11 +163,11 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
     SPDK_INFOLOG(SPDK_LOG_NVME, "mapping MSIX table to an invalid bar, msix init fail, switch the interrupt to msi\n");
     return ret;
   }
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix bir %x, bar offset %x\n", bir_val, bar_offset);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix bir %x, bar offset %x\n", bir_val, bar_offset);
 
   //find msix capability
   spdk_pci_device_cfg_read16(pci, &control, (msix_base + 2));
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix control: 0x%x\n", control);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix control: 0x%x\n", control);
 
   vector_num = (control & 0x7fff) + 1;
   vector_num = MIN(vector_num, MAX_VECTOR_NUM);
@@ -176,7 +178,7 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
   rc = spdk_pci_device_map_bar(pci, bir_val, &table_addr, &phys_addr, &size);
   assert(rc == 0);
 
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix table addr %lx\n", (uint64_t)table_addr);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix table addr %lx\n", (uint64_t)table_addr);
   //init msix_ctrl structure
   msix_ctrl->bir = bir_val;
   msix_ctrl->bir_offset = bar_offset;
@@ -185,10 +187,10 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
   msix_ctrl->size = size;
   msix_ctrl->msix_table = table_addr + bar_offset;
 
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix table addr 2 0x%lx\n", (uint64_t)table_addr);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix table addr 2 0x%lx\n", (uint64_t)table_addr);
   //config msix table
   msix_table = (msix_entry *)(table_addr + bar_offset);
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msix table addr %lx\n", (uint64_t)msix_table);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix table addr %lx\n", (uint64_t)msix_table);
 
   // fill msix_data address in msix table, one entry for one qpair, disable
   for (uint32_t i = 0; i < vector_num; i++)

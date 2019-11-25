@@ -600,7 +600,7 @@ struct spdk_nvme_ctrlr* nvme_init(char * traddr, unsigned int port)
     return NULL;
   }
 
-  SPDK_INFOLOG(SPDK_LOG_NVME, "found device: %s, %p\n",
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "found device: %s, %p\n",
                ctrlr->trid.traddr, ctrlr);
 
   if (true != spdk_process_is_primary())
