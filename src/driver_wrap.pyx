@@ -474,6 +474,13 @@ cdef class Pcie(object):
         # reset driver: namespace is init by every test, so no need reinit
         self._nvme._reinit()
 
+    def hot_reset(self):
+        bdf = self._nvme._bdf.decode('utf-8')
+        subprocess.call('./src/pcie_hot_reset.sh %s 2> /dev/null || true' % bdf, shell=True)
+
+        # reset driver: namespace is init by every test, so no need reinit
+        self.reset()
+
 
 class NvmeEnumerateError(Exception):
     pass
@@ -560,6 +567,10 @@ cdef class Controller(object):
                 # invalid port, which should be pci address
                 port = 0
 
+        if port == 0 and not os.path.exists("/sys/bus/pci/devices/%s" % addr):
+            # pcie address, start with domain
+            addr = "0000:"+addr
+                
         self._ctrlr = d.nvme_init(addr.encode('utf-8'), port)
         if self._ctrlr is NULL:
             raise NvmeEnumerateError("fail to create the controller")

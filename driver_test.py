@@ -68,13 +68,13 @@ def test_create_device(nvme0, nvme0n1):
 
 def test_create_device_invalid():
     with pytest.raises(d.NvmeEnumerateError):
-        nvme1 = d.Controller(b"00:00.0")
+        nvme1 = d.Controller(b"0000:00:00.0")
 
 
 def test_create_device_again(nvme0):
     # """docstring cuts all tests below."""
     with pytest.raises(d.NvmeEnumerateError):
-        d.Controller(b"10:00.0")
+        d.Controller(b"0000:10:00.0")
 
 
 @pytest.mark.parametrize("shift", range(1, 8))
@@ -1005,7 +1005,7 @@ def test_read_limited_retry(nvme0n1, nvme0):
 
 
 def test_subsystem_reset():
-    nvme1 = d.Controller(b'03:00.0')
+    nvme1 = d.Controller(b'0000:03:00.0')
     subsystem = d.Subsystem(nvme1)
     
     def get_power_cycles(nvme1):
