@@ -553,8 +553,8 @@ cdef class Controller(object):
 
     def _create(self):
         # tcp or pci address
-        addr = self._bdf.decode('utf-8')
         port = 0
+        addr = self._bdf.decode('utf-8')
         if ':' not in addr:
             # pure ip address without port
             port = 4420
@@ -567,11 +567,13 @@ cdef class Controller(object):
                 # invalid port, which should be pci address
                 port = 0
 
+        # pcie address, start with domain
         if port == 0 and not os.path.exists("/sys/bus/pci/devices/%s" % addr):
-            # pcie address, start with domain
             addr = "0000:"+addr
-                
-        self._ctrlr = d.nvme_init(addr.encode('utf-8'), port)
+            
+        bdf = addr.encode('utf-8')
+        strncpy(self._bdf, bdf, strlen(bdf)+1)
+        self._ctrlr = d.nvme_init(bdf, port)
         if self._ctrlr is NULL:
             raise NvmeEnumerateError("fail to create the controller")
         d.nvme_register_timeout_cb(self._ctrlr, timeout_driver_cb, self._timeout)
@@ -1298,7 +1300,6 @@ cdef class Namespace(object):
     """
 
     cdef d.namespace * _ns
-    cdef char _bdf[64]
     cdef unsigned int _nsid
     cdef unsigned int sector_size
     cdef Controller _nvme
@@ -1306,7 +1307,6 @@ cdef class Namespace(object):
     def __cinit__(self, Controller nvme, unsigned int nsid=1):
         logging.debug("initialize namespace nsid %d" % nsid)
         self._nvme = nvme
-        strncpy(self._bdf, nvme._bdf, 64)
         self._nsid = nsid
         self._ns = d.ns_init(nvme._ctrlr, nsid)
         #print("created namespace: 0x%x" % <unsigned long>self._ns); sys.stdout.flush()
@@ -1490,7 +1490,7 @@ cdef class Namespace(object):
         assert isinstance(lba_align, list)
         assert 0 not in lba_align, "lba_align cannot be 0"
 
-        pciaddr = self._bdf
+        pciaddr = self._nvme._bdf
         nsid = self._nsid
         return _IOWorker(pciaddr, nsid, lba_start, io_size, lba_align,
                          lba_random, region_start, region_end,
