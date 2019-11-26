@@ -917,10 +917,6 @@ def test_set_get_features(nvme0):
     assert True
 
 
-def test_pcie_hot_reset(nvme0, pcie):
-    pcie.hot_reset()
-    
-
 def test_pcie_reset(nvme0, pcie):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
