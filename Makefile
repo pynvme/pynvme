@@ -32,7 +32,7 @@
 
 
 #find the first NVMe device as the DUT
-pciaddr=$(shell sudo ./spdk/scripts/setup.sh > /dev/null; sudo ./spdk/scripts/setup.sh status | grep 'uio_pci_generic' | head -1 | awk '{print ($$1)}')
+pciaddr=$(shell lspci -D | grep 'Non-Volatile memory' | grep -o '....:..:..\..' | head -1)
 
 #reserve memory for driver
 memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%8)/8*5}')
