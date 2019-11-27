@@ -1944,6 +1944,10 @@ class _IOWorker(object):
                 for i in range(100):
                     args.distribution[i] = distribution[i]
 
+            if seconds == 0:
+                # collect upto 1000hr IOPS data
+                seconds = 1000*3600ULL
+                
             # create array for output data: io counter per second
             if output_io_per_second is not None:
                 # need time duration to collect io counter per second data

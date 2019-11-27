@@ -1113,11 +1113,15 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
 
 
 def test_ioworker_fast_complete(nvme0n1):
+    io_per_second = []
     nvme0n1.ioworker(io_size=64, lba_align=64,
-                     lba_random=False, qdepth=64,
-                     region_end=512, io_count=128, 
-                     read_percentage=0).start().close()
-
+                     lba_random=False, qdepth=10,
+                     region_end=512, io_count=100,
+                     iops = 10,
+                     read_percentage=0,
+                     output_io_per_second=io_per_second).start().close()
+    assert len(io_per_second) >= 9
+    
 
 def test_power_cycle_with_ioworker_dirty(nvme0n1, nvme0, subsystem):
     def get_power_cycles(nvme0):
