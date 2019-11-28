@@ -2,10 +2,10 @@
 
 [![Status](https://img.shields.io/gitlab/pipeline/cranechu/pynvme.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 [![Document](https://readthedocs.org/projects/pynvme/badge/?version=latest)](https://pynvme.readthedocs.io)
-[![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/blob/master/LICENSE)
-[![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/cranechu/pynvme/releases)
+[![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/pynvme/pynvme/blob/master/LICENSE)
+[![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/pynvme/pynvme/releases)
 
-<img src="https://github.com/cranechu/pynvme/raw/master/doc/logo.jpg" width="210" align="right" />
+<img src="https://github.com/pynvme/pynvme/raw/master/doc/logo.jpg" width="210" align="right" />
 
 The pynvme is a python extension module. Users can test NVMe devices intuitively in Python scripts. It is designed for NVMe storage developers with performance considered. Integrated with third-party tools (e.g. vscode and pytest), pynvme provides a convenient and professional solution of NVMe testing.
 
@@ -23,9 +23,9 @@ The pynvme is a python extension module. Users can test NVMe devices intuitively
 11. support NVMe over TCP targets
 
 ## Links:
-* GitHub: https://github.com/cranechu/pynvme
+* GitHub: https://github.com/pynvme/pynvme
 * Document: https://pynvme.readthedocs.io/
 * PDF: https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf
 * Presentation: SPDK PRC Summit 2019, Beijing.  
   [02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf)
-* 初探pynvme: https://github.com/cranechu/pynvme/wiki/初探pynvme
+* 初探pynvme: https://github.com/pynvme/pynvme/wiki/初探pynvme

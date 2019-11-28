@@ -8,7 +8,7 @@ Normally, users can build pynvme by simply running *install.sh*. It generates th
 
 .. code-block:: shell
 
-   git clone https://github.com/cranechu/pynvme
+   git clone https://github.com/pynvme/pynvme
    cd pynvme
    ./install.sh
    
@@ -43,7 +43,7 @@ We clone the pynvme source code from GitHub. We recommend to checkout the latest
 
 .. code-block:: shell
 
-   git clone https://github.com/cranechu/pynvme
+   git clone https://github.com/pynvme/pynvme
    cd pynvme
    git checkout tags/1.5.1
 

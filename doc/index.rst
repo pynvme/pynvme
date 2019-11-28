@@ -5,11 +5,11 @@ The pynvme is a Python extension module. Users can test NVMe devices intuitively
 
 **Quick Start in 3 Steps!**
 
-1. Clone pynvme from GitHub: https://github.com/cranechu/pynvme
+1. Clone pynvme from GitHub: https://github.com/pynvme/pynvme
    
 .. code-block:: shell
 
-   git clone https://github.com/cranechu/pynvme
+   git clone https://github.com/pynvme/pynvme
 
 2. Build pynvme:
 

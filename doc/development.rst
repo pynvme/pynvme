@@ -48,7 +48,7 @@ Pynvme makes use a bunch of 3-rd party tools. Here is a collection of key source
 Repository
 ----------
 
-Our official repository is at: https://github.com/cranechu/pynvme. We built pynvme based on SPDK/DPDK. In order to extend them with test-purpose features, we forked SPDK and DPDK respectively at:
+Our official repository is at: https://github.com/pynvme/pynvme. We built pynvme based on SPDK/DPDK. In order to extend them with test-purpose features, we forked SPDK and DPDK respectively at:
 
 - SPDK: https://github.com/cranechu/spdk
 - DPDK: https://github.com/cranechu/dpdk
@@ -92,4 +92,4 @@ Debug
                       
          sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
 
-If you meet any issue, or have any suggestions, please report them to `Issues <https://github.com/cranechu/pynvme/issues>`_! Please attach the *test.log* file. 
+If you meet any issue, or have any suggestions, please report them to `Issues <https://github.com/pynvme/pynvme/issues>`_! Please attach the *test.log* file. 
