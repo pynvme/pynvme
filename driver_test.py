@@ -1113,6 +1113,11 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
 
 
 def test_ioworker_fast_complete(nvme0n1):
+    nvme0n1.ioworker(io_size=64, lba_align=64,
+                     lba_random=False, qdepth=128,
+                     region_end=512, io_count=100,
+                     read_percentage=0).start().close()
+    
     io_per_second = []
     nvme0n1.ioworker(io_size=64, lba_align=64,
                      lba_random=False, qdepth=10,
