@@ -29,13 +29,15 @@ Users can install and use pynvme in most of the commodity computers with some re
 #. CPU: x86_64.
 #. OS: Linux.
 #. Memory: 4GB or larger.
-#. SATA: it is recommended to install OS and pynvme in a SATA drive.
 #. NVMe: NVMe SSD is the devices to be tested. Backup your data!
 #. Python3: Python2 is not supported.
 #. sudo privilege is required.
 #. RAID mode (Intel® RST): should be disabled in BIOS.
 #. Secure boot: should be disabled in BIOS.
+#. SATA: recommend to install OS and pynvme in a SATA drive.
+#. NUMA: recommend to be disabled in BIOS.
 
+   
 Source Code
 -----------
 
