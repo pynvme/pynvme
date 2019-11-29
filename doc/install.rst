@@ -24,18 +24,18 @@ We will describe more details of installation below, in case *install.sh* cannot
 System Requirements
 -------------------
 
-Users can install and use pynvme in most of the commodity computers with some requirements:
+Pynvme is a software-defined NVMe test solution, so users can install and use pynvme in most of the commodity computers with some requirements:
 
-#. CPU: x86_64.
-#. OS: Linux.
+#. CPU: Intel x86_64.
 #. Memory: 4GB or larger.
-#. NVMe: NVMe SSD is the devices to be tested. Backup your data!
+#. OS: Linux. Fedora is recommanded. 
 #. Python3: Python2 is not supported.
 #. sudo privilege is required.
+#. NVMe: NVMe SSD is the devices to be tested. Backup your data!
 #. RAID mode (Intel® RST): should be disabled in BIOS.
 #. Secure boot: should be disabled in BIOS.
-#. SATA: recommend to install OS and pynvme in a SATA drive.
 #. NUMA: recommend to be disabled in BIOS.
+#. SATA: recommend to install OS and pynvme in a SATA drive.
 
    
 Source Code

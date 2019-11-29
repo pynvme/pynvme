@@ -1,6 +1,8 @@
+import time
 import pytest
 import logging
 import nvme as d
+from psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
 def test_pcie_pmcr(pcie):
@@ -69,18 +71,46 @@ def test_pcie_link_capabilities_and_status(pcie):
     logging.info("link width: %d"% ((linksts>>4)&0x3f))
     logging.info("link training: %d"% ((linksts>>11)&0x1))
     logging.info("link active: %d"% ((linksts>>13)&0x1))
+
     
-def test_pcie_link_control_aspm(pcie):
-    pass
+@pytest.mark.parametrize("aspm", [0, 2])
+def test_pcie_link_control_aspm(nvme0, pcie, aspm): #1:0
+    linkctrl_addr = pcie.cap_offset(0x10)+16
+    linkctrl = pcie.register(linkctrl_addr, 2)
+    logging.info("link control register [0x%x]= 0x%x" % (linkctrl_addr, linkctrl))
 
-def test_pcie_link_control_disable(pcie):
-    pass
+    # set ASPM control
+    pcie[linkctrl_addr] = (linkctrl&0xfc)|aspm
+    linkctrl = pcie.register(linkctrl_addr, 2)
+    logging.info("link control register [0x%x]= 0x%x" % (linkctrl_addr, linkctrl))
 
-def test_pcie_link_control_retrain(pcie):
-    pass
+    # IO queue for read commands
+    cq = IOCQ(nvme0, 1, 16, PRP())
+    sq = IOSQ(nvme0, 1, 16, PRP(), cqid=1)
 
-def test_pcie_link_control_extended_sync(pcie):
-    pass
+    # read lba 0 for 1000 times, interleaved with delays
+    read_cmd = SQE(2, 1)
+    read_cmd.prp1 = PRPList()
+    pbit = 1
+    for i in range(1000):
+        logging.debug(i)
+        slot = i%16
+        if slot == 0:
+            pbit = not pbit
+        next_slot = slot+1
+        if next_slot == 16:
+            next_slot = 0
+        sq[slot] = read_cmd
+        sq.tail = next_slot
+        while cq[slot].p == pbit: pass
+        cq.head = next_slot
+
+        # delay to trigger ASPM
+        time.sleep(0.01)
+
+    sq.delete()
+    cq.delete()
+    
 
 def test_pcie_pmcsr_d3hot(pcie):
     pass
