@@ -263,7 +263,7 @@ def test_get_pcie_registers(pcie):
     logging.info("vid %x, did %x" % (vid, did))
 
 
-def test_pcie_capability_d3hot(pcie):
+def test_pcie_capability_d3hot(pcie, nvme0n1):
     assert None == pcie.cap_offset(2)
 
     # get pm register
@@ -276,12 +276,15 @@ def test_pcie_capability_d3hot(pcie):
     pcie[pm_offset+4] = pmcs|3     #D3hot
     pmcs = pcie[pm_offset+4]
     logging.info("pmcs %x" % pmcs)
+    time.sleep(1)
 
     # and exit d3hot
-    time.sleep(1)
     pcie[pm_offset+4] = pmcs&0xfc  #D0
     pmcs = pcie[pm_offset+4]
     logging.info("pmcs %x" % pmcs)
+
+    # io in D0
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
 
 
 def test_get_nvme_register_vs(nvme0):
@@ -1002,6 +1005,7 @@ def test_read_limited_retry(nvme0n1, nvme0):
 
 def test_subsystem_reset():
     nvme1 = d.Controller(b'0000:03:00.0')
+    logging.info("CAP: 0x%x, NSSRS: %d" % (nvme1.cap, (nvme1.cap>>36)&0x1))
     subsystem = d.Subsystem(nvme1)
     
     def get_power_cycles(nvme1):

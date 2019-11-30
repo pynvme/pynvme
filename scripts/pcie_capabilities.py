@@ -110,13 +110,42 @@ def test_pcie_link_control_aspm(nvme0, pcie, aspm): #1:0
 
     sq.delete()
     cq.delete()
+
+    time.sleep(1)
     
 
 def test_pcie_pmcsr_d3hot(pcie):
-    pass
+    pm_offset = pcie.cap_offset(1)
+    pmcs = pcie[pm_offset+4]
+    logging.info("pmcs %x" % pmcs)
+
+    # set d3hot
+    pcie[pm_offset+4] = pmcs|3     #D3hot
+    pmcs = pcie[pm_offset+4]
+    logging.info("pmcs %x" % pmcs)
+
+    # and exit d3hot
+    time.sleep(1)
+    pcie[pm_offset+4] = pmcs&0xfc  #D0
+    pmcs = pcie[pm_offset+4]
+    logging.info("pmcs %x" % pmcs)
+
+def test_pcie_cold_reset(subsystem):
+    subsystem.power_cycle()
+
+def test_pcie_reset(pcie):
+    pcie.reset()
+    
+def test_controller_reset(nvme0, pcie):
+    test_pcie_pmcsr_d3hot(pcie)
+    nvme0.reset()
+
+def test_subsystem_reset(subsystem, pcie):
+    subsystem.reset()
+
+def test_pcie_hot_reset(pcie):
+    pcie.hot_reset()
 
 def test_pcie_l1_sub(pcie):
     pass
-
-def test_pcie_hot_reset(pcie):
-    pass
+    
