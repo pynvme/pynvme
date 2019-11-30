@@ -8,3 +8,5 @@ pytemperature
 pydoc-markdown
 PySimpleGUI
 openpyxl
+sphinx
+sphinx_rtd_theme

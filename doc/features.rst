@@ -617,27 +617,26 @@ Dataset Management (e.g. deallocate, or trim) is another commonly used IO comman
    buf.set_dsm_range(1, 8, 64)
    nvme0n1.dsm(qpair, buf, 2).waitdone()
 
+
 PCIe
 ----
 
-For those PCIe NVMe devices, we can access its PCI configuration space.
+Pynvme can access NVMe device's PCI configuration space, including all capabilities.
 
 .. code-block:: python
 
    pcie = d.Pcie(nvme0)
-   hex(pcie[0:4])  # Byte 0/1/2/3
-
-Users can locate a specific capability by API `Pcie.cap_offset(cap_id)`.
-
-.. code-block:: python
-
-   pm_offset = pcie.cap_offset(1)  # Power Management Capability
-
+   hex(pcie[0:4])                  # Byte 0/1/2/3
+   pm_offset = pcie.cap_offset(1)  # find Power Management Capability
+   pcie.reset()
+   pcie.aspm = 2                   # set ASPM control to enable L1 only
+   pcie.power_state = 3            # set PCI PM power state to D3hot
+   
 
 Power
 -----
 
-Without any special hardware, pynvme makes use of S3 power state to power off the PCIe NVMe devices, and use RTC to wake and power it on. We implemented this process in API `Subsystem.power_cycle()`.
+Without any addtional equipment, pynvme can power off NVMe devices through S3 power state, and use RTC to wake it up. We implemented this process in API `Subsystem.power_cycle()`.
 
 .. code-block:: python
 
@@ -661,20 +660,18 @@ Scripts can send a notification to NVMe device before turn power off, and this i
    subsystem.shutdown_notify()
    subsystem.power_cycle()
 
+   
 Reset
 -----
 
-We have `Controller.reset()` to reset controller by its CC.EN register. We can also reset the NVMe device as a PCIe device:
+Pynvme provides different ways of reset: 
 
 .. code-block:: python
 
-   pcie.reset()
+   nvme0.reset()     # reset controller by its CC.EN register. We can also reset the NVMe device as a PCIe device:
+   pcie.reset()      # PCIe hot reset
+   subsystem.reset() # use register NSSR.NSSRC
 
-At last, we can reset the subsystem by writing NVMe register NSSR.NSSRC in API `Subsystem.reset()`.
-
-In the next chapter, let's read more real pynvme test scripts to find how we use pynvme in practical NVMe testing.
-
-In the last chapter, we can refer to the API document along with your script development. VSCode can also show you the online docstring when editing the code. 
 
 PSD
 ---

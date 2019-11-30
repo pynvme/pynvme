@@ -1075,6 +1075,11 @@ Pcie class. Prefer to use fixture "pcie" in test scripts
 
 * **nvme (Controller)**\ : the nvme controller object of that subsystem
 
+aspm
+^^^^
+
+current ASPM setting
+
 cap_offset
 ^^^^^^^^^^
 
@@ -1092,6 +1097,11 @@ get the offset of a capability
 **Returns**
 
 ``(int)``\ : the offset of the register, or None if the capability is not existed
+
+power_state
+^^^^^^^^^^^
+
+current power state
 
 register
 ^^^^^^^^
