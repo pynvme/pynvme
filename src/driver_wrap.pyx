@@ -459,6 +459,9 @@ cdef class Pcie(object):
         bdf = self._nvme._bdf.decode('utf-8')
         logging.debug("pci reset %s on %s" % (vdid, bdf))
 
+        # hot reset by TS1 TS2
+        subprocess.call('./src/pcie_hot_reset.sh %s 2> /dev/null || true' % bdf, shell=True)
+
         # reset
         subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vid, bdf), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
@@ -473,11 +476,6 @@ cdef class Pcie(object):
 
         # reset driver: namespace is init by every test, so no need reinit
         self._nvme._reinit()
-
-    def hot_reset(self):
-        bdf = self._nvme._bdf.decode('utf-8')
-        subprocess.call('./src/pcie_hot_reset.sh %s 2> /dev/null || true' % bdf, shell=True)
-        self.reset()
 
 
 class NvmeEnumerateError(Exception):

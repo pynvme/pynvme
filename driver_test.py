@@ -935,12 +935,6 @@ def test_pcie_reset(nvme0, pcie, nvme0n1):
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
 
-def test_pcie_hot_reset(nvme0, pcie, nvme0n1):
-    nvme0n1.ioworker(io_size=2, time=2).start().close()
-    pcie.hot_reset()
-    nvme0n1.ioworker(io_size=2, time=2).start().close()
-
-    
 def test_subsystem_shutdown_notify(nvme0, subsystem):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)

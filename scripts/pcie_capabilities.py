@@ -143,9 +143,6 @@ def test_controller_reset(nvme0, pcie):
 def test_subsystem_reset(subsystem, pcie):
     subsystem.reset()
 
-def test_pcie_hot_reset(pcie):
-    pcie.hot_reset()
-
 def test_pcie_l1_sub(pcie):
     pass
     
