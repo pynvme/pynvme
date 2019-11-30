@@ -937,7 +937,7 @@ def test_pcie_reset(nvme0, pcie, nvme0n1):
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
 
-@pytest.mark.parametrize("control", [0, 2, 0])
+@pytest.mark.parametrize("control", [0, 1, 2, 3, 0])
 def test_pcie_aspm(pcie, nvme0n1, control):
     logging.info("current ASPM: %d" % pcie.aspm)
     nvme0n1.ioworker(io_size=2, time=2).start().close()
@@ -945,6 +945,33 @@ def test_pcie_aspm(pcie, nvme0n1, control):
     logging.info("current ASPM: %d" % pcie.aspm)
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
+
+def test_pcie_aspm_l1_and_d3hot(pcie, nvme0n1):
+    assert pcie.aspm == 0
+    pcie.aspm = 2
+    pcie.power_state = 3
+    time.sleep(1)
+    pcie.power_state = 0
+    pcie.aspm = 0
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+
+    pcie.power_state = 3
+    pcie.aspm = 2
+    time.sleep(1)
+    pcie.aspm = 0
+    pcie.power_state = 0
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+    assert pcie.aspm == 0
+
+    
+def test_pcie_aspm_off_and_d3hot(pcie, nvme0n1):
+    assert pcie.aspm == 0
+    pcie.power_state = 3
+    time.sleep(1)
+    pcie.power_state = 0
+    assert pcie.aspm == 0
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+    
     
 def test_subsystem_shutdown_notify(nvme0, subsystem):
     def get_power_cycles(nvme0):

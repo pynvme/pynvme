@@ -143,6 +143,13 @@ def test_controller_reset(nvme0, pcie):
 def test_subsystem_reset(subsystem, pcie):
     subsystem.reset()
 
-def test_pcie_l1_sub(pcie):
-    pass
+def test_pcie_aspm_off_and_d3hot(pcie, nvme0n1):
+    assert pcie.aspm == 0
+    pcie.power_state = 3
+    time.sleep(1)
+    pcie.power_state = 0
+    assert pcie.aspm == 0
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+    
+    
     
