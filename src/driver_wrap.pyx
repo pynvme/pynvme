@@ -479,7 +479,7 @@ cdef class Pcie(object):
 
     @property
     def aspm(self):
-        """set current ASPM setting"""
+        """current ASPM setting"""
         
         linkctrl_addr = self.cap_offset(0x10)+16
         return self.register(linkctrl_addr, 2) & 0x3
@@ -489,17 +489,42 @@ cdef class Pcie(object):
         """config new ASPM Control:
 
         # Parameters
-            control: ASPM control field in Link Control register. 
+            control: ASPM control field in Link Control register: 
                      b00: ASPM is disabled
                      b01: L0s
                      b10: L1
                      b11: L0s and L1
         """
-        
+
+        assert control < 4 and control >= 0
         linkctrl_addr = self.cap_offset(0x10)+16
         linkctrl = self.register(linkctrl_addr, 2)
         self.__setitem__(linkctrl_addr, (linkctrl&0xfc)|control)
 
+    @property
+    def power_state(self):
+        """current power state"""
+        
+        pmcsr_addr = self.cap_offset(1) + 4
+        return self.register(pmcsr_addr, 4) & 0x3
+    
+    @power_state.setter
+    def power_state(self, state):
+        """config new power state:
+
+        # Parameters
+            state: new state of the PCIe device:
+                   0: D0
+                   1: D1
+                   2: D2
+                   3: D3hot
+        """
+        
+        assert state < 4 and state >= 0
+        pmcsr_addr = self.cap_offset(1) + 4
+        pmcsr =  self.register(pmcsr_addr, 4)
+        self.__setitem__(pmcsr_addr, (pmcsr&0xfc)|state)
+        
     
 class NvmeEnumerateError(Exception):
     pass

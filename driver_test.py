@@ -270,22 +270,24 @@ def test_pcie_capability_d3hot(pcie, nvme0n1):
     assert None != pcie.cap_offset(1)
     pm_offset = pcie.cap_offset(1)
     pmcs = pcie[pm_offset+4]
-    logging.info("pmcs %x" % pmcs)
+    logging.info("curent power state: %d" % pcie.power_state)
 
     # set d3hot
-    pcie[pm_offset+4] = pmcs|3     #D3hot
-    pmcs = pcie[pm_offset+4]
-    logging.info("pmcs %x" % pmcs)
+    pcie.power_state = 3
+    logging.info("curent power state: %d" % pcie.power_state)
     time.sleep(1)
 
     # and exit d3hot
-    pcie[pm_offset+4] = pmcs&0xfc  #D0
-    pmcs = pcie[pm_offset+4]
-    logging.info("pmcs %x" % pmcs)
-
-    # io in D0
+    pcie.power_state = 0
+    logging.info("curent power state: %d" % pcie.power_state)
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
+    # again
+    pcie.power_state = 0
+    logging.info("curent power state: %d" % pcie.power_state)
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+    assert pcie.power_state == 0
+    
 
 def test_get_nvme_register_vs(nvme0):
     cid = nvme0[0x08]
