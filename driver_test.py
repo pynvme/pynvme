@@ -920,7 +920,7 @@ def test_set_get_features(nvme0):
     assert True
 
 
-def test_pcie_reset(nvme0, pcie):
+def test_pcie_reset(nvme0, pcie, nvme0n1):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
         nvme0.getlogpage(2, buf, 512).waitdone()
@@ -928,11 +928,19 @@ def test_pcie_reset(nvme0, pcie):
         logging.info("power cycles: %d" % ret)
         return ret
 
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
     powercycle = get_power_cycles(nvme0)
     pcie.reset()
     assert powercycle == get_power_cycles(nvme0)
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
 
 
+def test_pcie_hot_reset(nvme0, pcie, nvme0n1):
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+    pcie.hot_reset()
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+
+    
 def test_subsystem_shutdown_notify(nvme0, subsystem):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
@@ -1018,7 +1026,10 @@ def test_subsystem_reset():
     subsystem.reset()
     assert powercycle == get_power_cycles(nvme1)
 
+    nvme1n1 = d.Namespace(nvme1)
+    nvme1n1.ioworker(io_size=2, time=2).start().close()
 
+    
 def test_io_qpair_msix_interrupt_all(nvme0, nvme0n1):
     buf = d.Buffer(4096)
     ql = []
@@ -1248,7 +1259,7 @@ def test_subsystem_power_cycle_with_notify(nvme0, nvme0n1, subsystem, abrupt):
     assert powercycle+1 == get_power_cycles(nvme0)
 
 
-def test_controller_reset(nvme0):
+def test_controller_reset(nvme0, nvme0n1):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
         nvme0.getlogpage(2, buf, 512).waitdone()
@@ -1259,6 +1270,7 @@ def test_controller_reset(nvme0):
     logging.info("power cycles: %d" % powercycle)
     nvme0.reset()
     assert get_power_cycles(nvme0) == powercycle
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
 
 
 def test_get_smart_data(nvme0):

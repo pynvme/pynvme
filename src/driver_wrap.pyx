@@ -477,8 +477,6 @@ cdef class Pcie(object):
     def hot_reset(self):
         bdf = self._nvme._bdf.decode('utf-8')
         subprocess.call('./src/pcie_hot_reset.sh %s 2> /dev/null || true' % bdf, shell=True)
-
-        # reset driver: namespace is init by every test, so no need reinit
         self.reset()
 
 
