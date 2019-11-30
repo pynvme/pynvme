@@ -935,6 +935,15 @@ def test_pcie_reset(nvme0, pcie, nvme0n1):
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
 
+@pytest.mark.parametrize("control", [0, 2, 0])
+def test_pcie_aspm(pcie, nvme0n1, control):
+    logging.info("current ASPM: %d" % pcie.aspm)
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+    pcie.aspm = control
+    logging.info("current ASPM: %d" % pcie.aspm)
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+
+    
 def test_subsystem_shutdown_notify(nvme0, subsystem):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
@@ -1468,7 +1477,7 @@ def test_ioworker_output_io_per_second_consistency(nvme0n1, nvme0):
         w.iops_consistency()
 
 
-@pytest.mark.parametrize('depth', [256, 512, 1023])
+@pytest.mark.parametrize("depth", [256, 512, 1023])
 def test_ioworker_huge_qdepth(nvme0, nvme0n1, depth):
     # """test huge queue in ioworker"""
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()

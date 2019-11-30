@@ -462,13 +462,13 @@ cdef class Pcie(object):
         # hot reset by TS1 TS2
         subprocess.call('./src/pcie_hot_reset.sh %s 2> /dev/null || true' % bdf, shell=True)
 
-        # reset
+        # reset to inbox driver
         subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vid, bdf), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vid, nvme), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, nvme), shell=True)
 
-        # config
+        # config spdk driver
         subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vid, bdf), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vid, spdk), shell=True)
@@ -477,7 +477,30 @@ cdef class Pcie(object):
         # reset driver: namespace is init by every test, so no need reinit
         self._nvme._reinit()
 
+    @property
+    def aspm(self):
+        """set current ASPM setting"""
+        
+        linkctrl_addr = self.cap_offset(0x10)+16
+        return self.register(linkctrl_addr, 2) & 0x3
+    
+    @aspm.setter
+    def aspm(self, control):
+        """config new ASPM Control:
 
+        # Parameters
+            control: ASPM control field in Link Control register. 
+                     b00: ASPM is disabled
+                     b01: L0s
+                     b10: L1
+                     b11: L0s and L1
+        """
+        
+        linkctrl_addr = self.cap_offset(0x10)+16
+        linkctrl = self.register(linkctrl_addr, 2)
+        self.__setitem__(linkctrl_addr, (linkctrl&0xfc)|control)
+
+    
 class NvmeEnumerateError(Exception):
     pass
 
