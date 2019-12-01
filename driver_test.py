@@ -940,7 +940,7 @@ def test_pcie_reset(nvme0, pcie, nvme0n1):
 @pytest.mark.parametrize("control", [0, 1, 2, 3, 0])
 def test_pcie_aspm(pcie, nvme0n1, control):
     logging.info("current ASPM: %d" % pcie.aspm)
-    #nvme0n1.ioworker(io_size=2, time=2).start().close()
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
     pcie.aspm = control
     logging.info("current ASPM: %d" % pcie.aspm)
     #nvme0n1.ioworker(io_size=2, time=2).start().close()
