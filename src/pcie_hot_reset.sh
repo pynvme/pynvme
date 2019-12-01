@@ -1,6 +1,6 @@
-# from: http://www.alexforencich.com/wiki/en/pcie/hot-reset-linux
-
 #!/bin/bash
+
+# from: http://www.alexforencich.com/wiki/en/pcie/hot-reset-linux
  
 dev=$1
  
@@ -25,21 +25,21 @@ if [ ! -e "/sys/bus/pci/devices/$port" ]; then
     exit 1
 fi
  
-echo "Removing $dev..."
+# echo "Removing $dev..."
  
 echo 1 > "/sys/bus/pci/devices/$dev/remove"
  
-echo "Performing hot reset of port $port..."
+echo "hot reset $dev from $port"
  
 bc=$(setpci -s $port BRIDGE_CONTROL)
  
-echo "Bridge control:" $bc
+# echo "Bridge control:" $bc
  
 setpci -s $port BRIDGE_CONTROL=$(printf "%04x" $(("0x$bc" | 0x40)))
 sleep 0.01
 setpci -s $port BRIDGE_CONTROL=$bc
 sleep 0.5
- 
-echo "Rescanning bus..."
- 
+
+# echo "Rescanning bus..."
+
 echo 1 > "/sys/bus/pci/devices/$port/rescan"
