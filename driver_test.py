@@ -943,7 +943,7 @@ def test_pcie_aspm(pcie, nvme0n1, control):
     nvme0n1.ioworker(io_size=2, time=2).start().close()
     pcie.aspm = control
     logging.info("current ASPM: %d" % pcie.aspm)
-    #nvme0n1.ioworker(io_size=2, time=2).start().close()
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
 
 
 def test_pcie_aspm_l1_and_d3hot(pcie, nvme0n1):
