@@ -99,10 +99,12 @@ def test_power_and_reset(pcie, nvme0, subsystem):
     subsystem.power_cycle(10)  #power cycle NVMe device, aka: cold reset
 
 
-# access PCIe/NVMe registers, pythonic
-def test_registers(pcie, nvme0):
+# access PCIe/NVMe registers, pythonic, identify data
+def test_registers_and_identify_data(pcie, nvme0, nvme0n1):
     logging.info("0x%x, 0x%x" % (pcie[0], pcie.register(0, 2)))
     logging.info("0x%08x, 0x%08x" % (nvme0[0], nvme0[4]))
+    logging.info("vid: 0x%x" % nvme0.id_data(1, 0))
+    logging.info("namespace size: %d" % nvme0n1.id_data(7, 0))
 
 
 # test parameter, qpair
