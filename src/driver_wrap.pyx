@@ -371,8 +371,8 @@ cdef class Subsystem(object):
 
         # nssr.nssrc: nvme subsystem reset
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
-        self._nvme[0x20] = 0x654d564e  # "NVMe"
-        self._nvme._reinit()
+        self._nvme[0x20] = 0x4e564d65  # "NVMe"
+        Pcie(self._nvme).reset()       # reset PCIe link
 
 
 cdef class Pcie(object):
