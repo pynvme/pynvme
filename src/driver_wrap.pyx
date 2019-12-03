@@ -382,17 +382,12 @@ cdef class Pcie(object):
         nvme (Controller): the nvme controller object of that subsystem
     """
 
-    cdef d.pcie * _pcie
     cdef Controller _nvme
     cdef unsigned short vid
     cdef unsigned short did
 
     def __cinit__(self, Controller nvme):
         self._nvme = nvme
-        self._pcie = d.pcie_init(nvme._ctrlr)
-        if self._pcie is NULL:
-            raise SystemError()
-
         self.vid = self.register(0, 2)
         self.did = self.register(2, 2)
 
@@ -403,7 +398,7 @@ cdef class Pcie(object):
         if isinstance(index, slice):
             return [self[ii] for ii in range(index.stop)[index]]
         elif isinstance(index, int):
-            d.pcie_cfg_read8(self._pcie, & value, index)
+            d.pcie_cfg_read8(d.pcie_init(self._nvme._ctrlr), & value, index)
             return value
         else:
             raise TypeError()
@@ -411,7 +406,7 @@ cdef class Pcie(object):
     def __setitem__(self, index, value):
         """set pcie config space by bytes."""
         if isinstance(index, int):
-            d.pcie_cfg_write8(self._pcie, value, index)
+            d.pcie_cfg_write8(d.pcie_init(self._nvme._ctrlr), value, index)
         else:
             raise TypeError()
 
@@ -449,6 +444,8 @@ cdef class Pcie(object):
             if cid == cap_id:
                 return cap_offset
 
+        logging.info("cannot find the capability %d" % cap_id)
+        
     def reset(self):
         """reset this pcie device"""
         vid = self.vid
