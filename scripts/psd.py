@@ -676,4 +676,21 @@ def test_iocq_prplist():
     buffer, offset = prp_list.find_buffer_by_offset(1000*16, 0)
     assert buffer == prp_list2[3]
     assert offset == 3648
+
     
+def test_psd_with_qpair(nvme0):
+    # do not mix psd IO queues with SPDK qpairs in the same test script
+    qpair = Qpair(nvme0, 16)
+    buf_cq = PRP(4096)
+    qid = qpair.sqid
+    # Invalid Queue Identifier: the id is occupied
+    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+        cq = IOCQ(nvme0, qid, 5, buf_cq)
+    cq.delete()
+    del qpair
+
+    cq = IOCQ(nvme0, qid, 5, buf_cq)
+    # the qid 1 was occupied by psd IOCQ first
+    with pytest.raises(QpairCreationError):
+        qpair = Qpair(nvme0, 16)
+    cq.delete()
