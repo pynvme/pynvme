@@ -48,7 +48,7 @@ all: clean
 
 clean:
 	cd src; make clean
-	@sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* scripts/__pycache__ a.out nvme.so nvme.*.so
+	@sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* scripts/__pycache__ a.out nvme.so nvme.*.so dist pynvme.egg-info build
 
 spdk:
 	cd spdk; make clean; ./configure --enable-debug --enable-log-bt --enable-werror --disable-tests --without-ocf --without-vhost --without-virtio --without-pmdk --without-vpp --without-rbd --without-isal; make; cd ..
