@@ -27,12 +27,31 @@ def test_ioworker_simplified(nvme0, nvme0n1):
 
     
 # ioworker interleaved with admin commands, pythonic, CPU, log, fio
-def test_ioworker_with_temperature(nvme0, nvme0n1):
+def subprocess_trim(pciaddr, loops):
+    nvme0 = d.Controller(pciaddr)
+    nvme0n1 = d.Namespace(nvme0)
+    q = d.Qpair(nvme0, 8)
+    buf = d.Buffer(4096)
+    buf.set_dsm_range(0, 8, 8)
+
+    # send trim commands
+    for i in range(loops):
+        nvme0n1.dsm(q, buf, 1).waitdone()
+    
+def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
+    # start trim process
+    import multiprocessing
+    mp = multiprocessing.get_context("spawn")
+    p = mp.Process(target = subprocess_trim,
+                   args = (nvme0.addr.encode('utf-8'), 300000))
+    p.start()
+
+    # start read/write ioworker and admin commands
     smart_log = d.Buffer(512, "smart log")
     with nvme0n1.ioworker(io_size=8, lba_align=16,
                           lba_random=True, qdepth=16,
-                          read_percentage=0, time=30):
-        for i in range(40):
+                          read_percentage=0, iops=10000, time=10):
+        for i in range(15):
             nvme0.getlogpage(0x02, smart_log, 512).waitdone()
             ktemp = smart_log.data(2, 1)
             
@@ -40,7 +59,10 @@ def test_ioworker_with_temperature(nvme0, nvme0n1):
             logging.info("temperature: %0.2f degreeC" % k2c(ktemp))
             time.sleep(1)
 
+    # wait trim process complete
+    p.join()
 
+    
 # multiple ioworkers, PCIe, TCP, CPU, performance
 def test_multiple_controllers_and_namespaces():
     # address list of the devices to test

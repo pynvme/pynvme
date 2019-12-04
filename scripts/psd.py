@@ -694,3 +694,46 @@ def test_psd_with_qpair(nvme0):
     with pytest.raises(QpairCreationError):
         qpair = Qpair(nvme0, 16)
     cq.delete()
+
+
+def test_write_before_power_cycle(nvme0, subsystem):    
+    cq = IOCQ(nvme0, 1, 128, PRP(2*1024))
+    sq = IOSQ(nvme0, 1, 128, PRP(8*1024), cqid=1)
+    
+    #burst write
+    for i in range(127):
+        cmd = SQE(1, 1)
+        buf = PRP(512, ptype=32, pvalue=i)
+        cmd.prp1 = buf
+        cmd[10] = i
+        sq[i] = cmd
+        
+    # write 127 512byte at one shot
+    sq.tail = 127
+
+    #not to wait commands completion
+    # while CQE(cq[126]).p == 0: pass
+    # cq.head = 0
+    
+    # sq.delete()
+    # cq.delete()
+    
+    # power off immediately without completion of the sub process
+    subsystem.power_cycle(10)
+    
+    # read and check
+    cq = IOCQ(nvme0, 2, 16, PRP())
+    sq = IOSQ(nvme0, 2, 16, PRP(), cqid=2)
+    
+    cmd = SQE(2, 1)
+    buf_read = PRP()
+    cmd.prp1 = buf_read
+    cmd[10] = 126
+    sq[0] = cmd
+    sq.tail = 1
+    while CQE(cq[0]).p == 0: pass
+    cq.head = 1
+    print(buf_read.dump(32))
+    
+    sq.delete()
+    cq.delete()

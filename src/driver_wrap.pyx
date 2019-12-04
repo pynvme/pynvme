@@ -628,7 +628,6 @@ cdef class Controller(object):
                 raise NvmeDeletionError("fail to close the controller, check if any qpair is not deleted: %d" % ret)
             self._ctrlr = NULL
 
-
     def enable_hmb(self):
         """enable HMB function"""
 
@@ -648,6 +647,10 @@ cdef class Controller(object):
 
         self.setfeatures(0x0d, 0).waitdone()
 
+    @property
+    def addr(self):
+        return self._bdf.decode('utf-8')
+    
     @property
     def mdts(self):
         """max data transfer size"""
