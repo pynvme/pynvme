@@ -20,7 +20,7 @@ def test_write_and_read_to_eol(nvme0, subsystem, nvme0n1: d.Namespace, verify):
         logging.info(f"loop {i} start")
 
         # write 1 pass of whole drive
-        io_size = 64*1024/512  # 64KB
+        io_size = 64*1024//512  # 64KB
         write_start = time.time()
         nvme0n1.ioworker(io_size, io_size, False, 0, io_count=lba_count//io_size).start().close()
         write_duration = time.time()-write_start

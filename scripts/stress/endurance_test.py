@@ -1,11 +1,8 @@
 import pytest
 import nvme as d
 
-import logging
 
-
-@pytest.mark.parametrize("repeat", range(10))
-def test_ioworker_jedec_workload(nvme0n1, repeat):
+def test_ioworker_jedec_workload(nvme0n1):
     distribution = [1000]*5 + [200]*15 + [25]*80
     iosz_distribution = {1: 4,
                          2: 1,
@@ -26,4 +23,4 @@ def test_ioworker_jedec_workload(nvme0n1, repeat):
                      distribution = distribution,
                      read_percentage=0,
                      ptype=0xbeef, pvalue=100, 
-                     time=3600).start().close()
+                     time=12*3600).start().close()

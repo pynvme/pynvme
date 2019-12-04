@@ -52,11 +52,11 @@ def test_namespace_identify_data(nvme0):
     sg_show_hex_buffer(b)
 
 
-def test_read_lba_data(nvme0, nvme0n1):
-    lba = sg.PopupGetText("Which LBA to read?", "pynvme")
-    lba = int(lba, 0)  # convert to number
+def test_read_lba_data(nvme0):
+    lba = int(sg.PopupGetText("Which LBA to read?", "pynvme"))
     q = d.Qpair(nvme0, 10)
     b = d.Buffer(512, "LBA 0x%08x" % lba)
+    nvme0n1 = d.Namespace(nvme0)
     nvme0n1.read(q, b, lba).waitdone()
     sg_show_hex_buffer(b)
 
@@ -73,8 +73,8 @@ def test_sanitize(nvme0, nvme0n1, buf):
     nvme0.getlogpage(0x81, buf, 20).waitdone()
     while buf.data(3, 2) & 0x7 != 1:  # sanitize is not completed
         progress = buf.data(1, 0)*100//0xffff
-        sg.OneLineProgressMeter('sanitize progress', progress, 100,
-                                'progress', orientation='h')
+        #sg.OneLineProgressMeter('sanitize progress', progress, 100, 'progress', orientation='h')
+        logging.info(progress)
         nvme0.getlogpage(0x81, buf, 20).waitdone()
         time.sleep(1)
 
