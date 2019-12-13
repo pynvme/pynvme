@@ -74,7 +74,7 @@ def test_sanitize(nvme0, nvme0n1, buf):
     while buf.data(3, 2) & 0x7 != 1:  # sanitize is not completed
         progress = buf.data(1, 0)*100//0xffff
         #sg.OneLineProgressMeter('sanitize progress', progress, 100, 'progress', orientation='h')
-        logging.info(progress)
+        logging.info("%d%%" % progress)
         nvme0.getlogpage(0x81, buf, 20).waitdone()
         time.sleep(1)
 

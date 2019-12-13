@@ -5,28 +5,59 @@ import time
 import logging
 
 
-# intuitive, vscode, debug, cmdlog, IDE
-def test_hello_world(nvme0, nvme0n1: d.Namespace):
+# intuitive, spec, qpair, vscode, debug, cmdlog, assert
+def test_hello_world(nvme0, nvme0n1):
+    # prepare data buffer and IO queue
     read_buf = d.Buffer(512)
-    data_buf = d.Buffer(512)
-    data_buf[10:21] = b'hello world'
+    write_buf = d.Buffer(512)
+    write_buf[10:21] = b'hello world'
     qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
-    assert read_buf[10:21] != b'hello world'
 
+    # send write and read command
     def write_cb(cdw0, status1):  # command callback function
         nvme0n1.read(qpair, read_buf, 0, 1)
-    nvme0n1.write(qpair, data_buf, 0, 1, cb=write_cb)
+    nvme0n1.write(qpair, write_buf, 0, 1, cb=write_cb)
+
+    # wait commands complete and verify data
+    assert read_buf[10:21] != b'hello world'
     qpair.waitdone(2)
     assert read_buf[10:21] == b'hello world'
-    
 
-# simple ioworker, complicated io_size
-def test_ioworker_simplified(nvme0, nvme0n1):
+
+# access PCIe/NVMe registers, identify data, pythonic
+def test_registers_and_identify_data(pcie, nvme0, nvme0n1):
+    logging.info("0x%x, 0x%x" % (pcie[0], pcie.register(0, 2)))
+    logging.info("0x%08x, 0x%08x" % (nvme0[0], nvme0[4]))
+    logging.info("model name: %s" % nvme0.id_data(63, 24, str))
+    logging.info("vid: 0x%x" % nvme0.id_data(1, 0))
+    logging.info("namespace size: %d" % nvme0n1.id_data(7, 0))
+
+
+# Controller, sanitize, default parameters, getlogpage, AER notification
+def test_sanitize(nvme0: d.Controller, nvme0n1, buf):
+    if nvme0.id_data(331, 328) == 0:
+        pytest.skip("sanitize operation is not supported")
+
+    logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
+    nvme0.sanitize().waitdone()  # sanitize command is completed
+
+    # check sanitize status in log page
+    nvme0.getlogpage(0x81, buf, 20).waitdone()
+    while buf.data(3, 2) & 0x7 != 1:  # sanitize operation is not completed
+        progress = buf.data(1, 0)*100//0xffff
+        #sg.OneLineProgressMeter('sanitize progress', progress, 100, 'progress', orientation='h')
+        logging.info("%d%%" % progress)
+        nvme0.getlogpage(0x81, buf, 20).waitdone()
+        time.sleep(1)
+
+
+# simple ioworker, complicated io_size, python function call, CI
+def test_ioworker_simplified(nvme0, nvme0n1: d.Namespace):
     nvme0n1.ioworker(io_size=[1, 2, 3, 7, 8, 16], time=1).start().close()
     test_hello_world(nvme0, nvme0n1)
 
     
-# ioworker interleaved with admin commands, pythonic, CPU, log, fio
+# ioworker with admin commands, multiprocessing, log, cmdlog, pythonic
 def subprocess_trim(pciaddr, loops):
     nvme0 = d.Controller(pciaddr)
     nvme0n1 = d.Namespace(nvme0)
@@ -43,14 +74,15 @@ def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
     import multiprocessing
     mp = multiprocessing.get_context("spawn")
     p = mp.Process(target = subprocess_trim,
-                   args = (nvme0.addr.encode('utf-8'), 300000))
+                     args = (nvme0.addr.encode('utf-8'),
+                             300000))
     p.start()
 
     # start read/write ioworker and admin commands
     smart_log = d.Buffer(512, "smart log")
     with nvme0n1.ioworker(io_size=8, lba_align=16,
                           lba_random=True, qdepth=16,
-                          read_percentage=0, iops=10000, time=10):
+                          read_percentage=67, iops=10000, time=10):
         for i in range(15):
             nvme0.getlogpage(0x02, smart_log, 512).waitdone()
             ktemp = smart_log.data(2, 1)
@@ -62,44 +94,44 @@ def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
     # wait trim process complete
     p.join()
 
-    
-# multiple ioworkers, PCIe, TCP, CPU, performance
+
+# multiple ioworkers, PCIe, TCP, CPU, performance, ioworker return values
 def test_multiple_controllers_and_namespaces():
     # address list of the devices to test
-    addr_list = [b'02:00.0', b'03:00.0', b'192.168.0.3', b'127.0.0.1:4420']
+    #addr_list = [b'3d:00.0']
+    addr_list = [b'01:00.0', b'03:00.0', b'192.168.0.3', b'127.0.0.1:4420']
     test_seconds = 10
-    
+
+    # create all controllers and namespace
     nvme_list = [d.Controller(a) for a in addr_list]
     ns_list = [d.Namespace(n) for n in nvme_list]
 
-    # operations on multiple controllers
-    for nvme in nvme_list:
-        logging.info("device: %s" % nvme.id_data(63, 24, str))
-
-    # format for faster read
+    # create two ioworkers on each namespace
+    ioworkers = []
     for ns in ns_list:
-        ns.format(512)
-        
-    # multiple namespaces and ioworkers
-    ioworkers = {}
-    for ns in ns_list:
-        a = ns.ioworker(io_size=256, lba_align=256,
+        w = ns.ioworker(io_size=8, lba_align=8,
                         region_start=0, region_end=256*1024*8, # 1GB space
                         lba_random=False, qdepth=64,
                         read_percentage=100, time=test_seconds).start()
-        ioworkers[ns] = a
-
-    # test results
+        ioworkers.append(w)
+        w = ns.ioworker(io_size=8, lba_align=16,
+                        region_start=256*1024*8, region_end=2*256*1024*8,
+                        lba_random=True, qdepth=256,
+                        read_percentage=0, time=test_seconds).start()
+        ioworkers.append(w)
+        
+    # collect test results
     io_total = 0
-    for ns in ioworkers:
-        r = ioworkers[ns].close()
+    for w in ioworkers:
+        r = w.close()
         io_total += (r.io_count_read+r.io_count_write)
-    logging.info("total bandwidth: %.3fMB/s" % ((128*io_total)/1000/test_seconds))
+    logging.info("total throughput: %d IOPS" % (io_total/test_seconds))
     
 
 # GUI, productivity
-import PySimpleGUI as sg
 def test_get_log_page(nvme0):
+    import PySimpleGUI as sg
+    
     lid = int(sg.PopupGetText("Which Log ID to read?", "pynvme"))
     buf = d.Buffer(512, "%s, Log ID: %d" % (nvme0.id_data(63, 24, str), lid))
     nvme0.getlogpage(lid, buf).waitdone()
@@ -109,27 +141,19 @@ def test_get_log_page(nvme0):
     sg.Window(str(buf), layout, font=('monospace', 12)).Read()    
 
     
-# different of power states and resets
+# PCIe, different of power states and resets
 def test_power_and_reset(pcie, nvme0, subsystem):
     pcie.aspm = 2              # ASPM L1
     pcie.power_state = 3       # PCI PM D3hot
     pcie.aspm = 0
     pcie.power_state = 0
-    nvme0.reset()              # controller reset
-    pcie.reset()               # PCIe reset
-    subsystem.reset()          # NVMe subsystem reset
-    subsystem.power_cycle(10)  #power cycle NVMe device, aka: cold reset
+    nvme0.reset()              # controller reset: CC.EN
+    pcie.reset()               # PCIe reset: hot reset, TS1, TS2
+    subsystem.reset()          # NVMe subsystem reset: NSSR
+    subsystem.power_cycle(10)  # power cycle NVMe device: cold reset
 
 
-# access PCIe/NVMe registers, pythonic, identify data
-def test_registers_and_identify_data(pcie, nvme0, nvme0n1):
-    logging.info("0x%x, 0x%x" % (pcie[0], pcie.register(0, 2)))
-    logging.info("0x%08x, 0x%08x" % (nvme0[0], nvme0[4]))
-    logging.info("vid: 0x%x" % nvme0.id_data(1, 0))
-    logging.info("namespace size: %d" % nvme0n1.id_data(7, 0))
-
-
-# test parameter, qpair
+# test parameters, leverage innovations in python community
 @pytest.mark.parametrize("io_count", [1, 9])
 @pytest.mark.parametrize("lba_count", [1, 8])
 @pytest.mark.parametrize("lba_offset", [0, 8])
@@ -185,15 +209,15 @@ def test_send_cmd_2sq_1cq(nvme0):
     write_cmd.prp2 = prp_list   # PRP2 points to the PRPList
     write_cmd[10] = 0           # starting LBA
     write_cmd[12] = 31          # LBA count: 32, 16K, 4 pages
-    write_cmd.cid = 123;        # verify cid later
+    write_cmd.cid = 123         # verify cid later
 
     # send write commands in both SQ
     sq1[0] = write_cmd          # fill command dwords in SQ1
-    write_cmd.cid = 567;        # verify cid later
+    write_cmd.cid = 567         # verify cid later
     sq2[0] = write_cmd          # fill command dwords in SQ2
     sq2.tail = 1                # ring doorbell of SQ2 first
     time.sleep(0.1)             # delay to ring SQ1, 
-    sq1.tail = 1                #  so command in SQ2 should comple first
+    sq1.tail = 1                #  so command in SQ2 should complete first
 
     # wait for 2 command completions
     while CQE(cq[1]).p == 0: pass
