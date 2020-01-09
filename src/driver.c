@@ -194,8 +194,8 @@ static void buffer_fill_data(uint32_t* crc_table,
     ptr[0] = lba;
     ptr[lba_size/sizeof(uint64_t)-1] = token+i;
 
-    //keep crc in memory if allocated
-    // suppose device modify data correctly. If the command fail, we cannot
+    // keep crc in memory if allocated
+    // suppose device modify data correctly. If the command fails, we cannot
     // tell what part of data is updated, while what not. Even when atomic
     // write is supported, we still cannot tell that.
     if (crc_table != NULL)
