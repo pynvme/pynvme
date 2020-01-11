@@ -325,7 +325,44 @@ cdef class Subsystem(object):
 
     def __cinit__(self, Controller nvme):
         self._nvme = nvme
+ 
+    def poweron(self):
+        # power on by power module
+        import quarchpy
+        pwr = quarchpy.quarchDevice("SERIAL:/dev/ttyUSB0")
+        if "PULLED" == pwr.sendCommand("run:power?"):
+            logging.info("quarch power on")
+            pwr.sendCommand("run:power up")
+        while "PULLED" == pwr.sendCommand("run:power?"): pass
+        pwr.closeConnection()
+        time.sleep(1)   # wait power on stable
 
+        # remove kernel driver before rescan pcie devices
+        subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
+        subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
+        subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
+
+    def poweroff(self):
+        # notify ioworker to terminate, and wait all IO Qpair closed
+        config(ioworker_terminate=True)
+        while d.driver_io_qpair_count(self._nvme._ctrlr):
+            pass
+        config(ioworker_terminate=False)
+
+        # power off by power module
+        import quarchpy
+        pwr = quarchpy.quarchDevice("SERIAL:/dev/ttyUSB0")
+        if "PULLED" != pwr.sendCommand("run:power?"):
+            logging.info("quarch power off")
+            pwr.sendCommand("run:power down")
+        while "PULLED" != pwr.sendCommand("run:power?"): pass
+        pwr.closeConnection()
+        time.sleep(1)   # wait power off stable
+
+        # remove device before power off
+        bdf = self._nvme._bdf.decode('utf-8')
+        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
+    
     def power_cycle(self, sec=10):
         """power off and on in seconds
 
@@ -333,13 +370,19 @@ cdef class Subsystem(object):
             sec (int): the seconds between power off and power on
         """
 
+        # notify ioworker to terminate, and wait all IO Qpair closed
+        config(ioworker_terminate=True)
+        while d.driver_io_qpair_count(self._nvme._ctrlr):
+            pass
+        config(ioworker_terminate=False)
+        
         # use S3/suspend to power off nvme device, and use rtc to power on again
         logging.debug("power off nvme device for %d seconds" % sec)
         subprocess.call("sudo rtcwake -m mem -s %d 1>/dev/null 2>/dev/null" % sec, shell=True)
         logging.debug("power is back")
-
+        
         #reset driver
-        self._nvme.reset()
+        self._nvme._reinit()
 
     def shutdown_notify(self, abrupt=False):
         """notify nvme subsystem a shutdown event through register cc.chn
@@ -369,6 +412,12 @@ cdef class Subsystem(object):
     def reset(self):
         """reset the nvme subsystem through register nssr.nssrc"""
 
+        # notify ioworker to terminate, and wait all IO Qpair closed
+        config(ioworker_terminate=True)
+        while d.driver_io_qpair_count(self._nvme._ctrlr):
+            pass
+        config(ioworker_terminate=False)
+        
         # nssr.nssrc: nvme subsystem reset
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
         self._nvme[0x20] = 0x4e564d65  # "NVMe"
@@ -448,6 +497,7 @@ cdef class Pcie(object):
         
     def reset(self):
         """reset this pcie device"""
+
         vid = self.vid
         did = self.did
         vdid = '%04x %04x' % (vid, did)
@@ -456,6 +506,12 @@ cdef class Pcie(object):
         bdf = self._nvme._bdf.decode('utf-8')
         logging.debug("pci reset %s on %s" % (vdid, bdf))
 
+        # notify ioworker to terminate, and wait all IO Qpair closed
+        config(ioworker_terminate=True)
+        while d.driver_io_qpair_count(self._nvme._ctrlr):
+            pass
+        config(ioworker_terminate=False)
+        
         # hot reset by TS1 TS2
         subprocess.call('./src/pcie_hot_reset.sh %s 2> /dev/null || true' % bdf, shell=True)
 
@@ -609,7 +665,7 @@ cdef class Controller(object):
                 port = 0
 
         # pcie address, start with domain
-        if port == 0 and not os.path.exists("/sys/bus/pci/devices/%s" % addr):
+        if port == 0 and not os.path.exists("/sys/bus/pci/devices/%s" % addr) and not addr.startswith("0000:"):
             addr = "0000:"+addr
             
         bdf = addr.encode('utf-8')
@@ -743,7 +799,14 @@ cdef class Controller(object):
             Test scripts should delete all io qpairs before reset!
         """
 
+        # notify ioworker to terminate, and wait all IO Qpair closed
+        config(ioworker_terminate=True)
+        while d.driver_io_qpair_count(self._ctrlr):
+            pass
+        config(ioworker_terminate=False)
+        
         # reset controller
+        time.sleep(0.1)
         self._reinit()
 
     def cmdname(self, opcode):
@@ -1467,13 +1530,14 @@ cdef class Namespace(object):
                meta_size == (format_support&0xffff):
                 return fid
 
-    def ioworker(self, io_size, lba_align=None, lba_random=True,
-                 read_percentage=100, time=0, qdepth=64,
+    def ioworker(self, io_size, lba_step=None, lba_align=None,
+                 lba_random=True, read_percentage=100, time=0, qdepth=64,
                  region_start=0, region_end=0xffff_ffff_ffff_ffff,
                  iops=0, io_count=0, lba_start=0, qprio=0,
                  distribution=None, pvalue=0, ptype=0,
                  output_io_per_second=None,
-                 output_percentile_latency=None):
+                 output_percentile_latency=None,
+                 output_cmdlog_list=None):
         """workers sending different read/write IO on different CPU cores.
 
         User defines IO characteristics in parameters, and then the ioworker
@@ -1488,6 +1552,7 @@ cdef class Namespace(object):
 
         # Parameters
             io_size (short, range, list, dict): IO size, unit is LBA. It can be a fixed size, or a range or list of size, or specify ratio in the dict if they are not evenly distributed
+            lba_step (short): valid only for sequential read/write, jump to next LBA by the step. Default: None, same as io_size, continous IO. 
             lba_align (short): IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
             lba_random (bool): True if sending IO with random starting LBA. Default: True
             read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100
@@ -1504,6 +1569,7 @@ cdef class Namespace(object):
             ptype (int): data pattern type. Refer to data pattern in class `Buffer`. Default: 0
             output_io_per_second (list): list to hold the output data of io_per_second. Default: None, not to collect the data
             output_percentile_latency (dict): dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in micro-second. Default: None, not to collect the data
+            output_cmdlog_list (list): list of dwords of lastest commands sent in the ioworker. Default: None, not to collect the data
 
         # Returns
             ioworker object
@@ -1516,6 +1582,16 @@ cdef class Namespace(object):
         assert io_count != 0 or time != 0, "worker needs a rest :)"
         assert time <= 1000*3600ULL, "worker needs a rest :)"
 
+        # lba_step
+        if lba_step is None:
+            if lba_random is False:
+                lba_step = io_size
+                assert type(io_size) is int
+            else:
+                lba_step = 0
+            assert lba_step > -0x8000, "io size or step is too large"
+            assert lba_step < 0x8000, "io size or step is too large"
+            
         # convert any possible io_size input to dict
         if isinstance(io_size, int):
             io_size = [io_size, ]
@@ -1527,7 +1603,7 @@ cdef class Namespace(object):
         assert 0 not in io_size.keys(), "io_size cannot be 0"
 
         # set default alignment if it is specified
-        if not lba_align:
+        if lba_align is None:
             lba_align = [min(s, 8) for s in io_size.keys()]
         if isinstance(lba_align, int):
             lba_align = [lba_align, ]
@@ -1536,11 +1612,13 @@ cdef class Namespace(object):
 
         pciaddr = self._nvme._bdf
         nsid = self._nsid
-        return _IOWorker(pciaddr, nsid, lba_start, io_size, lba_align,
-                         lba_random, region_start, region_end,
+        return _IOWorker(pciaddr, nsid, lba_start, lba_step, io_size,
+                         lba_align, lba_random, region_start, region_end,
                          read_percentage, iops, io_count, time, qdepth, qprio,
                          distribution, pvalue, ptype,
-                         output_io_per_second, output_percentile_latency)
+                         output_io_per_second,
+                         output_percentile_latency,
+                         output_cmdlog_list)
 
     def read(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
         """read IO command
@@ -1823,11 +1901,13 @@ class _IOWorker(object):
 
     target_start_time = 0
 
-    def __init__(self, pciaddr, nsid, lba_start, lba_size, lba_align,
-                 lba_random, region_start, region_end,
+    def __init__(self, pciaddr, nsid, lba_start, lba_step, lba_size,
+                 lba_align, lba_random, region_start, region_end,
                  read_percentage, iops, io_count, time, qdepth, qprio,
                  distribution, pvalue, ptype,
-                 output_io_per_second, output_percentile_latency):
+                 output_io_per_second,
+                 output_percentile_latency,
+                 output_cmdlog_list):
         # queue for returning result
         self.q = _mp.Queue()
 
@@ -1837,13 +1917,17 @@ class _IOWorker(object):
         # create the child process
         self.p = _mp.Process(target = self._ioworker,
                              args = (self.q, self.l, pciaddr, nsid, _random_seed,
-                                     lba_start, lba_size, lba_align, lba_random,
+                                     lba_start, lba_step, lba_size, lba_align, lba_random,
                                      region_start, region_end, read_percentage,
                                      iops, io_count, time, qdepth, qprio,
                                      distribution, pvalue, ptype,
-                                     output_io_per_second, output_percentile_latency))
+                                     output_io_per_second,
+                                     output_percentile_latency,
+                                     output_cmdlog_list
+                             ))
         self.output_io_per_second = output_io_per_second
         self.output_percentile_latency = output_percentile_latency
+        self.output_cmdlog_list = output_cmdlog_list
         self.p.daemon = True
 
     def start(self):
@@ -1867,7 +1951,7 @@ class _IOWorker(object):
         """
 
         # get data from queue before joinging the subprocess, otherwise deadlock
-        childpid, error, rets, output_io_per_second, output_io_per_latency = self.q.get()
+        childpid, error, rets, output_io_per_second, output_io_per_latency, output_cmdlog_list = self.q.get()
         rets = DotDict(rets)
         self.p.join()
 
@@ -1906,6 +1990,11 @@ class _IOWorker(object):
                 assert k>0 and k<100, "percentile should be in (0, 100)"
                 self.output_percentile_latency[k] = self.find_percentile_latency(k, output_io_per_latency)
 
+        # transfer output table back: driver => script
+        if self.output_cmdlog_list:
+            for i, v in enumerate(output_cmdlog_list):
+                self.output_cmdlog_list[i] = v
+
         # release child process resources
         del self.q
         for f in glob.glob("/var/run/dpdk/spdk0/fbarray_memseg*%d" % childpid):
@@ -1932,11 +2021,13 @@ class _IOWorker(object):
         return True
 
     def _ioworker(self, rqueue, locker, pciaddr, nsid, seed,
-                  lba_start, lba_size, lba_align, lba_random,
+                  lba_start, lba_step, lba_size, lba_align, lba_random,
                   region_start, region_end, read_percentage,
                   iops, io_count, seconds, qdepth, qprio,
                   distribution, pvalue, ptype,
-                  output_io_per_second, output_percentile_latency):
+                  output_io_per_second,
+                  output_percentile_latency,
+                  output_cmdlog_list):
         cdef d.ioworker_args args
         cdef d.ioworker_rets rets
         cdef int error = 0
@@ -2003,8 +2094,17 @@ class _IOWorker(object):
                 # 1-1000,000 us, all latency > 1s are counted as 1000,000us
                 args.io_counter_per_latency = <unsigned int*>PyMem_Malloc(1000*1000*sizeof(unsigned int))
 
+            # create array for output data: io counter per second
+            args.cmdlog_list_len = 0
+            if output_cmdlog_list:
+                # command dwords sorted by completion time
+                args.cmdlog_list_len = len(output_cmdlog_list)
+                args.cmdlog_list = <d.ioworker_cmdlog*>PyMem_Malloc(sizeof(d.ioworker_cmdlog)*len(output_cmdlog_list))
+                memset(args.cmdlog_list, 0, sizeof(d.ioworker_cmdlog)*len(output_cmdlog_list))
+                
             # transfer agurments
             args.lba_start = lba_start
+            args.lba_step = lba_step
             args.lba_random = lba_random
             args.region_start = region_start
             args.region_end = region_end
@@ -2041,6 +2141,13 @@ class _IOWorker(object):
                 for i in range(1000*1000):
                     output_io_per_latency.append(args.io_counter_per_latency[i])
 
+            # transfer back: c => cython
+            if output_cmdlog_list:
+                assert type(output_cmdlog_list) is list, "must be a list for data output"
+                for i in range(args.cmdlog_list_len):
+                    cmd = args.cmdlog_list[i]
+                    output_cmdlog_list[i] = cmd.lba, cmd.count, cmd.is_read
+
         except Exception as e:
             logging.warning(e)
             warnings.warn(e)
@@ -2056,7 +2163,8 @@ class _IOWorker(object):
                         error,
                         rets,
                         output_io_per_second,
-                        output_io_per_latency))
+                        output_io_per_latency,
+                        output_cmdlog_list))
 
             with locker:
                 # close resources in right order
@@ -2079,6 +2187,9 @@ class _IOWorker(object):
             if args.io_counter_per_latency:
                 PyMem_Free(args.io_counter_per_latency)
 
+            if args.cmdlog_list_len:
+                PyMem_Free(args.cmdlog_list)
+
             if args.distribution:
                 PyMem_Free(args.distribution)
 
@@ -2094,18 +2205,20 @@ class _IOWorker(object):
             import gc; gc.collect()
 
 
-def config(verify, fua_read=False, fua_write=False):
+def config(verify=False, fua_read=False, fua_write=False, ioworker_terminate=False):
     """config driver global setting
 
     # Parameters
         verify (bool): enable inline checksum verification of read
         fua_read (bool): enable FUA of read. Default: False
         fua_write (bool): enable FUA of write. Default: False
+        ioworker_terminate (bool): notify ioworker to terminate immediately. Default: False
     """
 
     return d.driver_config((verify << 0) |
-                           (fua_read << 1) |
-                           (fua_write << 2))
+                           (fua_read << 2) |
+                           (fua_write << 3) |
+                           (ioworker_terminate << 4))
 
 
 def srand(seed):

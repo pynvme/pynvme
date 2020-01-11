@@ -64,6 +64,11 @@ void buffer_fini(void* buf)
   
 }
 
+uint64_t driver_config_read(void)
+{
+  
+}
+
 int
 spdk_nvme_qpair_process_completions(struct spdk_nvme_qpair *qpair, uint32_t max_completions)
 {
@@ -1081,6 +1086,7 @@ static void test_ioworker_send_one_lba_seq()
   args.lba_random = 0;
   args.region_end = 100;
   args.region_start = 0;
+  args.lba_step = 1;
   ctx.sequential_lba = 0;
 
   ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
@@ -1100,6 +1106,7 @@ static void test_ioworker_send_one_lba_seq_end()
   args.lba_random = 0;
   args.region_end = 99;
   args.region_start = 0;
+  args.lba_step = 1;
   ctx.sequential_lba = 100;
 
   ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
@@ -1117,6 +1124,7 @@ static void test_ioworker_send_one_lba_seq_end()
   args.lba_random = 0;
   args.region_end = 100;
   args.region_start = 0;
+  args.lba_step = 4;
   ctx.sequential_lba = 100;
 
   ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);

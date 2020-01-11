@@ -38,7 +38,8 @@ struct ioworker_io_ctx {
   bool is_read;
   struct timeval time_sent;
   struct ioworker_global_ctx* gctx;
-
+  struct ioworker_cmdlog cmd;
+  
   // next pending io
 	STAILQ_ENTRY(ioworker_io_ctx) next;
 };
@@ -62,6 +63,7 @@ struct ioworker_global_ctx {
   uint64_t io_count_sent;
   uint64_t io_count_cplt;
   uint32_t last_sec;
+  uint32_t current_cmdlog_index;
   bool flag_finish;
 
   // distribution loopup table

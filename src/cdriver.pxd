@@ -42,6 +42,11 @@ cdef extern from "driver.h":
         pass
     ctypedef struct cpl:
         pass
+
+    ctypedef struct ioworker_cmdlog:
+        unsigned long lba;
+        unsigned int count;
+        unsigned int is_read;
     ctypedef struct ioworker_args:
         unsigned long lba_start
         unsigned short lba_size_max
@@ -55,6 +60,7 @@ cdef extern from "driver.h":
         unsigned long region_start
         unsigned long region_end
         unsigned short read_percentage
+        signed short lba_step
         unsigned int iops
         unsigned long io_count
         unsigned int seconds
@@ -64,6 +70,8 @@ cdef extern from "driver.h":
         unsigned int* io_counter_per_second
         unsigned int* io_counter_per_latency
         unsigned int* distribution
+        ioworker_cmdlog* cmdlog_list
+        unsigned int cmdlog_list_len
     ctypedef struct ioworker_rets:
         unsigned long io_count_read
         unsigned long io_count_write
@@ -175,4 +183,4 @@ cdef extern from "driver.h":
     void intc_unmask(qpair * q)
 
     void driver_srand(unsigned int seed)
-    
+    unsigned int driver_io_qpair_count(ctrlr* c)

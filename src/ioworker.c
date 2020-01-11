@@ -248,6 +248,22 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
     STAILQ_INSERT_TAIL(&gctx->pending_io_list, ctx, next);
     gctx->io_count_sent ++;
   }
+
+  if (args->cmdlog_list_len != 0)
+  {
+    // find the location of ioworker_cmdlog to update 
+    unsigned int cmdlog_index = gctx->current_cmdlog_index++;
+    if (cmdlog_index == args->cmdlog_list_len)
+    {
+      // wrap to the beginning
+      cmdlog_index = 0;
+      gctx->current_cmdlog_index = 1;
+    }
+
+    // update command information to ioworker_cmdlog
+    struct ioworker_cmdlog* cmd = &args->cmdlog_list[cmdlog_index];
+    memcpy(cmd, &ctx->cmd, sizeof(ctx->cmd));
+  }  
 }
 
 static inline bool ioworker_send_one_is_read(unsigned short read_percentage)
@@ -336,7 +352,7 @@ static inline uint64_t ioworker_send_one_lba(struct ioworker_args* args,
   if (args->lba_random == 0)
   {
     // setup for next sequential io
-    gctx->sequential_lba = ret+lba_count;
+    gctx->sequential_lba = ret+args->lba_step;
   }
 
   return ret;
@@ -362,6 +378,12 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   assert(ctx->data_buf != NULL);
   assert(lba_starting <= args->region_end);
 
+  // keep cmd information for logging at completion time
+  ctx->cmd.lba = lba_starting;
+  ctx->cmd.count = lba_count;
+  ctx->cmd.is_read = is_read;
+
+  // send command to driver
   ret = ns_cmd_read_write(is_read, ns, qpair,
                           ctx->data_buf, lba_count*sector_size,
                           lba_starting, lba_count,
@@ -407,6 +429,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   rets->error = 0;
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_start = %ld\n", args->lba_start);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_step = %d\n", args->lba_step);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_size_max = %d\n", args->lba_size_max);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_align_max = %d\n", args->lba_align_max);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_random = %d\n", args->lba_random);
@@ -419,12 +442,15 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.qdepth = %d\n", args->qdepth);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.pvalue = %d\n", args->pvalue);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.ptype = %d\n", args->ptype);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.cmdlog_list = %p\n", args->cmdlog_list);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.cmdlog_list_len = %d\n", args->cmdlog_list_len);
 
   //check args
   assert(args->read_percentage <= 100);
   assert(args->lba_size_max != 0);
   assert(args->region_start < args->region_end);
   assert(args->qdepth <= CMD_LOG_DEPTH/2);
+  assert(args->cmdlog_list_len < 1024*1024);
 
   // check io size
   if (args->lba_size_max*sector_size > ns->ctrlr->max_xfer_size)
@@ -478,6 +504,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   gctx.flag_finish = false;
   gctx.args = args;
   gctx.rets = rets;
+  gctx.current_cmdlog_index = 0;
   timeval_gettimeofday(&test_start);
   timeradd_second(&test_start, args->seconds, &gctx.due_time);
   gctx.io_delay_time.tv_sec = 0;
@@ -545,6 +572,13 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
       break;
     }
 
+    // check terminate signal from main process
+    if ((driver_config_read() & DCFG_IOW_TERM) != 0)
+    {
+      SPDK_DEBUGLOG(SPDK_LOG_NVME, "force termimate ioworker\n");
+      break;
+    }
+    
     // collect completions
     spdk_nvme_qpair_process_completions(qpair, 0);
 

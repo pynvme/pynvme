@@ -40,10 +40,6 @@
 #define MAX_CMD_LOG_QPAIR_COUNT (32)
 #define MAX_CMD_LOG_QPAIR_COUNT_SHIFT (5)
 
-// the global configuration of the driver
-#define DCFG_VERIFY_READ      (BIT(0))
-#define DCFG_ENABLE_MSIX      (BIT(1))
-
 
 static uint64_t* g_driver_io_token_ptr = NULL;
 static uint64_t* g_driver_config_ptr = NULL;
@@ -832,6 +828,9 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
     return NULL;
   }
 
+  // no need to abort commands in test
+	qpair->no_deletion_notification_needed = 1;
+  
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "created qpair %d\n", qpair->id);
   return qpair;
 }
@@ -1585,8 +1584,18 @@ uint64_t driver_config(uint64_t cfg_word)
 }
 
 
+uint64_t driver_config_read(void)
+{
+  return *g_driver_config_ptr;
+}
+
 void driver_srand(unsigned int seed)
 {
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "set random seed: 0x%x\n", seed);
   srandom(seed);
+}
+
+uint32_t driver_io_qpair_count(struct spdk_nvme_ctrlr* ctrlr)
+{
+  return spdk_nvme_io_qpair_count(ctrlr);
 }

@@ -558,6 +558,75 @@ def test_dsm_trim_and_read(nvme0, nvme0n1):
     nvme0n1.dsm(q, buf, 1).waitdone()
 
 
+def test_ioworker_subsystem_reset_async(nvme0n1, subsystem):
+    for i in range(2):
+        start_time = time.time()
+        with nvme0n1.ioworker(io_size=8, time=100):
+            time.sleep(5)
+            subsystem.reset()
+        # terminated by power cycle
+        assert time.time()-start_time < 25
+
+    with nvme0n1.ioworker(io_size=8, time=10):
+        pass
+    subsystem.reset()
+
+
+def test_ioworker_pcie_reset_async(nvme0n1, pcie):
+    for i in range(2):
+        start_time = time.time()
+        with nvme0n1.ioworker(io_size=8, time=100):
+            time.sleep(5)
+            pcie.reset()
+        # terminated by power cycle
+        assert time.time()-start_time < 25
+
+    with nvme0n1.ioworker(io_size=8, time=10):
+        pass
+    pcie.reset()
+
+    
+def test_ioworker_controller_reset_async(nvme0n1, nvme0):
+    for i in range(2):
+        start_time = time.time()
+        with nvme0n1.ioworker(io_size=8, time=100):
+            time.sleep(5)
+            nvme0.reset()
+        # terminated by power cycle
+        assert time.time()-start_time < 25
+
+    with nvme0n1.ioworker(io_size=8, time=10):
+        pass
+    nvme0.reset()
+    
+    
+def test_ioworker_power_cycle_async(nvme0n1, subsystem):
+    for i in range(2):
+        start_time = time.time()
+        with nvme0n1.ioworker(io_size=8, time=100), \
+             nvme0n1.ioworker(io_size=8, time=100), \
+             nvme0n1.ioworker(io_size=8, time=100):
+            time.sleep(5)
+            subsystem.power_cycle(10)
+        # terminated by power cycle
+        assert time.time()-start_time < 25
+
+    with nvme0n1.ioworker(io_size=8, time=10):
+        pass
+    subsystem.power_cycle(10)
+
+
+def test_ioworker_power_cycle_async_cmdlog(nvme0n1, subsystem):
+    cmdlog_list = [None]*11
+    with nvme0n1.ioworker(io_size=8, time=10, iops=1,
+                          qdepth=2, lba_random=False, 
+                          output_cmdlog_list=cmdlog_list):
+        time.sleep(5)
+        subsystem.power_cycle(10)
+    assert cmdlog_list[2][0] == 16
+    assert cmdlog_list[3][1] == 0
+
+        
 def test_timeout_command_completion(nvme0, nvme0n1):
     def format_timeout_cb(cdw0, status1):
         # timeout command, cpl all 1
@@ -1356,6 +1425,136 @@ def test_ioworker_progress(nvme0, nvme0n1):
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
 
     
+def test_ioworker_cmdlog_list(nvme0n1):
+    cmdlog_list = [None]*11
+    nvme0n1.ioworker(io_size=1, time=1,
+                     output_cmdlog_list=cmdlog_list,
+                     iops=10, qdepth=2, lba_random=False).start().close()
+
+    # check cmdlog
+    for i, cmd in enumerate(cmdlog_list[:-1]):
+        assert cmd[0] == i
+        assert cmd[1] == 1
+        assert cmd[2] == 1
+    assert cmdlog_list[10][0] == 0
+    assert cmdlog_list[10][1] == 0
+    assert cmdlog_list[10][2] == 0
+
+
+def test_ioworker_step_multiple(nvme0n1):
+    cmdlog_lists = [[None]*10, [None]*10, [None]*10, [None]*10]
+    with nvme0n1.ioworker(io_size=1, io_count=10, lba_start=0, 
+                          lba_align=1, lba_step=4,
+                          output_cmdlog_list=cmdlog_lists[0],
+                          qdepth=4, lba_random=False), \
+         nvme0n1.ioworker(io_size=1, io_count=10, lba_start=1, 
+                          lba_align=1, lba_step=4,
+                          output_cmdlog_list=cmdlog_lists[1],
+                          qdepth=4, lba_random=False), \
+         nvme0n1.ioworker(io_size=1, io_count=10, lba_start=2, 
+                          lba_align=1, lba_step=4,
+                          output_cmdlog_list=cmdlog_lists[2],
+                          qdepth=4, lba_random=False), \
+         nvme0n1.ioworker(io_size=1, io_count=10, lba_start=3, 
+                          lba_align=1, lba_step=4,
+                          output_cmdlog_list=cmdlog_lists[3],
+                          qdepth=4, lba_random=False):
+    
+        pass
+    
+    assert cmdlog_lists[0][0][0] == 0
+    assert cmdlog_lists[0][9][0] == 36
+    assert cmdlog_lists[1][0][0] == 1
+    assert cmdlog_lists[1][9][0] == 37
+    assert cmdlog_lists[2][0][0] == 2
+    assert cmdlog_lists[2][9][0] == 38
+    assert cmdlog_lists[3][0][0] == 3
+    assert cmdlog_lists[3][9][0] == 39
+
+    
+def test_ioworker_step(nvme0n1):
+    cmdlog_list = [None]*10
+    nvme0n1.ioworker(io_size=1, io_count=10, lba_step=2,
+                     output_cmdlog_list=cmdlog_list,
+                     qdepth=4, lba_random=False).start().close()
+    assert cmdlog_list[9][0] == 18
+
+    cmdlog_list = [None]*10
+    nvme0n1.ioworker(io_size=1, io_count=10, lba_step=5,
+                     output_cmdlog_list=cmdlog_list,
+                     qdepth=4, lba_random=False).start().close()
+    assert cmdlog_list[9][0] == 45
+
+    cmdlog_list = [None]*10
+    nvme0n1.ioworker(io_size=1, io_count=10, lba_step=1,
+                     output_cmdlog_list=cmdlog_list,
+                     qdepth=4, lba_random=False).start().close()
+    assert cmdlog_list[9][0] == 9
+
+    cmdlog_list = [None]*10
+    nvme0n1.ioworker(io_size=3, io_count=20, lba_step=1, lba_align=1, 
+                     output_cmdlog_list=cmdlog_list,
+                     qdepth=4, lba_random=False).start().close()
+    assert cmdlog_list[0][0] == 10
+    assert cmdlog_list[9][0] == 19
+    
+    cmdlog_list = [None]*10
+    nvme0n1.ioworker(io_size=8, io_count=20, lba_step=0, lba_align=1, 
+                     output_cmdlog_list=cmdlog_list, lba_start=10,
+                     qdepth=4, lba_random=False).start().close()
+    assert cmdlog_list[0][0] == 10
+    assert cmdlog_list[9][0] == 10
+    
+    cmdlog_list = [None]*10
+    nvme0n1.ioworker(io_size=1, io_count=10, lba_step=-1, lba_align=1, 
+                     output_cmdlog_list=cmdlog_list, lba_start=100,
+                     qdepth=4, lba_random=False).start().close()
+    assert cmdlog_list[0][0] == 100
+    assert cmdlog_list[9][0] == 91
+    
+    cmdlog_list = [None]*10
+    nvme0n1.ioworker(io_size=8, io_count=20, lba_step=-4, lba_align=1, 
+                     output_cmdlog_list=cmdlog_list, lba_start=100,
+                     qdepth=4, lba_random=False).start().close()
+    assert cmdlog_list[0][0] == 60
+    assert cmdlog_list[9][0] == 24
+    assert cmdlog_list[9][1] == 8
+    
+    
+def test_ioworker_random_seed(nvme0n1):
+    cmdlog_list = [None]*11
+    
+    # fix a random seed
+    d.srand(1000)
+
+    # base 
+    nvme0n1.ioworker(io_size=1, time=1,
+                     output_cmdlog_list=cmdlog_list,
+                     iops=10, qdepth=2).start().close()
+    lba_compare = cmdlog_list[9][0]
+
+    # same ioworker
+    nvme0n1.ioworker(io_size=1, time=1,
+                     output_cmdlog_list=cmdlog_list,
+                     iops=10, qdepth=2).start().close()
+    assert lba_compare == cmdlog_list[9][0]
+
+    # write v.s. read
+    nvme0n1.ioworker(io_size=1, time=1,
+                     output_cmdlog_list=cmdlog_list,
+                     read_percentage=0, 
+                     iops=10, qdepth=2).start().close()
+    assert lba_compare == cmdlog_list[9][0]
+
+    # change a seed, get different lba
+    d.srand(1001)
+    nvme0n1.ioworker(io_size=1, time=1,
+                     output_cmdlog_list=cmdlog_list,
+                     read_percentage=0, 
+                     iops=10, qdepth=2).start().close()
+    assert lba_compare != cmdlog_list[9][0]
+    
+    
 def test_ioworker_simplified(nvme0n1):
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
@@ -1605,7 +1804,7 @@ def test_ioworker_invalid_io_size(nvme0, nvme0n1):
                          lba_random=False, qdepth=4,
                          read_percentage=100, time=2).start().close()
 
-    with pytest.warns(UserWarning, match="ioworker host ERROR"):
+    with pytest.raises(AssertionError):
         nvme0n1.ioworker(io_size=0x10000, lba_align=64,
                          lba_random=False, qdepth=4,
                          read_percentage=100, time=2).start().close()
