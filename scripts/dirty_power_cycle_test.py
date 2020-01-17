@@ -40,7 +40,7 @@ def test_quarch_dirty_power_cycle(nvme0, nvme0n1, subsystem, buf, verify, repeat
     nvme0.getlogpage(2, buf, 512).waitdone()
     unsafe_count = buf.data(159, 144)
     logging.info("unsafe shutdowns: %d" % unsafe_count)
-    assert unsafe_count = orig_unsafe_count+1
+    assert unsafe_count == orig_unsafe_count+1
     
     # verify written data by read
     with nvme0n1.ioworker(io_size=256, lba_random=False,
