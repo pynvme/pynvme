@@ -596,6 +596,34 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     buffer_fini(io_ctx[i].data_buf);
   }
 
+  // handle cmdlog_list
+  if (args->cmdlog_list_len != 0)
+  {
+    uint32_t head = gctx.current_cmdlog_index;
+    uint32_t length = args->cmdlog_list_len;
+    struct ioworker_cmdlog* cmdlog_list_tmp =
+        malloc(args->cmdlog_list_len*sizeof(struct ioworker_cmdlog));
+
+    assert(cmdlog_list_tmp);
+
+    // copy the first part
+    memcpy(&cmdlog_list_tmp[0],
+           &args->cmdlog_list[head],
+           sizeof(struct ioworker_cmdlog)*(length-head));
+
+    // copy the second part
+    memcpy(&cmdlog_list_tmp[args->cmdlog_list_len-head],
+           &args->cmdlog_list[0],
+           sizeof(struct ioworker_cmdlog)*head);
+
+    // copy back to cmdlog_list
+    memcpy(&args->cmdlog_list[0],
+           &cmdlog_list_tmp[0],
+           sizeof(struct ioworker_cmdlog)*length);
+
+    free(cmdlog_list_tmp);
+  }
+  
   free(io_ctx);
   return ret;
 }
