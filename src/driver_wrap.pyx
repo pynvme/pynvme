@@ -327,39 +327,47 @@ cdef class Subsystem(object):
         self._nvme = nvme
  
     def poweron(self):
-        # power on by power module
         import quarchpy
         pwr = quarchpy.quarchDevice("SERIAL:/dev/ttyUSB0")
-        if "PULLED" == pwr.sendCommand("run:power?"):
-            logging.info("quarch power on")
-            pwr.sendCommand("run:power up")
-        while "PULLED" == pwr.sendCommand("run:power?"): pass
+        if "PLUGED" == pwr.sendCommand("run:power?"):
+            logging.info("quarch has been powered on already")
+            return
+
+        # power on by power module
+        logging.info("power on")
+        pwr.sendCommand("run:power up")
         pwr.closeConnection()
         time.sleep(1)   # wait power on stable
 
-        # remove kernel driver before rescan pcie devices
+        # remove kernel driver
         subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
         subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
         subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
 
     def poweroff(self):
+        import quarchpy
+        pwr = quarchpy.quarchDevice("SERIAL:/dev/ttyUSB0")
+        if "PULLED" == pwr.sendCommand("run:power?"):
+            logging.info("quarch has been powered off already")
+            return
+
         # notify ioworker to terminate, and wait all IO Qpair closed
+        # timeout commands as soon as possible
+        orig_timeout = self._nvme.timeout
+        self._nvme.timeout = 10   # ms
         config(ioworker_terminate=True)
         while d.driver_io_qpair_count(self._nvme._ctrlr):
             pass
         config(ioworker_terminate=False)
+        self._nvme.timeout = orig_timeout
 
         # power off by power module
-        import quarchpy
-        pwr = quarchpy.quarchDevice("SERIAL:/dev/ttyUSB0")
-        if "PULLED" != pwr.sendCommand("run:power?"):
-            logging.info("quarch power off")
-            pwr.sendCommand("run:power down")
-        while "PULLED" != pwr.sendCommand("run:power?"): pass
+        pwr.sendCommand("run:power down")
+        logging.info("power off")
         pwr.closeConnection()
         time.sleep(1)   # wait power off stable
 
-        # remove device before power off
+        # remove device
         bdf = self._nvme._bdf.decode('utf-8')
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
     
@@ -2171,9 +2179,12 @@ class _IOWorker(object):
                 if 'nvme0n1' in locals():
                     nvme0n1.close()
 
-                # delete resources
                 if 'qpair' in locals():
-                    del qpair
+                    # del qpair may fail: drive cannot complete the command in dirty power cycle
+                    try:
+                        del qpair
+                    except:
+                        pass
 
                 if 'nvme0n1' in locals():
                     del nvme0n1
@@ -2246,9 +2257,9 @@ if os.geteuid() == 0:
     _reentry_flag_init()
 
     # config runtime: disable ASLR, 8T drive, S3
-    subprocess.call("ulimit -n 10000", shell=True)
-    subprocess.call("echo deep > /sys/power/mem_sleep", shell=True)
-    subprocess.call("echo 0 > /proc/sys/kernel/randomize_va_space", shell=True)
+    subprocess.call('ulimit -n 10000 2> /dev/null || true', shell=True)
+    subprocess.call('sudo sh -c "echo deep > /sys/power/mem_sleep" 2> /dev/null || true', shell=True)
+    subprocess.call('echo 0 > /proc/sys/kernel/randomize_va_space 2> /dev/null || true', shell=True)
 
     # spawn only limited data from parent process
     _mp = multiprocessing.get_context("spawn")

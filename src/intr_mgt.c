@@ -414,7 +414,7 @@ uint32_t intc_get_cmd_vec_info(struct spdk_nvme_qpair *q)
   if (intr_ctrl->msi_en || intr_ctrl->msix_en)
   {
     vector_id = intc_get_vec(q);
-    SPDK_INFOLOG(SPDK_LOG_NVME, "vector id: %d\n", vector_id);
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "vector id: %d\n", vector_id);
   }
 
   return vector_id;
