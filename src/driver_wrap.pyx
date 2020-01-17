@@ -351,17 +351,8 @@ cdef class Subsystem(object):
             logging.info("quarch has been powered off already")
             return
 
-        # notify ioworker to terminate, and wait all IO Qpair closed
-        # timeout commands as soon as possible
-        orig_timeout = self._nvme.timeout
-        self._nvme.timeout = 10   # ms
-        config(ioworker_terminate=True)
-        while d.driver_io_qpair_count(self._nvme._ctrlr):
-            pass
-        config(ioworker_terminate=False)
-        self._nvme.timeout = orig_timeout
-
         # power off by power module
+        self._nvme._driver_cleanup()
         pwr.sendCommand("run:power down")
         logging.info("power off")
         pwr.closeConnection()
@@ -378,13 +369,8 @@ cdef class Subsystem(object):
             sec (int): the seconds between power off and power on
         """
 
-        # notify ioworker to terminate, and wait all IO Qpair closed
-        config(ioworker_terminate=True)
-        while d.driver_io_qpair_count(self._nvme._ctrlr):
-            pass
-        config(ioworker_terminate=False)
-        
         # use S3/suspend to power off nvme device, and use rtc to power on again
+        self._nvme._driver_cleanup()
         logging.debug("power off nvme device for %d seconds" % sec)
         subprocess.call("sudo rtcwake -m mem -s %d 1>/dev/null 2>/dev/null" % sec, shell=True)
         logging.debug("power is back")
@@ -420,13 +406,8 @@ cdef class Subsystem(object):
     def reset(self):
         """reset the nvme subsystem through register nssr.nssrc"""
 
-        # notify ioworker to terminate, and wait all IO Qpair closed
-        config(ioworker_terminate=True)
-        while d.driver_io_qpair_count(self._nvme._ctrlr):
-            pass
-        config(ioworker_terminate=False)
-        
         # nssr.nssrc: nvme subsystem reset
+        self._nvme._driver_cleanup()
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
         self._nvme[0x20] = 0x4e564d65  # "NVMe"
         Pcie(self._nvme).reset()       # reset PCIe link
@@ -515,10 +496,7 @@ cdef class Pcie(object):
         logging.debug("pci reset %s on %s" % (vdid, bdf))
 
         # notify ioworker to terminate, and wait all IO Qpair closed
-        config(ioworker_terminate=True)
-        while d.driver_io_qpair_count(self._nvme._ctrlr):
-            pass
-        config(ioworker_terminate=False)
+        self._nvme._driver_cleanup()
         
         # hot reset by TS1 TS2
         subprocess.call('./src/pcie_hot_reset.sh %s 2> /dev/null || true' % bdf, shell=True)
@@ -692,6 +670,17 @@ cdef class Controller(object):
                 raise NvmeDeletionError("fail to close the controller, check if any qpair is not deleted: %d" % ret)
             self._ctrlr = NULL
 
+    def _driver_cleanup(self):
+        # notify ioworker to terminate, and wait all IO Qpair closed
+        # timeout commands as soon as possible
+        orig_timeout = self.timeout
+        self.timeout = 10   # ms
+        config(ioworker_terminate=True)
+        while d.driver_io_qpair_count(self._ctrlr):
+            pass
+        config(ioworker_terminate=False)
+        self.timeout = orig_timeout
+            
     def enable_hmb(self):
         """enable HMB function"""
 
@@ -808,10 +797,7 @@ cdef class Controller(object):
         """
 
         # notify ioworker to terminate, and wait all IO Qpair closed
-        config(ioworker_terminate=True)
-        while d.driver_io_qpair_count(self._ctrlr):
-            pass
-        config(ioworker_terminate=False)
+        self._driver_cleanup()
         
         # reset controller
         time.sleep(0.1)

@@ -615,6 +615,23 @@ def test_ioworker_power_cycle_async(nvme0n1, subsystem):
         pass
     subsystem.power_cycle(10)
 
+    
+def test_dirty_power_cycle(nvme0, nvme0n1, subsystem, buf):
+    nvme0.getlogpage(2, buf, 512).waitdone()
+    orig_dirty_count = buf.data(159, 144)
+
+    cmdlog = [None]*15
+    with nvme0n1.ioworker(io_size=255, time=10, qdepth=1023,
+                          read_percentage=0,
+                          output_cmdlog_list=cmdlog):
+        time.sleep(5)
+        subsystem.power_cycle()
+
+    # unsafe shutdown count should be added
+    nvme0.getlogpage(2, buf, 512).waitdone()
+    assert orig_dirty_count+1 == buf.data(159, 144)
+    assert cmdlog[0][1] == 255
+    
 
 def test_ioworker_power_cycle_async_cmdlog(nvme0n1, subsystem):
     cmdlog_list = [None]*11
@@ -623,8 +640,11 @@ def test_ioworker_power_cycle_async_cmdlog(nvme0n1, subsystem):
                           output_cmdlog_list=cmdlog_list):
         time.sleep(5)
         subsystem.power_cycle(10)
-    assert cmdlog_list[2][0] == 16
-    assert cmdlog_list[3][1] == 0
+
+    assert cmdlog_list[10][0] == 16
+    assert cmdlog_list[10][2] == 1
+    assert cmdlog_list[7][1] == 0
+    assert cmdlog_list[7][0] == 0
 
         
 def test_timeout_command_completion(nvme0, nvme0n1):
@@ -1432,13 +1452,13 @@ def test_ioworker_cmdlog_list(nvme0n1):
                      iops=10, qdepth=2, lba_random=False).start().close()
 
     # check cmdlog
-    for i, cmd in enumerate(cmdlog_list[:-1]):
+    for i, cmd in enumerate(cmdlog_list[1:]):
         assert cmd[0] == i
         assert cmd[1] == 1
         assert cmd[2] == 1
-    assert cmdlog_list[10][0] == 0
-    assert cmdlog_list[10][1] == 0
-    assert cmdlog_list[10][2] == 0
+    assert cmdlog_list[0][0] == 0
+    assert cmdlog_list[0][1] == 0
+    assert cmdlog_list[0][2] == 0
 
 
 def test_ioworker_step_multiple(nvme0n1):
