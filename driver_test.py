@@ -616,23 +616,6 @@ def test_ioworker_power_cycle_async(nvme0n1, subsystem):
     subsystem.power_cycle(10)
 
     
-def test_dirty_power_cycle(nvme0, nvme0n1, subsystem, buf):
-    nvme0.getlogpage(2, buf, 512).waitdone()
-    orig_dirty_count = buf.data(159, 144)
-
-    cmdlog = [None]*15
-    with nvme0n1.ioworker(io_size=255, time=10, qdepth=1023,
-                          read_percentage=0,
-                          output_cmdlog_list=cmdlog):
-        time.sleep(5)
-        subsystem.power_cycle()
-
-    # unsafe shutdown count should be added
-    nvme0.getlogpage(2, buf, 512).waitdone()
-    assert orig_dirty_count+1 == buf.data(159, 144)
-    assert cmdlog[0][1] == 255
-    
-
 def test_ioworker_power_cycle_async_cmdlog(nvme0n1, subsystem):
     cmdlog_list = [None]*11
     with nvme0n1.ioworker(io_size=8, time=10, iops=1,
