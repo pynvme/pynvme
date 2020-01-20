@@ -377,11 +377,10 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
     struct spdk_nvme_ns* ns = spdk_nvme_ctrlr_get_ns(ctrlr, cmd->nsid);
     uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
 
-    assert(log_entry->buf != NULL);
-
     // fill crc for write data
     if (log_entry->cmd.opc == 1)
     {
+      assert(log_entry->buf != NULL);
       buffer_fill_crc(ns->crc_table,
                       log_entry->buf,
                       lba,
@@ -394,6 +393,7 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
        ((*g_driver_config_ptr & DCFG_VERIFY_READ) != 0))
     {
       //verify data pattern and crc
+      assert(log_entry->buf != NULL);
       if (0 != buffer_verify_data(ns->crc_table,
                                   log_entry->buf,
                                   lba,
