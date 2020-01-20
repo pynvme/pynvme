@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pynvme",
-    version="1.6",
+    version="1.7",
     author="Crane Chu",
     author_email="cranechu@gmail.com",
     description="test NVMe devices in Python",
