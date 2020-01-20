@@ -124,7 +124,7 @@ config
 
 .. code-block:: python
 
-   config(verify, fua_read=False, fua_write=False)
+   config(verify=False, fua_read=False, fua_write=False, ioworker_terminate=False)
 
 config driver global setting
 
@@ -134,6 +134,7 @@ config driver global setting
 * **verify (bool)**\ : enable inline checksum verification of read
 * **fua_read (bool)**\ : enable FUA of read. Default: False
 * **fua_write (bool)**\ : enable FUA of write. Default: False
+* **ioworker_terminate (bool)**\ : notify ioworker to terminate immediately. Default: False
 
 Controller
 ----------
@@ -857,7 +858,7 @@ ioworker
 
 .. code-block:: python
 
-   Namespace.ioworker(self, io_size, lba_align, lba_random, read_percentage, time, qdepth, region_start, region_end, iops, io_count, lba_start, qprio, distribution, pvalue, ptype, output_io_per_second, output_percentile_latency)
+   Namespace.ioworker(self, io_size, lba_step, lba_align, lba_random, read_percentage, time, qdepth, region_start, region_end, iops, io_count, lba_start, qprio, distribution, pvalue, ptype, output_io_per_second, output_percentile_latency, output_cmdlog_list)
 
 workers sending different read/write IO on different CPU cores.
 
@@ -875,6 +876,7 @@ Each ioworker can run upto 24 hours.
 
 
 * **io_size (short, range, list, dict)**\ : IO size, unit is LBA. It can be a fixed size, or a range or list of size, or specify ratio in the dict if they are not evenly distributed
+* **lba_step (short)**\ : valid only for sequential read/write, jump to next LBA by the step. Default: None, same as io_size, continous IO.
 * **lba_align (short)**\ : IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
 * **lba_random (bool)**\ : True if sending IO with random starting LBA. Default: True
 * **read_percentage (int)**\ : sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100
@@ -891,6 +893,7 @@ Each ioworker can run upto 24 hours.
 * **ptype (int)**\ : data pattern type. Refer to data pattern in class ``Buffer``. Default: 0
 * **output_io_per_second (list)**\ : list to hold the output data of io_per_second. Default: None, not to collect the data
 * **output_percentile_latency (dict)**\ : dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in micro-second. Default: None, not to collect the data
+* **output_cmdlog_list (list)**\ : list of dwords of lastest commands sent in the ioworker. Default: None, not to collect the data
 
 **Returns**
 

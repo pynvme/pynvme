@@ -49,7 +49,7 @@ We clone the pynvme source code from GitHub. We recommend to checkout the latest
 
    git clone https://github.com/pynvme/pynvme
    cd pynvme
-   git checkout tags/1.6
+   git checkout tags/1.7
 
    
 Prerequisites

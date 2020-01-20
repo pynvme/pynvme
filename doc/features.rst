@@ -44,6 +44,8 @@ Users can identify the data pattern of the `Buffer`. Pynvme supports following d
 
 Users can also specify argument `pvalue` and `ptype` in `Namespace.ioworker()` in the same manner.
 
+The first 8-byte and the last 8-byte of each LBA are not filled by the data pattern. The first 8-byte is the LBA address, and the last 8-byte is a token which changes on every LBA written. 
+
 Controller
 ----------
 

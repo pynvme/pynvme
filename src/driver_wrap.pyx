@@ -71,7 +71,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "1.6"
+__version__ = "1.7"
 
 
 # random seed in all processes
@@ -1823,7 +1823,7 @@ cdef class Namespace(object):
         assert ret == 0, "error in submitting read write commands: 0x%x" % ret
         return ret
 
-    def send_cmd(self, opcode, qpair, buf=None, nsid=0,
+    def send_cmd(self, opcode, qpair, buf=None, nsid=1,
                  cdw10=0, cdw11=0, cdw12=0,
                  cdw13=0, cdw14=0, cdw15=0,
                  cb=None):

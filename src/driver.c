@@ -365,16 +365,16 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   timersub(&now, &log_entry->time_cmd, &diff);
   log_entry->cpl_latency_us = timeval_to_us(&diff);
 
+  // get ns and lba size of the data
+  struct spdk_nvme_cmd* cmd = &log_entry->cmd;
+  struct spdk_nvme_ctrlr* ctrlr = log_entry->req->qpair->ctrlr;
+  struct spdk_nvme_ns* ns = spdk_nvme_ctrlr_get_ns(ctrlr, cmd->nsid);
+  
   //verify read data for IO read commands
-  if (log_entry->req->qpair->id != 0)
+  if (log_entry->req->qpair->id != 0 && ns != NULL)
   {
-    struct spdk_nvme_cmd* cmd = &log_entry->cmd;
     uint64_t lba = cmd->cdw10 + ((uint64_t)(cmd->cdw11)<<32);
     uint16_t lba_count = (cmd->cdw12 & 0xffff);
-
-    // get ns and lba size of the data
-    struct spdk_nvme_ctrlr* ctrlr = log_entry->req->qpair->ctrlr;
-    struct spdk_nvme_ns* ns = spdk_nvme_ctrlr_get_ns(ctrlr, cmd->nsid);
     uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
 
     // fill crc for write data

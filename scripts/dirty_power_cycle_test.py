@@ -4,7 +4,7 @@ import logging
 
 import nvme as d
 
-@pytest.mark.parametrize("repeat", range(1))
+@pytest.mark.parametrize("repeat", range(10))
 def test_quarch_dirty_power_cycle(nvme0, nvme0n1, subsystem, buf, verify, repeat):
     # get the unsafe shutdown count before test
     nvme0.getlogpage(2, buf, 512).waitdone()

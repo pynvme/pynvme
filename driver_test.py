@@ -2382,7 +2382,7 @@ def test_io_generic_cmd(nvme0n1, nvme0):
         nvme0n1.send_cmd(0xff, q, nsid=1).waitdone()
     # invalid nsid
     with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
-        nvme0n1.send_cmd(0x0, q).waitdone()
+        nvme0n1.send_cmd(0, q, nsid=0).waitdone()
         
     # flush command
     nvme0n1.send_cmd(0x0, q, nsid=1).waitdone()
