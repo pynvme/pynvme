@@ -352,10 +352,11 @@ cdef class Subsystem(object):
             return
 
         # power off by power module
-        ret = pwr.sendCommand("signal:all:source 7");
-        ret = pwr.sendCommand("run:power down");
+        ret = pwr.sendCommand("signal:all:source 7")
+        ret = pwr.sendCommand("run:power down")
         logging.info("power off")
-        pwr.closeConnection();
+        pwr.closeConnection()
+        time.sleep(1)   # wait power off stable
 
         # cleanup host driver after power off, so IO is active at power off
         self._nvme._driver_cleanup()
@@ -674,7 +675,8 @@ cdef class Controller(object):
 
     def _driver_cleanup(self):
         # notify ioworker to terminate, and wait all IO Qpair closed
-        # timeout commands as soon as possible
+        # timeout commands as soon as possible.
+        # force enable data verify after power on 
         orig_timeout = self.timeout
         self.timeout = 10   # ms
         config(ioworker_terminate=True, verify=False)

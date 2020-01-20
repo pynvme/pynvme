@@ -191,8 +191,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
   gctx->io_count_cplt ++;
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "sent: %ld; cplt: %ld\n",
-               gctx->io_count_sent, gctx->io_count_cplt);
-
+                gctx->io_count_sent, gctx->io_count_cplt);
 
   // update statistics in ret structure
   timeval_gettimeofday(&now);

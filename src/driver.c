@@ -189,15 +189,14 @@ static void buffer_fill_data(uint32_t* crc_table,
     //first and last 64bit-words are filled with special data
     ptr[0] = lba;
     ptr[lba_size/sizeof(uint64_t)-1] = token+i;
-
   }
 }
 
 static inline void buffer_fill_crc(uint32_t* crc_table,
-				   const void* buf,
-				   const unsigned long lba_first,
-				   const uint32_t lba_count,
-				   const uint32_t lba_size)
+                                   const void* buf,
+                                   const unsigned long lba_first,
+                                   const uint32_t lba_count,
+                                   const uint32_t lba_size)
 {
   // keep crc in memory if allocated
   // suppose device modify data correctly. If the command fails, we cannot
@@ -368,33 +367,32 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
 
   //verify read data for IO read commands
   if (log_entry->req->qpair->id != 0)
-    {
-      struct spdk_nvme_cmd* cmd = &log_entry->cmd;
-      uint64_t lba = cmd->cdw10 + ((uint64_t)(cmd->cdw11)<<32);
-      uint16_t lba_count = (cmd->cdw12 & 0xffff);
+  {
+    struct spdk_nvme_cmd* cmd = &log_entry->cmd;
+    uint64_t lba = cmd->cdw10 + ((uint64_t)(cmd->cdw11)<<32);
+    uint16_t lba_count = (cmd->cdw12 & 0xffff);
 
-      // get ns and lba size of the data
-      struct spdk_nvme_ctrlr* ctrlr = log_entry->req->qpair->ctrlr;
-      struct spdk_nvme_ns* ns = spdk_nvme_ctrlr_get_ns(ctrlr, cmd->nsid);
-      uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
+    // get ns and lba size of the data
+    struct spdk_nvme_ctrlr* ctrlr = log_entry->req->qpair->ctrlr;
+    struct spdk_nvme_ns* ns = spdk_nvme_ctrlr_get_ns(ctrlr, cmd->nsid);
+    uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
+
     assert(log_entry->buf != NULL);
 
     // fill crc for write data
     if (log_entry->cmd.opc == 1)
-      {
-	buffer_fill_crc(ns->crc_table,
-                                  log_entry->buf,
-                                  lba,
-                                  lba_count,
-			lba_size);
-
-      }
+    {
+      buffer_fill_crc(ns->crc_table,
+                      log_entry->buf,
+                      lba,
+                      lba_count,
+                      lba_size);
+    }
 
     // verify read data
-      if(log_entry->cmd.opc == 2 &&
-	 ((*g_driver_config_ptr & DCFG_VERIFY_READ) != 0))
+    if(log_entry->cmd.opc == 2 &&
+       ((*g_driver_config_ptr & DCFG_VERIFY_READ) != 0))
     {
-
       //verify data pattern and crc
       if (0 != buffer_verify_data(ns->crc_table,
                                   log_entry->buf,
