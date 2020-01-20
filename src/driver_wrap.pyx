@@ -2219,12 +2219,12 @@ def config(verify=None, fua_read=None, fua_write=None, ioworker_terminate=None):
     if verify == False:
         c &= 0xfffffffffffffffe
     elif verify == True:
-        c |= (~0xfffffffffffffffe)
+        c |= 1
         
     if ioworker_terminate == False:
         c &= 0xffffffffffffffef
     elif ioworker_terminate == True:
-        c |= (~0xffffffffffffffef)
+        c |= 0x10
         
     return d.driver_config(c)
 
