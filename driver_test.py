@@ -1814,6 +1814,9 @@ def test_ioworker_invalid_io_size(nvme0, nvme0n1):
 
 
 # test error handle of driver, test could continue after failed case
+# when update crc after cpl, all confliction test can pass on some device,
+#  but it still can correctly generate 02/81 on some drive (INTEL/SMI),
+#  because SQ/execution/CQ are all asynchorous events
 def test_ioworker_iops_confliction(verify, nvme0n1):
     assert verify
     import time
@@ -1831,9 +1834,7 @@ def test_ioworker_iops_confliction(verify, nvme0n1):
                           iops=10, io_count=0, time=10,
                           qprio=0, qdepth=16).start()
 
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-        wr.close()
-
+    wr.close()
     report = ww.close()
     assert report.error == 0
     assert time.time()-start_time > 2.0
@@ -1867,13 +1868,12 @@ def test_ioworker_iops_confliction_read_write_mix(nvme0n1, verify):
     # rw mixed ioworkers cause verification fail
     assert verify
 
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-        w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
-                             lba_random=True,
-                             region_start=0, region_end=1000,
-                             read_percentage=50,
-                             iops=0, io_count=0, time=1,
-                             qprio=0, qdepth=16).start().close()
+    w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
+                         lba_random=True,
+                         region_start=0, region_end=1000,
+                         read_percentage=50,
+                         iops=0, io_count=0, time=1,
+                         qprio=0, qdepth=16).start().close()
 
 
 def test_ioworker_iops(nvme0n1):
@@ -2077,7 +2077,7 @@ def test_ioworkers_with_many_huge_io(nvme0n1, nvme0):
                      qprio=0, qdepth=9).start().close()
 
 
-def test_ioworkers_read_and_write_conflict(nvme0n1, nvme0, verify):
+def test_ioworkers_read_and_write_confliction(nvme0n1, nvme0, verify):
     # """read write confliction will cause data mismatch.
     #
     # When the same LBA the read and write commands are operating on, NVMe
@@ -2088,20 +2088,19 @@ def test_ioworkers_read_and_write_conflict(nvme0n1, nvme0, verify):
 
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
         
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-        with nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
-                              lba_random=False,
-                              region_start=0, region_end=128,
-                              read_percentage=0,
-                              iops=0, io_count=0, time=2,
-                              qprio=0, qdepth=32), \
-             nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
-                              lba_random=False,
-                              region_start=0, region_end=128,
-                              read_percentage=100,
-                              iops=0, io_count=0, time=2,
-                              qprio=0, qdepth=32):
-            pass
+    with nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
+                          lba_random=False,
+                          region_start=0, region_end=128,
+                          read_percentage=0,
+                          iops=0, io_count=0, time=2,
+                          qprio=0, qdepth=32), \
+         nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
+                          lba_random=False,
+                          region_start=0, region_end=128,
+                          read_percentage=100,
+                          iops=0, io_count=0, time=2,
+                          qprio=0, qdepth=32):
+        pass
 
 
 def test_ioworker_distribution_read_write_confliction(nvme0n1, verify):
@@ -2109,16 +2108,15 @@ def test_ioworker_distribution_read_write_confliction(nvme0n1, verify):
     
     distribution = [0]*100
     distribution[1] = 10000
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-        with nvme0n1.ioworker(io_size=8, lba_align=8,
-                              lba_random=True, qdepth=64,
-                              distribution = distribution, 
-                              read_percentage=0, time=60), \
-             nvme0n1.ioworker(io_size=8, lba_align=8,
-                              lba_random=True, qdepth=64,
-                              distribution = distribution, 
-                              read_percentage=100, time=60):
-            pass
+    with nvme0n1.ioworker(io_size=8, lba_align=8,
+                          lba_random=True, qdepth=64,
+                          distribution = distribution, 
+                          read_percentage=0, time=60), \
+         nvme0n1.ioworker(io_size=8, lba_align=8,
+                          lba_random=True, qdepth=64,
+                          distribution = distribution, 
+                          read_percentage=100, time=60):
+        pass
 
     distribution2 = [0]*100
     distribution2[2] = 10000
