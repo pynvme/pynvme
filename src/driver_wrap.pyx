@@ -352,11 +352,13 @@ cdef class Subsystem(object):
             return
 
         # power off by power module
-        self._nvme._driver_cleanup()
-        pwr.sendCommand("run:power down")
+        ret = pwr.sendCommand("signal:all:source 7");
+        ret = pwr.sendCommand("run:power down");
         logging.info("power off")
-        pwr.closeConnection()
-        time.sleep(1)   # wait power off stable
+        pwr.closeConnection();
+
+        # cleanup host driver after power off, so IO is active at power off
+        self._nvme._driver_cleanup()
 
         # remove device
         bdf = self._nvme._bdf.decode('utf-8')
@@ -675,10 +677,10 @@ cdef class Controller(object):
         # timeout commands as soon as possible
         orig_timeout = self.timeout
         self.timeout = 10   # ms
-        config(ioworker_terminate=True)
+        config(ioworker_terminate=True, verify=False)
         while d.driver_io_qpair_count(self._ctrlr):
             pass
-        config(ioworker_terminate=False)
+        config(ioworker_terminate=False, verify=True)
         self.timeout = orig_timeout
             
     def enable_hmb(self):

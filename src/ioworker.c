@@ -188,10 +188,11 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
   struct ioworker_global_ctx* gctx = ctx->gctx;
   struct ioworker_rets* rets = gctx->rets;
 
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io completed, ctx %p, io delay time: %ld\n",
-               ctx, gctx->io_delay_time.tv_usec);
-
   gctx->io_count_cplt ++;
+
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "sent: %ld; cplt: %ld\n",
+               gctx->io_count_sent, gctx->io_count_cplt);
+
 
   // update statistics in ret structure
   timeval_gettimeofday(&now);
@@ -575,7 +576,9 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     // check terminate signal from main process
     if ((driver_config_read() & DCFG_IOW_TERM) != 0)
     {
+      // collect all remaining cpl
       SPDK_DEBUGLOG(SPDK_LOG_NVME, "force termimate ioworker\n");
+      while (spdk_nvme_qpair_process_completions(qpair, 0) > 0) ;
       break;
     }
     
