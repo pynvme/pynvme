@@ -87,6 +87,7 @@ cdef extern from "driver.h":
     int driver_init()
     int driver_fini()
     unsigned long driver_config(unsigned long cfg_word)
+    unsigned long driver_config_read()
 
     pcie * pcie_init(ctrlr * c)
     int pcie_cfg_read8(pcie * pci,

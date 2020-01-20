@@ -679,10 +679,10 @@ cdef class Controller(object):
         # force enable data verify after power on 
         orig_timeout = self.timeout
         self.timeout = 10   # ms
-        config(ioworker_terminate=True, verify=False)
+        config(ioworker_terminate=True)
         while d.driver_io_qpair_count(self._ctrlr):
             pass
-        config(ioworker_terminate=False, verify=True)
+        config(ioworker_terminate=False)
         self.timeout = orig_timeout
             
     def enable_hmb(self):
@@ -1530,7 +1530,7 @@ cdef class Namespace(object):
 
     def ioworker(self, io_size, lba_step=None, lba_align=None,
                  lba_random=True, read_percentage=100, time=0, qdepth=64,
-                 region_start=0, region_end=0xffff_ffff_ffff_ffff,
+                 region_start=0, region_end=0xffffffffffffffff,
                  iops=0, io_count=0, lba_start=0, qprio=0,
                  distribution=None, pvalue=0, ptype=0,
                  output_io_per_second=None,
@@ -2069,7 +2069,7 @@ class _IOWorker(object):
             # check distribution
             if distribution is not None:
                 assert region_start == 0, "distribution has to be on the full region"
-                assert region_end == 0xffff_ffff_ffff_ffff, "distribution has to be on the full region"
+                assert region_end == 0xffffffffffffffff, "distribution has to be on the full region"
                 assert len(distribution) == 100, "distribution on 100 equal sections"
                 assert sum(distribution) == 10000, "distribute 10000 IO on 100 sections"
                 assert lba_random == True, "distribution has to be random IO"
@@ -2206,20 +2206,27 @@ class _IOWorker(object):
             import gc; gc.collect()
 
 
-def config(verify=False, fua_read=False, fua_write=False, ioworker_terminate=False):
+def config(verify=None, fua_read=None, fua_write=None, ioworker_terminate=None):
     """config driver global setting
 
     # Parameters
-        verify (bool): enable inline checksum verification of read
-        fua_read (bool): enable FUA of read. Default: False
-        fua_write (bool): enable FUA of write. Default: False
-        ioworker_terminate (bool): notify ioworker to terminate immediately. Default: False
+        verify (bool): enable inline checksum verification of read. Default: None, means no change
+        ioworker_terminate (bool): notify ioworker to terminate immediately. Default: None, means no change
     """
-
-    return d.driver_config((verify << 0) |
-                           (fua_read << 2) |
-                           (fua_write << 3) |
-                           (ioworker_terminate << 4))
+    
+    cdef unsigned long c = d.driver_config_read()
+    
+    if verify == False:
+        c &= 0xfffffffffffffffe
+    elif verify == True:
+        c |= (~0xfffffffffffffffe)
+        
+    if ioworker_terminate == False:
+        c &= 0xffffffffffffffef
+    elif ioworker_terminate == True:
+        c |= (~0xffffffffffffffef)
+        
+    return d.driver_config(c)
 
 
 def srand(seed):

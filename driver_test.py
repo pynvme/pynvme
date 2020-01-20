@@ -1868,12 +1868,13 @@ def test_ioworker_iops_confliction_read_write_mix(nvme0n1, verify):
     # rw mixed ioworkers cause verification fail
     assert verify
 
-    w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
-                         lba_random=True,
-                         region_start=0, region_end=1000,
-                         read_percentage=50,
-                         iops=0, io_count=0, time=1,
-                         qprio=0, qdepth=16).start().close()
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+        w = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
+                             lba_random=True,
+                             region_start=0, region_end=1000,
+                             read_percentage=50,
+                             iops=0, io_count=0, time=1,
+                             qprio=0, qdepth=16).start().close()
 
 
 def test_ioworker_iops(nvme0n1):
@@ -2088,19 +2089,20 @@ def test_ioworkers_read_and_write_confliction(nvme0n1, nvme0, verify):
 
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
         
-    with nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
-                          lba_random=False,
-                          region_start=0, region_end=128,
-                          read_percentage=0,
-                          iops=0, io_count=0, time=2,
-                          qprio=0, qdepth=32), \
-         nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
-                          lba_random=False,
-                          region_start=0, region_end=128,
-                          read_percentage=100,
-                          iops=0, io_count=0, time=2,
-                          qprio=0, qdepth=32):
-        pass
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+        with nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
+                              lba_random=False,
+                              region_start=0, region_end=128,
+                              read_percentage=0,
+                              iops=0, io_count=0, time=2,
+                              qprio=0, qdepth=32), \
+             nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
+                              lba_random=False,
+                              region_start=0, region_end=128,
+                              read_percentage=100,
+                              iops=0, io_count=0, time=2,
+                              qprio=0, qdepth=32):
+            pass
 
 
 def test_ioworker_distribution_read_write_confliction(nvme0n1, verify):
@@ -2108,15 +2110,17 @@ def test_ioworker_distribution_read_write_confliction(nvme0n1, verify):
     
     distribution = [0]*100
     distribution[1] = 10000
-    with nvme0n1.ioworker(io_size=8, lba_align=8,
-                          lba_random=True, qdepth=64,
-                          distribution = distribution, 
-                          read_percentage=0, time=60), \
-         nvme0n1.ioworker(io_size=8, lba_align=8,
-                          lba_random=True, qdepth=64,
-                          distribution = distribution, 
-                          read_percentage=100, time=60):
-        pass
+    
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+        with nvme0n1.ioworker(io_size=8, lba_align=8,
+                              lba_random=True, qdepth=64,
+                              distribution = distribution, 
+                              read_percentage=0, time=60), \
+             nvme0n1.ioworker(io_size=8, lba_align=8,
+                              lba_random=True, qdepth=64,
+                              distribution = distribution, 
+                              read_percentage=100, time=60):
+            pass
 
     distribution2 = [0]*100
     distribution2[2] = 10000
