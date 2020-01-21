@@ -2094,13 +2094,13 @@ def test_ioworkers_read_and_write_confliction(nvme0n1, nvme0, verify):
                               lba_random=False,
                               region_start=0, region_end=128,
                               read_percentage=0,
-                              iops=0, io_count=0, time=2,
+                              iops=0, io_count=0, time=60,
                               qprio=0, qdepth=32), \
              nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=8,
                               lba_random=False,
                               region_start=0, region_end=128,
                               read_percentage=100,
-                              iops=0, io_count=0, time=2,
+                              iops=0, io_count=0, time=60,
                               qprio=0, qdepth=32):
             pass
 
