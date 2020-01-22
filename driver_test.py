@@ -766,8 +766,8 @@ def test_sanitize_basic(nvme0, nvme0n1, verify, buf):
         nvme0.getlogpage(0x81, buf, 20).waitdone()
         while buf.data(3, 2) & 0x7 != 1:  # sanitize is not completed
             logging.info("sanitize progress %d%%" % (buf.data(1, 0)*100//0xffff))
-            nvme0.getlogpage(0x81, buf, 20).waitdone()
             time.sleep(1)
+            nvme0.getlogpage(0x81, buf, 20).waitdone()
     
     logging.info("verify data after sanitize")
     q = d.Qpair(nvme0, 8)
@@ -1813,10 +1813,6 @@ def test_ioworker_invalid_io_size(nvme0, nvme0n1):
                          read_percentage=100, time=2).start().close()
 
 
-# test error handle of driver, test could continue after failed case
-# when update crc after cpl, all confliction test can pass on some device,
-#  but it still can correctly generate 02/81 on some drive (INTEL/SMI),
-#  because SQ/execution/CQ are all asynchorous events
 def test_ioworker_iops_confliction(verify, nvme0n1):
     assert verify
     import time
@@ -1824,17 +1820,21 @@ def test_ioworker_iops_confliction(verify, nvme0n1):
     ww = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
                           lba_random=False,
                           region_start=0, region_end=1000,
-                          read_percentage=0,
-                          iops=0, io_count=0, time=10,
+                          read_percentage=0, time=60,
                           qprio=0, qdepth=16).start()
     wr = nvme0n1.ioworker(lba_start=0, io_size=8, lba_align=64,
                           lba_random=False,
                           region_start=0, region_end=1000,
-                          read_percentage=100,
-                          iops=10, io_count=0, time=10,
+                          read_percentage=100, time=60,
                           qprio=0, qdepth=16).start()
 
-    wr.close()
+    # test error handle of driver, test could continue after failed case
+    # when update crc after cpl, all confliction test can pass on some device,
+    #  but it still can correctly generate 02/81 on some drive (INTEL/SMI),
+    #  because SQ/execution/CQ are all asynchorous events
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+        wr.close()
+        
     report = ww.close()
     assert report.error == 0
     assert time.time()-start_time > 2.0
