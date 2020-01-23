@@ -2206,7 +2206,7 @@ class _IOWorker(object):
             import gc; gc.collect()
 
 
-def config(verify=None, fua_read=None, fua_write=None, ioworker_terminate=None):
+def config(verify=None, ioworker_terminate=None):
     """config driver global setting
 
     # Parameters

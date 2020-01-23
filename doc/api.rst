@@ -124,17 +124,15 @@ config
 
 .. code-block:: python
 
-   config(verify=False, fua_read=False, fua_write=False, ioworker_terminate=False)
+   config(verify=None, ioworker_terminate=None)
 
 config driver global setting
 
 **Parameters**
 
 
-* **verify (bool)**\ : enable inline checksum verification of read
-* **fua_read (bool)**\ : enable FUA of read. Default: False
-* **fua_write (bool)**\ : enable FUA of write. Default: False
-* **ioworker_terminate (bool)**\ : notify ioworker to terminate immediately. Default: False
+* **verify (bool)**\ : enable inline checksum verification of read. Default: None, means no change
+* **ioworker_terminate (bool)**\ : notify ioworker to terminate immediately. Default: None, means no change
 
 Controller
 ----------
