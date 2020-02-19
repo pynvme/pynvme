@@ -63,7 +63,7 @@
 // queue_table traces cmd log tables by queue pairs
 // CMD_LOG_DEPTH should be larger than Q depth to keep all outstanding commands.
 // reserved one slot space for tail value
-#define CMD_LOG_DEPTH              (2048)
+#define CMD_LOG_DEPTH              (2050)
 
 // the global configuration of the driver
 #define DCFG_VERIFY_READ      (BIT(0))

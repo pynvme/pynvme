@@ -104,7 +104,7 @@ static bool msi_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt)
   spdk_pci_device_cfg_write16(pci, 0x0001, msi_cap_base + 0xc);
   //config msg vector number, enable msi interrupt
   max_dev_vector_shift = (control >> 1) & 0xe;
-  max_dev_vector_shift = MIN((MAX_VECTOR_NUM >> 1), max_dev_vector_shift);
+  max_dev_vector_shift = MIN((MAX_VECTOR_NUM_SHIFT-1), max_dev_vector_shift);
   //msi_ctrl->multi_msi_vector = 1 << max_dev_vector_shift;
   intr_info->max_vec_num = (1 << max_dev_vector_shift);
   control |= (max_dev_vector_shift << 4) | BIT(0);

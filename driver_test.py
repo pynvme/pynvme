@@ -385,6 +385,22 @@ def test_write_identify_and_verify(nvme0, nvme0n1):
     logging.info("test end")
 
 
+def test_multiple_callbacks(nvme0):
+    a1 = 0
+    def cb1(cdw0, status):
+        nonlocal a1; a1 = 1
+    nvme0.getfeatures(7, cb=cb1)
+
+    a2 = 0
+    def cb2(cdw0, status):
+        nonlocal a2; a2 = 2
+    nvme0.getfeatures(7, cb=cb2)
+
+    nvme0.waitdone(2)
+    assert a1 == 1
+    assert a2 == 2
+
+    
 def test_write_identify_and_verify_with_callback(nvme0, nvme0n1):
     id_buf = d.Buffer(4096)
     nvme0.identify(id_buf).waitdone()
@@ -1628,26 +1644,22 @@ def test_ioworker_simplified_context(nvme0n1):
 
 def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
     output_percentile_latency = dict.fromkeys([10, 50, 90, 99, 99.9, 99.99, 99.999, 99.99999])
-    logging.info(output_percentile_latency)
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
                          lba_random=False, qdepth=32,
                          read_percentage=100, time=10,
                          output_percentile_latency=output_percentile_latency).start().close()
-    logging.info(output_percentile_latency)
-    logging.info(r)
+    logging.debug(output_percentile_latency)
     heavy_latency_average = r.latency_average_us
     max_iops = (r.io_count_read+r.io_count_write)*1000//r.mseconds
 
     # limit iops, should get smaller latency
     output_percentile_latency = dict.fromkeys([10, 50, 90, 99, 99.9, 99.99, 99.999, 99.99999])
-    logging.info(output_percentile_latency)
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
                          lba_random=False, qdepth=32,
                          iops=max_iops//2, 
                          read_percentage=100, time=10,
                          output_percentile_latency=output_percentile_latency).start().close()
-    logging.info(output_percentile_latency)
-    logging.info(r)
+    logging.debug(output_percentile_latency)
     assert r.latency_average_us < heavy_latency_average
 
     output_io_per_second = []
@@ -1656,13 +1668,28 @@ def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
                          read_percentage=0, time=10,
                          output_io_per_second=output_io_per_second,
                          output_percentile_latency=output_percentile_latency).start().close()
-    logging.info(output_io_per_second)
     assert len(output_io_per_second) == 10
-    logging.info(output_percentile_latency)
-    logging.info(r)
+    logging.debug(output_percentile_latency)
     assert output_percentile_latency[99.999] < output_percentile_latency[99.99999]
 
 
+def test_ioworker_iops_deep_queue(nvme0n1):
+    r = nvme0n1.ioworker(io_size=8,
+                         lba_random=True,
+                         qdepth=1024,
+                         read_percentage=100,
+                         iops=1000,
+                         time=1).start().close()
+    assert r.io_count_read == 1023
+    r = nvme0n1.ioworker(io_size=8,
+                         lba_random=True,
+                         qdepth=1024,
+                         read_percentage=100,
+                         iops=1000,
+                         time=2).start().close()
+    assert r.io_count_read == 1999
+
+    
 def test_ioworker_output_io_per_second(nvme0n1, nvme0):
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
 
@@ -1708,7 +1735,7 @@ def test_ioworker_output_io_per_second_consistency(nvme0n1, nvme0):
         w.iops_consistency()
 
 
-@pytest.mark.parametrize("depth", [256, 512, 1023])
+@pytest.mark.parametrize("depth", [256, 512, 1024])
 def test_ioworker_huge_qdepth(nvme0, nvme0n1, depth):
     # """test huge queue in ioworker"""
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
@@ -1727,7 +1754,7 @@ def test_ioworker_fill_driver(nvme0, nvme0n1):
 
 def test_ioworker_deepest_qdepth(nvme0n1):
     nvme0n1.ioworker(io_size=8, lba_align=64,
-                     lba_random=False, qdepth=1023,
+                     lba_random=False, qdepth=1024,
                      read_percentage=100, time=2).start().close()
 
 
@@ -1789,7 +1816,7 @@ def test_ioworker_invalid_qdepth(nvme0, nvme0n1):
 
     with pytest.raises(AssertionError):
         nvme0n1.ioworker(io_size=8, lba_align=64,
-                         lba_random=False, qdepth=1024,
+                         lba_random=False, qdepth=1025,
                          read_percentage=100, time=2).start().close()
 
     with pytest.raises(AssertionError):
@@ -2406,6 +2433,15 @@ def test_ioworker_vscode_showcase(nvme0n1):
          pass
 
 
+def test_ioworker_invalid_read_percentage(nvme0n1):
+    with pytest.raises(AssertionError):
+        nvme0n1.ioworker(io_size=128, lba_random=False,
+                         read_percentage=1000, time=1).start().close()
+    with pytest.raises(AssertionError):
+        nvme0n1.ioworker(io_size=128, lba_random=False,
+                         read_percentage=101, time=1).start().close()
+
+    
 @pytest.mark.parametrize("start", [1, 7, 8, 10, 16])
 @pytest.mark.parametrize("length", [1, 7, 8, 10, 16])
 def test_ioworker_address_region_512(nvme0, nvme0n1, start, length):
@@ -2565,7 +2601,7 @@ def test_ioworker_longtime_deep(nvme0, nvme0n1, lba_size, verify):
     l = []
     for i in range(2):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             lba_random=True, qdepth=1023, 
+                             lba_random=True, qdepth=1024, 
                              read_percentage=100, time=10*60).start()
         l.append(a)
 

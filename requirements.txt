@@ -1,4 +1,6 @@
 m2r
+numpy==1.15.1
+scipy
 libpci
 cython
 pyyaml
@@ -7,6 +9,8 @@ pytest-cov
 pytemperature
 pydoc-markdown
 PySimpleGUI
+py-cpuinfo
 openpyxl
+psutil
 sphinx
 sphinx_rtd_theme

@@ -101,7 +101,7 @@ def nvme0n1(nvme0):
     
 @pytest.fixture(scope="session")
 def buf():
-    ret = d.Buffer(40967, "default buffer")
+    ret = d.Buffer(4096, "default buffer")
     yield ret
     del ret
 

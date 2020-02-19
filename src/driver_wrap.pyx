@@ -71,7 +71,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "1.7"
+__version__ = "1.8"
 
 
 # random seed in all processes
@@ -715,7 +715,7 @@ cdef class Controller(object):
         page_size = (1UL<<(12+((self[4]>>16)&0xf)))
         mdts_shift = self.id_data(77)
         if mdts_shift == 0:
-            return sys.maxsize
+            return 1*1024*1024  # limit data xfer size to 1MB
         else:
             return page_size*(1UL<<mdts_shift)
 
@@ -1574,12 +1574,13 @@ cdef class Namespace(object):
         """
 
         assert not (time==0 and io_count==0), "when to stop the ioworker?"
-        assert qdepth>=2 and qdepth<=1023, "support qdepth upto 1023"
+        assert qdepth>=2 and qdepth<=1024, "qdepth should be in [2, 1024]"
         assert qdepth <= (self._nvme.cap & 0xffff) + 1, "qdepth is larger than specification"
         assert region_start < region_end, "region end is not included"
         assert io_count != 0 or time != 0, "worker needs a rest :)"
         assert time <= 1000*3600ULL, "worker needs a rest :)"
-
+        assert read_percentage <= 100, "read percentage is less than 100"
+        
         # lba_step
         if lba_step is None:
             if lba_random is False:
@@ -1914,9 +1915,12 @@ class _IOWorker(object):
 
         # create the child process
         self.p = _mp.Process(target = self._ioworker,
-                             args = (self.q, self.l, pciaddr, nsid, _random_seed,
-                                     lba_start, lba_step, lba_size, lba_align, lba_random,
-                                     region_start, region_end, read_percentage,
+                             args = (self.q, self.l, pciaddr, nsid,
+                                     int(random.random()*0xffffffff),
+                                     lba_start, lba_step, lba_size,
+                                     lba_align, lba_random,
+                                     region_start, region_end,
+                                     read_percentage,
                                      iops, io_count, time, qdepth, qprio,
                                      distribution, pvalue, ptype,
                                      output_io_per_second,
@@ -2122,7 +2126,7 @@ class _IOWorker(object):
 
             # set: all ioworkers created in recent seconds will start at the same time
             if time.time() > _IOWorker.target_start_time:
-                _IOWorker.target_start_time = math.ceil(time.time())+1
+                _IOWorker.target_start_time = math.ceil(time.time())+2
             time.sleep(_IOWorker.target_start_time-time.time())
 
             # go: start at the same time

@@ -1011,7 +1011,7 @@ int ns_cmd_read_write(int is_read,
 {
   struct spdk_nvme_cmd cmd;
   uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
-
+  
   assert(qpair != NULL);
 
   //validate data buffer
@@ -1036,6 +1036,9 @@ int ns_cmd_read_write(int is_read,
     //for write buffer
     buffer_fill_data(ns->crc_table, buf, lba, lba_count, lba_size);
   }
+
+  qpair->pynvme_io_in_second ++;
+  qpair->pynvme_lba_in_second += (lba_count*lba_size);
 
   //send io cmd in qpair
   return spdk_nvme_ctrlr_cmd_io_raw(ns->ctrlr, qpair, &cmd, buf, len, cb_fn, cb_arg);
@@ -1374,6 +1377,47 @@ rpc_list_all_qpair(struct spdk_jsonrpc_request *request,
   spdk_jsonrpc_end_result(request, w);
 }
 SPDK_RPC_REGISTER("list_all_qpair", rpc_list_all_qpair, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
+
+
+static void
+rpc_get_iostat(struct spdk_jsonrpc_request *request,
+               const struct spdk_json_val *params)
+{
+  struct spdk_json_write_ctx *w;
+  uint32_t iops = 0;
+  uint32_t bw = 0;
+  
+  w = spdk_jsonrpc_begin_result(request);
+  if (w == NULL)
+  {
+    return;
+  }
+
+  spdk_json_write_array_begin(w);
+
+  // calculate performance of all io qpairs of all devices
+  struct ctrlr_entry* e;
+  STAILQ_FOREACH(e, &g_controllers, next)
+  {
+    // io qpairs
+    struct spdk_nvme_qpair	*q;
+    TAILQ_FOREACH(q, &e->ctrlr->active_io_qpairs, tailq)
+    {
+      iops += q->pynvme_io_in_second;
+      bw += q->pynvme_lba_in_second;
+      q->pynvme_io_in_second = 0;
+      q->pynvme_lba_in_second = 0;
+    }
+  }
+
+  // fill performance data
+  spdk_json_write_uint64(w, bw);
+  spdk_json_write_uint64(w, iops);
+
+  spdk_json_write_array_end(w);
+  spdk_jsonrpc_end_result(request, w);
+}
+SPDK_RPC_REGISTER("get_iostat", rpc_get_iostat, SPDK_RPC_STARTUP | SPDK_RPC_RUNTIME)
 
 
 static void
