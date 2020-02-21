@@ -33,7 +33,8 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
     buf = d.Buffer(256*512, "write", 100, 0xbeef) # upto 128K
     batch = 0
     counter = 0
-    
+
+    nvme0n1.format(512)
     with zipfile.ZipFile("scripts/stress/MasterTrace_128GB-SSD.zip") as z:
         for s in z.open("Client_128_GB_Master_Trace.txt"):
             l = str(s)[7:-5]
@@ -53,6 +54,7 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
                         n = min(nlba, 256)
                         nvme0n1.write(q, buf, slba, n)
                         counter += 1
+                        slba += n
                         nlba -= n
                 elif op == 's':
                     # trims

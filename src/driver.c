@@ -1016,9 +1016,13 @@ int ns_cmd_read_write(int is_read,
 
   //validate data buffer
   assert(buf != NULL);
-  assert(len >= lba_count*lba_size);
   assert((io_flags&0xffff) == 0);
+  // buffer is large enough to hold data  
+  assert(len >= lba_count*lba_size);
 
+  // correct the buffer size
+  len = MIN(len, lba_count*lba_size);
+  
   //setup cmd structure
   memset(&cmd, 0, sizeof(struct spdk_nvme_cmd));
   cmd.opc = is_read ? 2 : 1;
