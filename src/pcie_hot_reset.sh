@@ -43,3 +43,5 @@ sleep 0.5
 # echo "Rescanning bus..."
 
 echo 1 > "/sys/bus/pci/devices/$port/rescan"
+echo 1 > "/sys/bus/pci/devices/$port/dev_rescan"
+
