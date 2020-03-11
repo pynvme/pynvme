@@ -372,6 +372,10 @@ cdef class Subsystem(object):
             sec (int): the seconds between power off and power on
         """
 
+        if not b'deep' in subprocess.check_output(["sudo", "cat", "/sys/power/mem_sleep"]):
+            logging.warning("S3 is not supported on this platform")
+            return
+        
         # use S3/suspend to power off nvme device, and use rtc to power on again
         self._nvme._driver_cleanup()
         logging.info("power off nvme device for %d seconds" % sec)
@@ -1731,8 +1735,8 @@ cdef class Namespace(object):
         assert buf is not None, "no buffer allocated"
 
         self.send_io_raw(qpair, buf, 5, self._nsid,
-                         lba, lba>>32,
-                         (lba_count-1)+(io_flags<<16),
+                         lba&0xffffffff, lba>>32,
+                         (lba_count-1)|(io_flags<<16),
                          0, 0, 0,
                          cmd_cb, <void*>cb)
         return qpair
@@ -1775,7 +1779,7 @@ cdef class Namespace(object):
         self._ns = d.nvme_get_ns(self._nvme._ctrlr, self._nsid)
         d.ns_crc32_clear(self._ns, lba, lba_count, False, True)
         self.send_io_raw(qpair, None, 4, self._nsid,
-                         lba, lba>>32,
+                         lba&0xffffffff, lba>>32,
                          lba_count-1,
                          0, 0, 0,
                          cmd_cb, <void*>cb)
@@ -1801,8 +1805,8 @@ cdef class Namespace(object):
         self._ns = d.nvme_get_ns(self._nvme._ctrlr, self._nsid)
         d.ns_crc32_clear(self._ns, lba, lba_count, False, False)
         self.send_io_raw(qpair, None, 8, self._nsid,
-                         lba, lba>>32,
-                         (lba_count-1)+(io_flags<<16),
+                         lba&0xffffffff, lba>>32,
+                         (lba_count-1)|(io_flags<<16),
                          0, 0, 0,
                          cmd_cb, <void*>cb)
         return qpair
@@ -1819,7 +1823,7 @@ cdef class Namespace(object):
         self._ns = d.nvme_get_ns(self._nvme._ctrlr, self._nsid)
         ret = d.ns_cmd_read_write(is_read, self._ns, qpair._qpair,
                                   buf.ptr, buf.size,
-                                  lba, lba_count, io_flags,
+                                  lba, lba_count, io_flags<<16,
                                   cb_func, cb_arg)
         assert ret == 0, "error in submitting read write commands: 0x%x" % ret
         return ret
