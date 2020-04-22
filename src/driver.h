@@ -90,8 +90,8 @@ typedef struct ioworker_cmdlog
 typedef struct ioworker_args
 {
   unsigned long lba_start;
-  unsigned short lba_size_max;
-  unsigned short lba_align_max;
+  unsigned int lba_size_max;
+  unsigned int lba_align_max;
   unsigned int lba_size_ratio_sum;
   unsigned int* lba_size_list;
   unsigned int lba_size_list_len;
@@ -109,7 +109,7 @@ typedef struct ioworker_args
   unsigned int pvalue;
   unsigned int ptype;
   unsigned int* io_counter_per_second;
-  unsigned int* io_counter_per_latency;
+  unsigned long* io_counter_per_latency;
   unsigned int* distribution;
   ioworker_cmdlog* cmdlog_list;
   unsigned int cmdlog_list_len;
@@ -147,6 +147,8 @@ extern int pcie_cfg_write8(struct spdk_pci_device* pci,
 
 extern ctrlr* nvme_init(char * traddr, unsigned int port);
 extern int nvme_fini(struct spdk_nvme_ctrlr* c);
+extern void nvme_bar_recover(struct spdk_nvme_ctrlr* ctrlr);
+extern void nvme_bar_remap(struct spdk_nvme_ctrlr* ctrlr);
 extern int nvme_set_reg32(struct spdk_nvme_ctrlr* ctrlr,
                           unsigned int offset,
                           unsigned int value);
@@ -165,9 +167,8 @@ extern void nvme_deallocate_ranges(namespace* ns,
                                    void* buf, unsigned int count);
 extern void nvme_cmd_cb_print_cpl(void* qpair, const struct spdk_nvme_cpl* cpl);
 
-
 typedef void (*cmd_cb_func)(void* cb_arg,
-                                 const struct spdk_nvme_cpl* cpl);
+                            const struct spdk_nvme_cpl* cpl);
 extern int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
                              struct spdk_nvme_qpair *qpair,
                              unsigned int cdw0,
@@ -216,10 +217,6 @@ extern int ns_cmd_read_write(int is_read,
 extern uint32_t ns_get_sector_size(namespace* ns);
 extern uint64_t ns_get_num_sectors(namespace* ns);
 extern int ns_fini(namespace* ns);
-
-extern void ns_crc32_clear(namespace* ns,
-                           uint64_t lba, uint64_t lba_count,
-                           int sanitize, int uncorr);
 
 extern char* log_buf_dump(const char* header, const void* buf, size_t len);
 extern void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count);

@@ -8,6 +8,23 @@ import logging
 TEST_LOOPS = 3  # 3000
 
 
+def test_ioworker_longtime(nvme0n1, qcount=1):
+    l = []
+    io_total = 0
+    for i in range(qcount):
+        a = nvme0n1.ioworker(io_size=8, lba_align=8,
+                             region_start=0, region_end=256*1024*8, # 1GB space
+                             lba_random=False, qdepth=16,
+                             read_percentage=100, time=50*3600).start()
+        l.append(a)
+
+    for a in l:
+        r = a.close()
+        io_total += (r.io_count_read+r.io_count_nonread)
+
+    logging.info("Q %d IOPS: %.3fK" % (qcount, io_total/50000/3600))
+
+    
 def test_write_and_read_to_eol(nvme0, subsystem, nvme0n1: d.Namespace, verify):
     assert verify
     

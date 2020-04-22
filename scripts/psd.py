@@ -41,20 +41,7 @@ from nvme import *
 
 
 class PRP(Buffer):
-    _offset = 0
-
-    @property
-    def offset(self):
-        return self._offset
-
-    @offset.setter
-    def offset(self, offset):
-        """set the offset of the PRP in bytes"""
-        self._offset = offset
-
-    @property
-    def phys_addr(self):
-        return super(PRP, self).phys_addr + self._offset
+    pass
 
     
 class PRPList(PRP):
@@ -234,7 +221,7 @@ class IOSQ(object):
 
         def create_io_sq_cpl(cdw0, status1):
             if status1>>1:
-                logging.info("create io sq fail: %d" % qid)
+                logging.debug("create io sq fail: %d" % qid)
             else:
                 self.id = qid
                 self.queue = prp1
@@ -321,7 +308,7 @@ class IOCQ(object):
         
         def create_io_cq_cpl(cdw0, status1):
             if status1>>1:
-                logging.info("create io cq fail: %d" % qid)
+                logging.debug("create io cq fail: %d" % qid)
             else:
                 self.id = qid
                 self.queue = prp1
@@ -429,7 +416,7 @@ def test_create_delete_iocq_non_contig(nvme0):
     prp_list = PRPList()
     prp_list[0] = PRP()
     prp_list[1] = PRP()
-    
+
     cq = IOCQ(nvme0, 4, 5, prp_list, pc=False)
     cq.delete()
     

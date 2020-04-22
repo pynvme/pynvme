@@ -499,41 +499,51 @@ static int suite_ioworker_distribution_init(void)
 
 
 // test cases
-static void test_timeradd_second_add_0(void)
+static void test_timeradd_usecond_add_0(void)
 {
   struct timeval now = {10, 100};
   struct timeval due = {0, 0};
   
-  timeradd_second(&now, 0, &due);
+  timeradd_usecond(&now, 0, &due);
   
   CU_ASSERT_EQUAL(due.tv_sec, 10);
   CU_ASSERT_EQUAL(due.tv_usec, 100);
 }
 
-static void test_timeradd_second_add_1(void)
+static void test_timeradd_usecond_add_1(void)
 {
   struct timeval now = {10, 10};
   struct timeval due = {0, 0};
   
-  timeradd_second(&now, 1, &due);
+  timeradd_usecond(&now, 1, &due);
   
-  CU_ASSERT_EQUAL(due.tv_sec, 11);
-  CU_ASSERT_EQUAL(due.tv_usec, 10);
+  CU_ASSERT_EQUAL(due.tv_sec, 10);
+  CU_ASSERT_EQUAL(due.tv_usec, 11);
 }
 
-static void test_timeradd_second_add_10(void)
+static void test_timeradd_usecond_add_100(void)
 {
   struct timeval now = {10, 1000*1000ULL};
   struct timeval due = {0, 0};
   
-  timeradd_second(&now, 100, &due);
+  timeradd_usecond(&now, 100, &due);
   
-  CU_ASSERT_EQUAL(due.tv_sec, 111);
-  CU_ASSERT_EQUAL(due.tv_usec, 0);
+  CU_ASSERT_EQUAL(due.tv_sec, 11);
+  CU_ASSERT_EQUAL(due.tv_usec, 100);
 }
 
+static void test_timeradd_usecond_add_10000000(void)
+{
+  struct timeval now = {10, 1ULL};
+  struct timeval due = {0, 0};
+  
+  timeradd_usecond(&now, 10000000, &due);
+  
+  CU_ASSERT_EQUAL(due.tv_sec, 20);
+  CU_ASSERT_EQUAL(due.tv_usec, 1);
+}
 
-static int suite_timeradd_second()
+static int suite_timeradd_usecond()
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
 	if (s == NULL) {
@@ -541,9 +551,10 @@ static int suite_timeradd_second()
 		return CU_get_error();
 	}
 
-  CU_ADD_TEST(s, test_timeradd_second_add_0);
-  CU_ADD_TEST(s, test_timeradd_second_add_1);
-  CU_ADD_TEST(s, test_timeradd_second_add_10);
+  CU_ADD_TEST(s, test_timeradd_usecond_add_0);
+  CU_ADD_TEST(s, test_timeradd_usecond_add_1);
+  CU_ADD_TEST(s, test_timeradd_usecond_add_100);
+  CU_ADD_TEST(s, test_timeradd_usecond_add_10000000);
   
 	return 0;
 }
@@ -1161,7 +1172,7 @@ int main()
 		return CU_get_error();
 	}
 
-  suite_timeradd_second();
+  suite_timeradd_usecond();
   suite_ioworker_distribution_init();
   suite_ioworker_send_one_is_finish();
   suite_ioworker_get_duration();

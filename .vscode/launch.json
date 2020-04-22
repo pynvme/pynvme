@@ -5,10 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "debug pynvme script",
+            "name": "pytest case",
             "type": "python",
             "request": "test",
             "console": "integratedTerminal", 
+            "sudo": true
+        },
+        {
+            "name": "python file",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
             "sudo": true
         }
     ]

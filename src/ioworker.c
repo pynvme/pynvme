@@ -77,7 +77,6 @@ static void ioworker_distribution_init(struct spdk_nvme_ns* ns,
     // fill lookup table
     for (uint32_t j=0; j<distribution[i]; j++)
     {
-      //printf("%d: [%lu - %lu]\n", lookup_index, section_start, section_end);
       SPDK_DEBUGLOG(SPDK_LOG_NVME, "%d: [%lu - %lu]\n", lookup_index, section_start, section_end);
       ctx->dl_table[lookup_index].lba_start = section_start;
       ctx->dl_table[lookup_index].lba_end = section_end;
@@ -89,14 +88,15 @@ static void ioworker_distribution_init(struct spdk_nvme_ns* ns,
   assert(lookup_index == 10000);
 }
 
-static inline void timeradd_second(struct timeval* now,
-                                   unsigned int seconds,
-                                   struct timeval* due)
+
+static inline void timeradd_usecond(struct timeval* now,
+                                    unsigned int useconds,
+                                    struct timeval* due)
 {
   struct timeval duration;
 
-  duration.tv_sec = seconds;
-  duration.tv_usec = 0;
+  duration.tv_sec = useconds/1000000;
+  duration.tv_usec = useconds%1000000;
   timeradd(now, &duration, due);
 }
 
@@ -174,7 +174,7 @@ static inline void ioworker_update_io_count_per_second(
   uint64_t current_io_count = rets->io_count_read + rets->io_count_write;
 
   // update to next second
-  timeradd_second(&gctx->time_next_sec, 1, &gctx->time_next_sec);
+  timeradd_usecond(&gctx->time_next_sec, 1000000, &gctx->time_next_sec);
   args->io_counter_per_second[gctx->last_sec ++] = current_io_count - gctx->io_count_till_last_sec;
   gctx->io_count_till_last_sec = current_io_count;
 }
@@ -314,12 +314,12 @@ static inline uint64_t ioworker_send_one_lba_random(struct ioworker_args* args,
 }
 
 
-static inline uint16_t ioworker_send_one_size(struct ioworker_args* args,
+static inline uint32_t ioworker_send_one_size(struct ioworker_args* args,
                                               struct ioworker_global_ctx* gctx,
                                               uint16_t* lba_align)
 {
   uint32_t si = gctx->sl_table[random()%args->lba_size_ratio_sum];
-  uint16_t ret = args->lba_size_list[si];
+  uint32_t ret = args->lba_size_list[si];
 
   *lba_align = args->lba_size_list_align[si];
   return ret;
@@ -368,7 +368,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   uint16_t lba_align;
   struct ioworker_args* args = gctx->args;
   bool is_read = ioworker_send_one_is_read(args->read_percentage);
-  uint16_t lba_count = ioworker_send_one_size(args, gctx, &lba_align);
+  uint32_t lba_count = ioworker_send_one_size(args, gctx, &lba_align);
   uint64_t lba_starting = ioworker_send_one_lba(args, gctx, lba_align, lba_count);
   uint32_t sector_size = spdk_nvme_ns_get_sector_size(ns);
 
@@ -411,9 +411,10 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   int ret = 0;
   uint64_t nsze = spdk_nvme_ns_get_num_sectors(ns);
   uint32_t sector_size = spdk_nvme_ns_get_sector_size(ns);
-  struct timeval test_start;
-  struct ioworker_global_ctx gctx;
+  uint32_t max_xfer_size = spdk_nvme_ns_get_max_io_xfer_size(ns);
   struct ioworker_io_ctx* io_ctx = malloc(sizeof(struct ioworker_io_ctx)*args->qdepth);
+  struct ioworker_global_ctx gctx;
+  struct timeval test_start;
 
   assert(ns != NULL);
   assert(qpair != NULL);
@@ -453,10 +454,9 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   assert(args->cmdlog_list_len < 1024*1024);
 
   // check io size
-  if (args->lba_size_max*sector_size > ns->ctrlr->max_xfer_size)
+  if (args->lba_size_max*sector_size > max_xfer_size)
   {
-    SPDK_WARNLOG("IO size is larger than max xfer size, %d\n",
-                ns->ctrlr->max_xfer_size);
+    SPDK_WARNLOG("IO size is larger than max xfer size, %d\n", max_xfer_size);
     rets->error = 0x0002;  // Invalid Field in Command
     free(io_ctx);
     return -2;
@@ -506,11 +506,11 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   gctx.rets = rets;
   gctx.current_cmdlog_index = 0;
   timeval_gettimeofday(&test_start);
-  timeradd_second(&test_start, args->seconds, &gctx.due_time);
+  timeradd_usecond(&test_start, 1000000*args->seconds, &gctx.due_time);
   gctx.io_delay_time.tv_sec = 0;
   gctx.io_delay_time.tv_usec = args->iops ? US_PER_S/args->iops : 0;
-  timeradd(&test_start, &gctx.io_delay_time, &gctx.io_due_time);
-  timeradd_second(&test_start, 1, &gctx.time_next_sec);
+  gctx.io_due_time = test_start;
+  timeradd_usecond(&test_start, 1000000, &gctx.time_next_sec);
   gctx.io_count_till_last_sec = 0;
   gctx.last_sec = 0;
 
@@ -533,8 +533,18 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
                                      NULL, args->ptype, args->pvalue);
     io_ctx[i].gctx = &gctx;
 
-    // set time to send it right now
-    timeval_gettimeofday(&io_ctx[i].time_sent);
+    if (gctx.io_delay_time.tv_usec != 0)
+    {
+      // control IOPS
+      timeradd(&gctx.io_due_time, &gctx.io_delay_time, &gctx.io_due_time);
+      io_ctx[i].time_sent = gctx.io_due_time;
+    }
+    else
+    {
+      // free run
+      timeval_gettimeofday(&io_ctx[i].time_sent);
+    }
+
     STAILQ_INSERT_TAIL(&gctx.pending_io_list, &io_ctx[i], next);
     gctx.io_count_sent ++;
   }
@@ -555,11 +565,10 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 
     // check time and send all pending io
     timeval_gettimeofday(&now);
-    while (head_io && timercmp(&now, &head_io->time_sent, >))
+    if (head_io && timercmp(&now, &head_io->time_sent, >))
     {
       ioworker_send_one(ns, qpair, head_io, &gctx);
       STAILQ_REMOVE_HEAD(&gctx.pending_io_list, next);
-      head_io = STAILQ_FIRST(&gctx.pending_io_list);
     }
 
     //exceed 30 seconds more than the expected test time, abort ioworker
@@ -590,12 +599,15 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 
   // final duration
   assert(now.tv_sec != 0);
-  rets->mseconds = ioworker_get_duration(&test_start, &now);
+  rets->mseconds = ioworker_get_duration(&test_start, &now)+1;
 
   //release io ctx
   for (unsigned int i=0; i<args->qdepth; i++)
   {
-    buffer_fini(io_ctx[i].data_buf);
+    if (io_ctx[i].data_buf)
+    {
+      buffer_fini(io_ctx[i].data_buf);
+    }
   }
 
   // handle cmdlog_list

@@ -53,7 +53,7 @@ def pytest_addoption(parser):
 def pciaddr(request):
     ret = request.config.getoption("--pciaddr")
     logging.info("running tests on DUT %s" % ret)
-    return ret
+    return ret.encode('utf-8')
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -72,7 +72,7 @@ def script(request):
 
 @pytest.fixture(scope="session")
 def nvme0(pciaddr):
-    ret = d.Controller(pciaddr.encode('utf-8'))
+    ret = d.Controller(pciaddr)
     yield ret
     del ret
 

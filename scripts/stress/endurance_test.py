@@ -34,7 +34,10 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
     batch = 0
     counter = 0
 
+    nvme0.timeout=1000000
     nvme0n1.format(512)
+    nvme0.timeout=10000
+    
     with zipfile.ZipFile("scripts/stress/MasterTrace_128GB-SSD.zip") as z:
         for s in z.open("Client_128_GB_Master_Trace.txt"):
             l = str(s)[7:-5]

@@ -46,7 +46,12 @@ def do_fill_drive(rand, nvme0n1):
 
 
 def test_create_report_file(nvme0, nvme0n1, pcie):
+    orig_timeout = nvme0.timeout
+    nvme0.timeout = 100000
+    
     nvme0n1.format(512)  # 512 sector size
+    
+    nvme0.timeout = orig_timeout
 
     import libpci
     vid = pcie.register(0, 2)
@@ -98,7 +103,7 @@ def test_fill_drive_first_pass(nvme0n1):
             f.write('0\n')
     
 # random
-def test_fill_drive_randome(nvme0n1, nvme0):
+def test_fill_drive_random(nvme0n1, nvme0):
     io_per_sec = do_fill_drive(rand, nvme0n1)
     io_per_sec = io_per_sec[:600]
     with open("report.csv", "a") as f:

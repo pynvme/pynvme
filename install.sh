@@ -50,7 +50,10 @@ sudo ./spdk/scripts/pkgdep.sh
 sudo python3 -m pip install -r requirements.txt
 
 # checkout pynvme code in SPDK
-cd spdk; git checkout pynvme_1.8; ./configure --without-isal; cd ..
+cd spdk; git checkout pynvme_1.8
+cd dpdk; git checkout pynvme_1.8
+cd ..; ./configure --without-isal
+cd ..
 
 # compile
 make spdk                                    # compile SPDK

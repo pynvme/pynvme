@@ -48,10 +48,11 @@ all: clean
 
 clean:
 	cd src; make clean
-	@sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* scripts/__pycache__ a.out nvme.so nvme.*.so dist pynvme.egg-info build
+	- sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* a.out nvme.so nvme.*.so dist pynvme.egg-info build
+	- sudo sh -c 'find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf'
 
 spdk:
-	cd spdk; make clean; ./configure --enable-debug --enable-log-bt --enable-werror --disable-tests --without-ocf --without-vhost --without-virtio --without-pmdk --without-vpp --without-rbd --without-isal; make; cd ..
+	cd spdk; make clean; ./configure --enable-debug --enable-log-bt --enable-werror --disable-tests --without-ocf --without-vhost --without-virtio --without-pmdk --without-vpp --without-rbd --without-isal; make -j8; cd ..
 
 doc:
 	pydocmd simple nvme++ > api.md
@@ -65,10 +66,11 @@ reset:
 	sudo rm -rf /run/dpdk
 	sudo ./spdk/scripts/setup.sh cleanup
 	sudo ./spdk/scripts/setup.sh reset
-	-sudo rm -f /var/tmp/spdk.sock*
-	-sudo rm -f /var/tmp/pynvme.sock*
-	-sudo rm -rf .pytest_cache
-	-sudo fuser -k 4420/tcp
+	- sudo rm -f /var/tmp/spdk.sock*
+	- sudo rm -f /var/tmp/pynvme.sock*
+	- sudo rm -rf .pytest_cache
+	- sudo fuser -k 4420/tcp
+	- sudo sh -c 'find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf'
 
 info:
 	- sudo ./spdk/scripts/setup.sh status
@@ -87,10 +89,11 @@ info:
 	- git --no-pager log -1
 
 setup: reset
-	-xhost +local:		# enable GUI with root/sudo
-	-sudo chmod 777 /tmp
+	- xhost +local:		# enable GUI with root/sudo
+	- sudo chmod 777 /tmp
+	- sudo sh -c 'find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf'
 	sed -i 's/XXXX:BB:DD.F/${pciaddr}/g' .vscode/settings.json
-	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh  	# use UIO only
+	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh  	# UIO is recommended
 
 tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=ioat --exclude=snippets --exclude=env --exclude=doc
@@ -99,7 +102,7 @@ pytest: info
 	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -x -v -r Efsx
 
 test:
-	-rm test.log
+	- rm test.log
 	make pytest 2>test.log | tee -a test.log
 
 

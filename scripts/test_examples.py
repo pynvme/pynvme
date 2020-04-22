@@ -1,8 +1,9 @@
-import pytest
-import nvme as d
-
 import time
+import pytest
 import logging
+
+import nvme as d
+import PySimpleGUI as sg
 
 
 # intuitive, spec, qpair, vscode, debug, cmdlog, assert
@@ -33,32 +34,36 @@ def test_registers_and_identify_data(pcie, nvme0, nvme0n1):
     logging.info("namespace size: %d" % nvme0n1.id_data(7, 0))
 
 
-# Controller, sanitize, default parameters, getlogpage, AER notification
-def test_sanitize(nvme0: d.Controller, nvme0n1, buf):
+# Controller, sanitize, default parameters, getlogpage
+def test_sanitize(nvme0: d.Controller, buf):
     if nvme0.id_data(331, 328) == 0:
         pytest.skip("sanitize operation is not supported")
 
     logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
-    nvme0.sanitize().waitdone()  # sanitize command is completed
+    sg.OneLineProgressMeter('sanitize progress', 0, 100, 'progress', orientation='h')
+    nvme0n1 = d.Namespace(nvme0)
+    nvme0.sanitize().waitdone()  # sanitize clears namespace
 
     # check sanitize status in log page
     nvme0.getlogpage(0x81, buf, 20).waitdone()
     while buf.data(3, 2) & 0x7 != 1:  # sanitize operation is not completed
-        progress = buf.data(1, 0)*100//0xffff
-        #sg.OneLineProgressMeter('sanitize progress', progress, 100, 'progress', orientation='h')
-        logging.info("%d%%" % progress)
-        nvme0.getlogpage(0x81, buf, 20).waitdone()
         time.sleep(1)
+        nvme0.getlogpage(0x81, buf, 20).waitdone()
+        progress = buf.data(1, 0)*100//0xffff
+        sg.OneLineProgressMeter('sanitize progress', progress, 100, 'progress', orientation='h')
+        logging.info("%d%%" % progress)
 
 
 # simple ioworker, complicated io_size, python function call, CI
 def test_ioworker_simplified(nvme0, nvme0n1: d.Namespace):
+    nvme0n1.ioworker(time=1).start().close()
     nvme0n1.ioworker(io_size=[1, 2, 3, 7, 8, 16], time=1).start().close()
+    nvme0n1.ioworker(op_percentage={2:10, 1:20, 0:30, 9:40}, time=1).start().close()
     test_hello_world(nvme0, nvme0n1)
 
     
 # ioworker with admin commands, multiprocessing, log, cmdlog, pythonic
-def subprocess_trim(pciaddr, loops):
+def subprocess_trim(pciaddr, seconds):
     nvme0 = d.Controller(pciaddr)
     nvme0n1 = d.Namespace(nvme0)
     q = d.Qpair(nvme0, 8)
@@ -66,23 +71,25 @@ def subprocess_trim(pciaddr, loops):
     buf.set_dsm_range(0, 8, 8)
 
     # send trim commands
-    for i in range(loops):
+    start = time.time()
+    while time.time()-start < seconds:
         nvme0n1.dsm(q, buf, 1).waitdone()
     
 def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
+    test_seconds = 10
+    
     # start trim process
     import multiprocessing
     mp = multiprocessing.get_context("spawn")
     p = mp.Process(target = subprocess_trim,
-                     args = (nvme0.addr.encode('utf-8'),
-                             300000))
+                   args = (nvme0.addr.encode('utf-8'), test_seconds))
     p.start()
 
     # start read/write ioworker and admin commands
     smart_log = d.Buffer(512, "smart log")
     with nvme0n1.ioworker(io_size=8, lba_align=16,
                           lba_random=True, qdepth=16,
-                          read_percentage=67, iops=10000, time=10):
+                          read_percentage=67, iops=10000, time=test_seconds):
         for i in range(15):
             nvme0.getlogpage(0x02, smart_log, 512).waitdone()
             ktemp = smart_log.data(2, 1)

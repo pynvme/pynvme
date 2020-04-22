@@ -29,7 +29,7 @@ fi
  
 echo 1 > "/sys/bus/pci/devices/$dev/remove"
  
-echo "hot reset $dev from $port"
+##echo "hot reset $dev from $port"
  
 bc=$(setpci -s $port BRIDGE_CONTROL)
  
@@ -44,4 +44,4 @@ sleep 0.5
 
 echo 1 > "/sys/bus/pci/devices/$port/rescan"
 echo 1 > "/sys/bus/pci/devices/$port/dev_rescan"
-
+sleep 3

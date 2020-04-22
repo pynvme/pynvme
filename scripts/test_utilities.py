@@ -60,24 +60,6 @@ def test_read_lba_data(nvme0):
     nvme0n1.read(q, b, lba).waitdone()
     sg_show_hex_buffer(b)
 
-    
-def test_sanitize(nvme0, nvme0n1, buf):
-    if nvme0.id_data(331, 328) == 0:
-        warnings.warn("sanitize operation is not supported")
-        return
-
-    logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
-    nvme0.sanitize().waitdone()
-
-    # sanitize status log page
-    nvme0.getlogpage(0x81, buf, 20).waitdone()
-    while buf.data(3, 2) & 0x7 != 1:  # sanitize is not completed
-        progress = buf.data(1, 0)*100//0xffff
-        #sg.OneLineProgressMeter('sanitize progress', progress, 100, 'progress', orientation='h')
-        logging.info("%d%%" % progress)
-        nvme0.getlogpage(0x81, buf, 20).waitdone()
-        time.sleep(1)
-
         
 def test_get_dell_smart_attributes(nvme0):
     smart = d.Buffer()
@@ -139,13 +121,14 @@ def test_get_smart_health_information(nvme0):
     l.append('231:228|  %7d  | Total Time For Thermal Management Temperature 2' % smart.data(231, 228))
 
     layout = [[sg.Listbox(l, size=(70, 20))]]
-    sg.Window("Dell SMART Attributes",
+    sg.Window("SMART/Health Information",
               layout+[[sg.OK()]],
               font=('monospace', 16)).Read()
 
 
-def test_get_log_page(nvme0):
-    lid = int(sg.PopupGetText("Which Log ID to read?", "pynvme"))
+def test_get_log_page(nvme0, lid=None):
+    if lid == None:
+        lid = int(sg.PopupGetText("Which Log ID to read?", "pynvme"))
     lbuf = d.Buffer(512, "%s, Log ID: %d" % (nvme0.id_data(63, 24, str), lid))
     nvme0.getlogpage(lid, lbuf).waitdone()
     sg_show_hex_buffer(lbuf)

@@ -3,6 +3,7 @@ numpy==1.15.1
 scipy
 libpci
 cython
+psutil
 pyyaml
 pytest
 pytest-cov
@@ -11,6 +12,7 @@ pydoc-markdown
 PySimpleGUI
 py-cpuinfo
 openpyxl
-psutil
+pyserial==2.7
+quarchpy
 sphinx
 sphinx_rtd_theme

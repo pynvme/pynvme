@@ -49,8 +49,8 @@ cdef extern from "driver.h":
         unsigned int is_read;
     ctypedef struct ioworker_args:
         unsigned long lba_start
-        unsigned short lba_size_max
-        unsigned short lba_align_max
+        unsigned int lba_size_max
+        unsigned int lba_align_max
         unsigned int lba_size_ratio_sum
         unsigned int* lba_size_list
         unsigned int lba_size_list_len
@@ -68,7 +68,7 @@ cdef extern from "driver.h":
         unsigned int pvalue
         unsigned int ptype
         unsigned int* io_counter_per_second
-        unsigned int* io_counter_per_latency
+        unsigned long* io_counter_per_latency
         unsigned int* distribution
         ioworker_cmdlog* cmdlog_list
         unsigned int cmdlog_list_len
@@ -99,6 +99,9 @@ cdef extern from "driver.h":
 
     ctrlr * nvme_init(char * traddr, unsigned int port)
     int nvme_fini(ctrlr * c)
+    void nvme_bar_recover(ctrlr* c);
+    void nvme_bar_remap(ctrlr* c);
+    
     int nvme_set_reg32(ctrlr * c,
                        unsigned int offset,
                        unsigned int value)
@@ -165,7 +168,6 @@ cdef extern from "driver.h":
     unsigned int ns_get_sector_size(namespace * ns)
     unsigned long ns_get_num_sectors(namespace * ns)
     int ns_fini(namespace * ns)
-    void ns_crc32_clear(namespace * ns, unsigned long lba, unsigned long lba_count, bint sanitize, bint uncorr)
 
     int ioworker_entry(namespace* ns,
                        qpair* qpair,
