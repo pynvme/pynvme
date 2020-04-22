@@ -69,6 +69,12 @@ uint64_t driver_config_read(void)
   
 }
 
+uint32_t
+spdk_nvme_ns_get_max_io_xfer_size(struct spdk_nvme_ns *ns)
+{
+	return 1;
+}
+
 int
 spdk_nvme_qpair_process_completions(struct spdk_nvme_qpair *qpair, uint32_t max_completions)
 {
