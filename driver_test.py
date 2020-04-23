@@ -798,7 +798,7 @@ def test_firmware_commit(nvme0):
         nvme0.fw_commit(7, 2).waitdone()
 
 
-def test_sanitize_basic(nvme0, nvme0n1, verify, buf):
+def test_sanitize_basic(nvme0, nvme0n1, verify, buf, aer):
     # check if sanitize is supported
     nvme0.identify(buf).waitdone()
     if buf.data(331, 328) == 0:
@@ -822,10 +822,11 @@ def test_sanitize_basic(nvme0, nvme0n1, verify, buf):
     with pytest.warns(UserWarning, match="AER notification is triggered"):
         # sanitize status log page
         nvme0.getlogpage(0x81, buf, 20).waitdone()
-        while buf.data(3, 2) & 0x7 != 1:  # sanitize is not completed
-            logging.info("sanitize progress %d%%" % (buf.data(1, 0)*100//0xffff))
+        while buf.data(3, 2) & 0x7 != 1:  # sanitize operation is not completed
             time.sleep(1)
             nvme0.getlogpage(0x81, buf, 20).waitdone()
+            progress = buf.data(1, 0)*100//0xffff
+            logging.info("sanitize progress %d%%" % progress)
     
     logging.info("verify data after sanitize")
     q = d.Qpair(nvme0, 8)
