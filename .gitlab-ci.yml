@@ -32,7 +32,7 @@ stress_test:
     expire_in: 5 yrs
   script:
     - make test
-    - cat test.log | grep "352 passed" || exit -1
+    - cat test.log | grep "300 passed" || exit -1
 
 scripts_test:
   only:

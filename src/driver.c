@@ -37,10 +37,6 @@
 #include "../spdk/lib/nvme/nvme_internal.h"
 
 
-#define MAX_CMD_LOG_QPAIR_COUNT (32)
-#define MAX_CMD_LOG_QPAIR_COUNT_SHIFT (5)
-
-
 static uint64_t* g_driver_io_token_ptr = NULL;
 static uint64_t* g_driver_config_ptr = NULL;
 static bool g_driver_crc32_memory_enough = false;
@@ -550,7 +546,7 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   {
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "free overlapped cmdlog entry %p, cmd %s\n",
                   log_entry, cmd_name(req->cmd.opc, req->qpair->id==0?0:1));
-    free(log_entry);
+    spdk_dma_free(log_entry);
   }
 }
 
@@ -575,7 +571,7 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
     // this entry is overlapped before command complete
     // keep cmdlog_entry in request
     SPDK_DEBUGLOG(SPDK_LOG_NVME, "overlapped cmd in cmdlog: %p\n", log_entry);
-    log_entry->req->cmdlog_entry = malloc(sizeof(*log_entry));
+    log_entry->req->cmdlog_entry = spdk_dma_zmalloc(sizeof(*log_entry), 64, NULL);
     log_entry->overlap_allocated = true;
     memcpy(log_entry->req->cmdlog_entry, log_entry, sizeof(*log_entry));
   }

@@ -841,8 +841,7 @@ def test_sanitize_basic(nvme0, nvme0n1, verify, buf, aer):
                      read_percentage=100, time=10).start().close()
 
     
-@pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
-def test_dst_short(nvme0, nsid):
+def test_dst_short(nvme0, nsid=0):
     nvme0.dst(1, nsid).waitdone()
 
     # check dst log page till no dst in progress
@@ -2568,7 +2567,7 @@ def test_ioworker_address_region_4k(nvme0, nvme0n1, start, length):
 
 
 def test_ioworker_stress(nvme0n1):
-    for i in range(1000):
+    for i in range(10):
         logging.info(i)
         with nvme0n1.ioworker(io_size=8, lba_align=8,
                               lba_random=False, io_count=1,
@@ -2589,7 +2588,7 @@ def test_ioworker_stress_multiple_small_too_many(nvme0n1):
             r = a.close()
 
         
-@pytest.mark.parametrize("repeat", range(60))
+@pytest.mark.parametrize("repeat", range(10))
 def test_ioworker_stress_multiple_small(nvme0n1, repeat):
     l = []
     for i in range(16):
@@ -2609,7 +2608,7 @@ def test_ioworker_longtime(nvme0, nvme0n1, verify):
     for i in range(16):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
                              lba_random=True, qdepth=64,
-                             read_percentage=100, time=30*60).start()
+                             read_percentage=100, time=10*60).start()
         l.append(a)
 
     for a in l:
