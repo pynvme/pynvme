@@ -332,12 +332,6 @@ For most Client NVMe SSD, we only need to use the fixture `nvme0n1` to declare t
 
 As you see, we use API `Namespace.id_data()` to get a field of namespace identify data.
 
-Do not remember to close the namespace when it is not used, because it consumes a lot of memory space for CRC table. Scripts can close it explicitly instead of implicitly deletion in Python.
-
-.. code-block:: python
-
-   nvme0n1.close()
-
 
 IO Commands
 ^^^^^^^^^^^
