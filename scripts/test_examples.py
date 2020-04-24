@@ -58,7 +58,6 @@ def test_sanitize(nvme0: d.Controller, buf):
 def test_ioworker_simplified(nvme0, nvme0n1: d.Namespace):
     nvme0n1.ioworker(time=1).start().close()
     nvme0n1.ioworker(io_size=[1, 2, 3, 7, 8, 16], time=1).start().close()
-    nvme0n1.ioworker(op_percentage={2:10, 1:20, 0:30, 9:40}, time=1).start().close()
     test_hello_world(nvme0, nvme0n1)
 
     
