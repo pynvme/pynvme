@@ -340,15 +340,7 @@ cdef class Subsystem(object):
 
     def _quarch_init(self):
         import quarchpy as q
-        pwr = q.quarchDevice("SERIAL:/dev/ttyUSB0")
-        if not pwr:
-            id = "usb::QTL1847-01-028"
-            if q.isQisRunning() == False:
-                q.startLocalQis()
-            pm = q.quarchDevice(id, ConType="PY")
-            pwr = q.quarchPPM(pm)
-
-        return pwr
+        return q.quarchDevice("SERIAL:/dev/ttyUSB0")
 
     def poweron(self):
         logging.info("power on")
@@ -367,6 +359,8 @@ cdef class Subsystem(object):
         subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
         subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
         subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
+        # reset the controller
+        self._nvme.reset()
 
     def poweroff(self):
         logging.info("power off")
