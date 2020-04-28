@@ -18,7 +18,7 @@ def test_quarch_dirty_power_cycle(nvme0, nvme0n1, subsystem, buf, verify, repeat
                           qdepth=1024, time=30,
                           output_cmdlog_list=cmdlog_list):
         # sudden power loss before the ioworker end
-        time.sleep(5)
+        time.sleep(10)
         subsystem.poweroff()
 
     # power on
