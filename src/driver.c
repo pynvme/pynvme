@@ -1225,6 +1225,7 @@ char* log_buf_dump(const char* header, const void* buf, size_t len)
   }
 
   fclose(fd);
+  dump_buf[size] = '\0';
   return dump_buf;
 }
 
