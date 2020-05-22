@@ -86,16 +86,17 @@ def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
 
     # start read/write ioworker and admin commands
     smart_log = d.Buffer(512, "smart log")
-    with nvme0n1.ioworker(io_size=8, lba_align=16,
-                          lba_random=True, qdepth=16,
-                          read_percentage=67, iops=10000, time=test_seconds):
+    with nvme0n1.ioworker(io_size=256,
+                          lba_random=False, 
+                          read_percentage=0, 
+                          time=test_seconds):
         for i in range(15):
+            time.sleep(1)
             nvme0.getlogpage(0x02, smart_log, 512).waitdone()
             ktemp = smart_log.data(2, 1)
             
             from pytemperature import k2c
             logging.info("temperature: %0.2f degreeC" % k2c(ktemp))
-            time.sleep(1)
 
     # wait trim process complete
     p.join()
