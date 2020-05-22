@@ -635,7 +635,7 @@ cdef class Controller(object):
     cdef Buffer hmb_buf
     cdef unsigned int _timeout
 
-    def __cinit__(self, addr):
+    def __cinit__(self, addr, padding=False):
         strncpy(self._bdf, addr, strlen(addr)+1)
         self._timeout = _cTIMEOUT*1000
         self._create()

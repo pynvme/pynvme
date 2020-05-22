@@ -63,7 +63,7 @@ def test_ioworker_simplified(nvme0, nvme0n1: d.Namespace):
     
 # ioworker with admin commands, multiprocessing, log, cmdlog, pythonic
 def subprocess_trim(pciaddr, seconds):
-    nvme0 = d.Controller(pciaddr)
+    nvme0 = d.Controller(pciaddr, True)
     nvme0n1 = d.Namespace(nvme0)
     q = d.Qpair(nvme0, 8)
     buf = d.Buffer(4096)
