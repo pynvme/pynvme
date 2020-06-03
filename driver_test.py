@@ -385,7 +385,7 @@ def test_ioworker_power_cycle_async_cmdlog(nvme0, nvme0n1, subsystem):
         nvme0.reset()
 
     logging.info(cmdlog_list)
-    assert cmdlog_list[10][0] > 90
+    assert cmdlog_list[10][0] == 64
     assert cmdlog_list[10][0] < 110
     assert cmdlog_list[10][2] == 2
     assert cmdlog_list[10][0] == cmdlog_list[9][0]+8
