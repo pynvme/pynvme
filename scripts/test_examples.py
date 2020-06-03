@@ -172,6 +172,11 @@ def test_power_and_reset(pcie, nvme0, subsystem):
     nvme0.reset()              # controller reset: CC.EN
     nvme0.getfeatures(7).waitdone()
 
+    subsystem.poweroff()
+    subsystem.poweron()
+    nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
+
 
 # test parameters, leverage innovations in python community
 @pytest.mark.parametrize("io_count", [1, 9])

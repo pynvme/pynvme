@@ -1940,7 +1940,7 @@ cdef class Namespace(object):
         assert region_start < region_end, "region end is not included"
         assert time <= 1000*3600ULL, "worker needs a rest :)"
         assert read_percentage <= 100, "read percentage is less than 100"
-        assert iops==0 or iops > qdepth, "iops must be larger than qdepth"
+        assert iops==0 or iops >= qdepth, "iops must be larger than qdepth"
 
         if op_percentage is None:
             op_percentage = {2: read_percentage, 1: 100-read_percentage}
