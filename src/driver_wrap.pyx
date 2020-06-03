@@ -379,6 +379,12 @@ cdef class Subsystem(object):
         self._poweroff = poweroff_cb
 
     def poweron(self):
+        """power on the device by the poweron function provided in Subsystem initialization
+
+        Notice
+            call Controller.reset() to re-initialize controller after this power on
+        """
+
         if not self._poweron:
             return
 
@@ -411,6 +417,9 @@ cdef class Subsystem(object):
         logging.info("reset controller to use it after power on")
 
     def poweroff(self):
+        """power off the device by the poweroff function provided in Subsystem initialization
+        """
+
         if not self._poweroff:
             logging.warning("no user poweroff callback defined, to use S3/RTC")
             self.power_cycle(15)
@@ -443,6 +452,9 @@ cdef class Subsystem(object):
 
     def power_cycle(self, sec=10):
         """power off and on in seconds
+
+        Notice
+            call Controller.reset() to re-initialize controller after this power cycle
 
         # Parameters
             sec (int): the seconds between power off and power on
@@ -493,7 +505,11 @@ cdef class Subsystem(object):
         logging.debug("shutdown completed")
 
     def reset(self):  # subsystem
-        """reset the nvme subsystem through register nssr.nssrc"""
+        """reset the nvme subsystem through register nssr.nssrc
+
+        Notice
+            call Controller.reset() to re-initialize controller after this reset
+        """
 
         if 0 == self._nvme.cap & (1ULL<<36):
             logging.warning("the controller does not supprt NSSR")
@@ -659,7 +675,11 @@ cdef class Pcie(object):
         logging.info("cannot find the capability %d" % cap_id)
 
     def reset(self):  # pcie
-        """reset this pcie device"""
+        """reset this pcie device with hot reset
+
+        Notice
+            call Controller.reset() to re-initialize controller after this reset
+        """
 
         vdid = '%04x %04x' % (self.register(0, 2), self.register(2, 2))
         nvme = 'nvme'
