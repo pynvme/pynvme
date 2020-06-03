@@ -6,6 +6,8 @@ import nvme as d
 
 def test_ioworker_jedec_enterprise_workload(nvme0n1):
     distribution = [1000]*5 + [200]*15 + [25]*80
+
+    # for 512B LBA
     iosz_distribution = {1: 4,
                          2: 1,
                          3: 1,
@@ -19,6 +21,14 @@ def test_ioworker_jedec_enterprise_workload(nvme0n1):
                          64: 3,
                          128: 3}
 
+    # for 4K LBA
+    iosz_distribution_4k = {8: 77,
+                            16: 10,
+                            32: 7,
+                            64: 3,
+                            128: 3}
+
+    # choose the corrent distribution against LBA format
     nvme0n1.ioworker(io_size=iosz_distribution,
                      lba_random=True,
                      qdepth=128,

@@ -35,13 +35,17 @@
 // used for callback
 struct ioworker_io_ctx {
   void* data_buf;
-  bool is_read;
+  void* write_buf;
+  uint8_t opcode;
+  uint32_t op_index;
   struct timeval time_sent;
   struct ioworker_global_ctx* gctx;
   struct ioworker_cmdlog cmd;
-  
+
+  uint32_t io_sequence_index;
+
   // next pending io
-	STAILQ_ENTRY(ioworker_io_ctx) next;
+  STAILQ_ENTRY(ioworker_io_ctx) next;
 };
 
 struct ioworker_distribution_lookup {
@@ -62,9 +66,16 @@ struct ioworker_global_ctx {
   uint64_t sequential_lba;
   uint64_t io_count_sent;
   uint64_t io_count_cplt;
+  uint64_t total_latency_us;
   uint32_t last_sec;
   uint32_t current_cmdlog_index;
   bool flag_finish;
+
+  // replay io sequence
+  ioworker_ioseq* io_sequence;
+  uint32_t io_sequence_count;
+  uint32_t io_sequence_index;
+  struct timeval io_sequence_start;
 
   // distribution loopup table
   bool distribution;
@@ -73,7 +84,8 @@ struct ioworker_global_ctx {
   // io_size lookup table
   uint32_t sl_table[10000];
 
-  // pending io list
-	STAILQ_HEAD(, ioworker_io_ctx)	pending_io_list;
-};
+  uint8_t op_table[100];
 
+  // pending io list
+  STAILQ_HEAD(, ioworker_io_ctx)  pending_io_list;
+};

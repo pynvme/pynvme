@@ -22,7 +22,7 @@ def do_ioworker(rand, read, ns):
                     lba_random=rand, qdepth=512,
                     read_percentage=rp, time=seconds).start().close()
 
-    io_total = r.io_count_read+r.io_count_write
+    io_total = r.io_count_read+r.io_count_nonread
     iops = io_total//seconds
 
     return iops if rand else iops*io_size*512  # return Bps for seq IO

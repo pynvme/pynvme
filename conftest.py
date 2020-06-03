@@ -34,7 +34,6 @@
 
 
 import time
-import yaml
 import pytest
 import random
 import logging
@@ -51,9 +50,7 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="session")
 def pciaddr(request):
-    ret = request.config.getoption("--pciaddr")
-    logging.info("running tests on DUT %s" % ret)
-    return ret.encode('utf-8')
+    return request.config.getoption("--pciaddr")
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -70,58 +67,52 @@ def script(request):
     logging.info("test duration: %.3f sec" % (time.time()-start_time))
 
 
-@pytest.fixture(scope="session")
-def nvme0(pciaddr):
-    ret = d.Controller(pciaddr)
+@pytest.fixture(scope="function")
+def nvme0(pcie):
+    ret = d.Controller(pcie)
     yield ret
     del ret
 
 
-@pytest.fixture(scope="session")
-def subsystem(nvme0):
+@pytest.fixture(scope="function")
+def subsystem(nvme0, nvme0n1):
     ret = d.Subsystem(nvme0)
     yield ret
     del ret
 
 
-@pytest.fixture(scope="session")
-def pcie(nvme0):
-    ret = d.Pcie(nvme0)
+@pytest.fixture(scope="function")
+def pcie(pciaddr):
+    ret = d.Pcie(pciaddr)
     yield ret
     del ret
 
 
 @pytest.fixture(scope="function")
 def nvme0n1(nvme0):
-    ret = d.Namespace(nvme0, 1)
+    ret = d.Namespace(nvme0)
     yield ret
-    ret.close()
     del ret
 
-    
-@pytest.fixture(scope="session")
+
+@pytest.fixture(scope="function")
+def tcg(nvme0):
+    ret = d.Tcg(nvme0)
+    yield ret
+    del ret
+
+
+@pytest.fixture(scope="function")
 def buf():
-    ret = d.Buffer(4096, "default buffer")
+    ret = d.Buffer(4096, "pynvme buffer")
     yield ret
     del ret
 
 
 @pytest.fixture(scope="function")
-def aer(nvme0):
-    def register_cb(func):
-        logging.debug("register aer callback function: %s" % func.__name__)
-        nvme0.register_aer_cb(func)
-    yield register_cb
-    logging.debug("unregister aer callback function")
-    nvme0.register_aer_cb(None)
-
-
-@pytest.fixture(scope="function")
-def verify():
-    a = d.config(verify=False)
-    b = d.config(verify=True)
-    yield a!=b  # return True if config success
-    d.config(verify=False)
+def verify(nvme0n1):
+    ret = nvme0n1.verify_enable(True)
+    yield ret
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

@@ -707,6 +707,7 @@ def test_write_before_power_cycle(nvme0, subsystem):
     
     # power off immediately without completion of the sub process
     subsystem.power_cycle(10)
+    nvme0.reset()
     
     # read and check
     cq = IOCQ(nvme0, 2, 16, PRP())

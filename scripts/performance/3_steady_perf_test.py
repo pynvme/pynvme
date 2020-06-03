@@ -52,7 +52,7 @@ def test_steady_iops_latency(nvme0n1, readp):
     logging.info(io_per_second)
     consistency = w.iops_consistency(90)
     logging.info(percentile_latency)
-    max_iops = (r.io_count_read+r.io_count_write)*1000//r.mseconds
+    max_iops = (r.io_count_read+r.io_count_nonread)*1000//r.mseconds
     logging.info(max_iops)
 
     with open("report.csv", "a") as f:

@@ -3,27 +3,28 @@ import pytest
 import logging
 
 import nvme as d
-import PySimpleGUI as sg
-from pytemperature import k2c
 
 
 def test_format(nvme0: d.Controller, nvme0n1):
     nvme0.format(0).waitdone()
+    nvme0n1.format(512)
 
 
 def test_download_firmware(nvme0):
+    import PySimpleGUI as sg
     filename = sg.PopupGetFile('select the firmware binary file', 'pynvme')
     if filename:        
         logging.info("To download firmware binary file: " + filename)
         nvme0.downfw(filename)
     
 
-def test_powercycle_by_sleep(subsystem):
+def test_powercycle_by_sleep(subsystem, nvme0):
     # sleep system for 10 seconds, to make DUT power off and on
     subsystem.power_cycle()
 
 
 def test_get_current_temperature(nvme0):
+    from pytemperature import k2c
     smart_log = d.Buffer()
     nvme0.getlogpage(0x02, smart_log, 512).waitdone()
     ktemp = smart_log.data(2, 1)
@@ -31,6 +32,7 @@ def test_get_current_temperature(nvme0):
 
 
 def sg_show_hex_buffer(buf):
+    import PySimpleGUI as sg
     layout = [ [sg.OK(), sg.Cancel()],
                [sg.Multiline(buf.dump(),
                              enter_submits=True,
@@ -53,6 +55,8 @@ def test_namespace_identify_data(nvme0):
 
 
 def test_read_lba_data(nvme0):
+    import PySimpleGUI as sg
+    
     lba = int(sg.PopupGetText("Which LBA to read?", "pynvme"))
     q = d.Qpair(nvme0, 10)
     b = d.Buffer(512, "LBA 0x%08x" % lba)
@@ -62,6 +66,8 @@ def test_read_lba_data(nvme0):
 
         
 def test_get_dell_smart_attributes(nvme0):
+    import PySimpleGUI as sg
+    
     smart = d.Buffer()
     nvme0.getlogpage(0xCA, smart, 512).waitdone()
 
@@ -84,6 +90,9 @@ def test_get_dell_smart_attributes(nvme0):
 
 
 def test_get_smart_health_information(nvme0):
+    from pytemperature import k2c
+    import PySimpleGUI as sg
+    
     smart = d.Buffer()
     nvme0.getlogpage(0x02, smart, 512).waitdone()
 
@@ -127,6 +136,8 @@ def test_get_smart_health_information(nvme0):
 
 
 def test_get_log_page(nvme0, lid=None):
+    import PySimpleGUI as sg
+    
     if lid == None:
         lid = int(sg.PopupGetText("Which Log ID to read?", "pynvme"))
     lbuf = d.Buffer(512, "%s, Log ID: %d" % (nvme0.id_data(63, 24, str), lid))
@@ -135,6 +146,8 @@ def test_get_log_page(nvme0, lid=None):
 
     
 def test_firmware_slot(nvme0, subsystem):
+    import PySimpleGUI as sg
+    
     filename = sg.PopupGetFile('select the firmware binary file', 'pynvme')
     if not filename:
         pytest.skip("no binary file found")
@@ -151,6 +164,41 @@ def test_firmware_slot(nvme0, subsystem):
 
     # reset to activate
     subsystem.power_cycle()
+    nvme0.reset()
     next_slot, this_slot = get_fw_slot()
     assert this_slot == 1
     assert next_slot == 0
+
+    
+def test_list_power_states(nvme0, buf):
+    #according to NVMe Spec 1.4, Figure 247 and 248
+    def print_ps(buf, ps):
+        offset = 2048 + ps*32
+        if buf.data(offset+1, offset+0):
+            logging.info("PS %d" % ps)
+            logging.info("===================================")
+            
+            ps_table = {0: 0, 0x40: 0.0001, 0x80: 0.01}
+            mxps = 0.0001 if buf[offset+3]&1 else 0.01
+            nops = 'Non-' if buf[offset+3]&2 else ''
+            logging.info("Maximum Power: %.3f W" % (buf.data(offset+1, offset+0)*mxps))
+            logging.info(nops+"Opertional State")
+
+            logging.info("Entry Lantecy: %dus" %(buf.data(offset+7, offset+4)))
+            logging.info("Exit Lantecy: %dus" %(buf.data(offset+11, offset+8)))
+
+            logging.info("Relative Read Throughput: %d" %(buf.data(offset+12)))
+            logging.info("Relative Read Latency: %d" %(buf.data(offset+13)))
+            logging.info("Relative Write Throughput: %d" %(buf.data(offset+14)))
+            logging.info("Relative Write Latency: %d" %(buf.data(offset+15)))
+
+            ips = ps_table[buf[offset+18]]
+            logging.info("Idle Power: %.3f W" % (buf.data(offset+17, offset+16)*ips))
+            
+            aps = ps_table[buf[offset+22]&0xc0]
+            logging.info("Active Power: %.3f W with Workload %d" % (buf.data(offset+21, offset+20)*aps, buf[offset+22]&0x7))
+            logging.info("")
+        
+    nvme0.identify(buf).waitdone()
+    for ps in range(32):
+        print_ps(buf, ps)

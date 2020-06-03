@@ -46,6 +46,7 @@ def test_write_and_read_to_eol(nvme0, subsystem, nvme0n1: d.Namespace, verify):
 
         # power cycle
         subsystem.power_cycle(15)
+        nvme0.reset()
         
         # read part of drive
         read_time = 1800-write_duration
@@ -54,6 +55,7 @@ def test_write_and_read_to_eol(nvme0, subsystem, nvme0n1: d.Namespace, verify):
         
         # power cycle
         subsystem.power_cycle(15)
+        nvme0.reset()
 
 
 def test_read_multiple_devices_50hr(verify):

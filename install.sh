@@ -38,25 +38,30 @@ if [ -s /etc/redhat-release ]; then
     sudo yum install -y make redhat-rpm-config python3-devel python3-pip python3-tkinter
 elif [ -f /etc/debian_version ]; then
     # ubuntu
-    sudo apt install -y python3-setuptools python3-dev python3-pip 
+    sudo apt install -y python3-setuptools python3-dev python3-pip
 else
     echo "unknown system type."
     exit 1
 fi
 
 # get depended source code and software
-git submodule update --init --recursive
+git submodule update --init --recursive spdk
 sudo ./spdk/scripts/pkgdep.sh
 sudo python3 -m pip install -r requirements.txt
 
-# checkout pynvme code in SPDK
-cd spdk; git checkout pynvme_1.8
-cd dpdk; git checkout pynvme_1.8
+# checkout pynvme code in SPDK and DPDK
+cd spdk; git checkout pynvme_1.9
+cd dpdk; git checkout pynvme_1.9
 cd ..; ./configure --without-isal
 cd ..
 
 # compile
 make spdk                                    # compile SPDK
 make                                         # compile pynvme
+
+# quick test after compile
+make setup
+sudo ./identify_nvme
+make test TESTS=scripts/test_examples.py::test_hello_world
 
 echo "pynvme install done."

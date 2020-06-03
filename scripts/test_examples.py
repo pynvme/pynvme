@@ -3,7 +3,6 @@ import pytest
 import logging
 
 import nvme as d
-import PySimpleGUI as sg
 
 
 # intuitive, spec, qpair, vscode, debug, cmdlog, assert
@@ -39,9 +38,11 @@ def test_sanitize(nvme0: d.Controller, buf):
     if nvme0.id_data(331, 328) == 0:
         pytest.skip("sanitize operation is not supported")
 
+    import PySimpleGUI as sg
+        
     logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
     sg.OneLineProgressMeter('sanitize progress', 0, 100, 'progress', orientation='h')
-    nvme0n1 = d.Namespace(nvme0)
+    nvme0n1 = d.Namespace(nvme0, 1, 128*1000*1000//4)
     nvme0.sanitize().waitdone()  # sanitize clears namespace
 
     # check sanitize status in log page
@@ -58,6 +59,7 @@ def test_sanitize(nvme0: d.Controller, buf):
 def test_ioworker_simplified(nvme0, nvme0n1: d.Namespace):
     nvme0n1.ioworker(time=1).start().close()
     nvme0n1.ioworker(io_size=[1, 2, 3, 7, 8, 16], time=1).start().close()
+    nvme0n1.ioworker(op_percentage={2:10, 1:20, 0:30, 9:40}, time=1).start().close()
     test_hello_world(nvme0, nvme0n1)
 
     
@@ -81,7 +83,7 @@ def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
     import multiprocessing
     mp = multiprocessing.get_context("spawn")
     p = mp.Process(target = subprocess_trim,
-                   args = (nvme0.addr.encode('utf-8'), test_seconds))
+                   args = (nvme0.addr, test_seconds))
     p.start()
 
     # start read/write ioworker and admin commands
@@ -105,12 +107,12 @@ def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
 # multiple ioworkers, PCIe, TCP, CPU, performance, ioworker return values
 def test_multiple_controllers_and_namespaces():
     # address list of the devices to test
-    #addr_list = [b'3d:00.0']
-    addr_list = [b'01:00.0', b'03:00.0', b'192.168.0.3', b'127.0.0.1:4420']
+    addr_list = ['01:00.0', '03:00.0', '192.168.0.3', '127.0.0.1:4420']
+    addr_list = ['3d:00.0']
     test_seconds = 10
 
     # create all controllers and namespace
-    nvme_list = [d.Controller(a) for a in addr_list]
+    nvme_list = [d.Controller(d.Pcie(a)) for a in addr_list]
     ns_list = [d.Namespace(n) for n in nvme_list]
 
     # create two ioworkers on each namespace
@@ -131,7 +133,7 @@ def test_multiple_controllers_and_namespaces():
     io_total = 0
     for w in ioworkers:
         r = w.close()
-        io_total += (r.io_count_read+r.io_count_write)
+        io_total += (r.io_count_read+r.io_count_nonread)
     logging.info("total throughput: %d IOPS" % (io_total/test_seconds))
     
 
@@ -154,10 +156,21 @@ def test_power_and_reset(pcie, nvme0, subsystem):
     pcie.power_state = 3       # PCI PM D3hot
     pcie.aspm = 0
     pcie.power_state = 0
+    
     nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
+
     pcie.reset()               # PCIe reset: hot reset, TS1, TS2
+    nvme0.reset()              # reset controller after pcie reset
+    nvme0.getfeatures(7).waitdone()
+
     subsystem.reset()          # NVMe subsystem reset: NSSR
+    nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
+
     subsystem.power_cycle(10)  # power cycle NVMe device: cold reset
+    nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
 
 
 # test parameters, leverage innovations in python community

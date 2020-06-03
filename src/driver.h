@@ -46,6 +46,7 @@
 #include "spdk/crc32.h"
 #include "spdk/rpc.h"
 #include "spdk/nvme.h"
+#include "spdk/opal.h"
 
 
 #define MIN(X,Y)              ((X) < (Y) ? (X) : (Y))
@@ -84,8 +85,16 @@ typedef struct ioworker_cmdlog
 {
   unsigned long lba;
   unsigned int count;
-  unsigned int is_read;
+  unsigned int opcode;
 } ioworker_cmdlog;
+
+typedef struct ioworker_ioseq
+{
+  unsigned long slba;
+  unsigned int timestamp;
+  unsigned int op;
+  unsigned int nlba;
+} ioworker_ioseq;
 
 typedef struct ioworker_args
 {
@@ -97,9 +106,9 @@ typedef struct ioworker_args
   unsigned int lba_size_list_len;
   unsigned int* lba_size_list_ratio;
   unsigned int* lba_size_list_align;
-  int lba_random;
   unsigned long region_start;
   unsigned long region_end;
+  unsigned short lba_random;
   unsigned short read_percentage;
   signed short lba_step;
   unsigned int iops;
@@ -108,22 +117,35 @@ typedef struct ioworker_args
   unsigned int qdepth;
   unsigned int pvalue;
   unsigned int ptype;
+  ioworker_ioseq* io_sequence;
+  unsigned int io_sequence_len;
   unsigned int* io_counter_per_second;
   unsigned long* io_counter_per_latency;
   unsigned int* distribution;
   ioworker_cmdlog* cmdlog_list;
   unsigned int cmdlog_list_len;
+  unsigned int* op_list;
+  unsigned long* op_counter;
+  unsigned int op_num;
 } ioworker_args;
 
 typedef struct ioworker_rets
 {
   unsigned long io_count_read;
-  unsigned long io_count_write;
+  unsigned long io_count_nonread;
   unsigned int mseconds;
   unsigned int latency_max_us;
   unsigned short error;
+  unsigned int cpu_usage;
+  unsigned int latency_average_us;
 } ioworker_rets;
 
+typedef struct crc_table_t
+{
+  unsigned long size;
+  unsigned int enabled;
+  uint32_t data[0];
+} crc_table_t;
 
 extern int ioworker_entry(namespace* ns,
                           struct spdk_nvme_qpair *qpair,
@@ -161,10 +183,10 @@ extern int nvme_set_reg64(struct spdk_nvme_ctrlr* ctrlr,
 extern int nvme_get_reg64(struct spdk_nvme_ctrlr* ctrlr,
                           unsigned int offset,
                           unsigned long* value);
+extern int nvme_set_adminq(struct spdk_nvme_ctrlr *ctrlr);
+extern int nvme_set_ns(struct spdk_nvme_ctrlr *ctrlr);
 
 extern int nvme_wait_completion_admin(struct spdk_nvme_ctrlr* c);
-extern void nvme_deallocate_ranges(namespace* ns,
-                                   void* buf, unsigned int count);
 extern void nvme_cmd_cb_print_cpl(void* qpair, const struct spdk_nvme_cpl* cpl);
 
 typedef void (*cmd_cb_func)(void* cb_arg,
@@ -183,11 +205,9 @@ extern int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
                              cmd_cb_func cb_fn,
                              void* cb_arg);
 extern int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl);
-extern namespace* nvme_get_ns(ctrlr* c, unsigned int nsid);
+extern namespace* nvme_get_ns(struct spdk_nvme_ctrlr* ctrlr, unsigned int nsid);
+extern void crc32_unlock_all(struct spdk_nvme_ctrlr* ctrlr);
 
-extern void nvme_register_aer_cb(struct spdk_nvme_ctrlr* ctrlr,
-                                 spdk_nvme_aer_cb aer_cb,
-                                 void* aer_cb_arg);
 extern void nvme_register_timeout_cb(struct spdk_nvme_ctrlr* ctrlr,
                                      spdk_nvme_timeout_cb timeout_cb,
                                      unsigned int msec);
@@ -202,23 +222,24 @@ extern int qpair_wait_completion(struct spdk_nvme_qpair *q, uint32_t max_complet
 extern int qpair_get_id(struct spdk_nvme_qpair* q);
 extern int qpair_free(struct spdk_nvme_qpair* q);
 
-extern namespace* ns_init(ctrlr* c, unsigned int nsid);
+extern namespace* ns_init(ctrlr* c, unsigned int nsid, unsigned long nlba_verify);
 extern int ns_refresh(namespace* ns, uint32_t id, struct spdk_nvme_ctrlr *ctrlr);
-extern int ns_cmd_read_write(int is_read,
-                             namespace* ns,
-                             struct spdk_nvme_qpair *qpair,
-                             void *buf,
-                             size_t len,
-                             uint64_t lba,
-                             uint16_t lba_count,
-                             uint32_t io_flags,
-                             cmd_cb_func cb_fn,
-                             void* cb_arg);
+extern bool ns_verify_enable(struct spdk_nvme_ns* ns, bool enable);
+extern int ns_cmd_io(uint8_t opcode,
+                     namespace* ns,
+                     struct spdk_nvme_qpair *qpair,
+                     void *buf,
+                     size_t len,
+                     uint64_t lba,
+                     uint32_t lba_count,
+                     uint32_t io_flags,
+                     cmd_cb_func cb_fn,
+                     void* cb_arg);
 extern uint32_t ns_get_sector_size(namespace* ns);
 extern uint64_t ns_get_num_sectors(namespace* ns);
 extern int ns_fini(namespace* ns);
 
-extern char* log_buf_dump(const char* header, const void* buf, size_t len);
+extern char* log_buf_dump(const char* header, const void* buf, size_t len, size_t base);
 extern void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count);
 extern void log_cmd_dump_admin(struct spdk_nvme_ctrlr* ctrlr, size_t count);
 
@@ -233,3 +254,9 @@ extern void* intc_lookup_ctrl(struct spdk_nvme_ctrlr* ctrlr);
 extern void timeval_gettimeofday(struct timeval *tv);
 extern uint32_t timeval_to_us(struct timeval* t);
 
+extern void* tcg_dev_init(struct spdk_nvme_ctrlr* ctrlr);
+extern void tcg_dev_close(void* dev);
+extern int tcg_take_ownership(void* dev, const char* passwd);
+extern int tcg_revert_tper(void* dev, const char* passwd);
+extern int tcg_set_passwd(void* dev, int user, const char* new_passwd, const char* old_passwd);
+extern int tcg_lock_unlock(void* dev, int user, int state, int range, const char* passwd);

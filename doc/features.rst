@@ -382,7 +382,7 @@ The IOWorker result data includes these information:
    * - io_count_read
      - int
      - total read IO in the IOWorker
-   * - io_count_write
+   * - io_count_nonread
      - int
      - total write IO in the IOWorker
    * - mseconds
@@ -499,7 +499,7 @@ The performance of `IOWorker` is super high and super consistent. We can use it 
 
        for a in l:
            r = a.close()
-           io_total += (r.io_count_read+r.io_count_write)
+           io_total += (r.io_count_read+r.io_count_nonread)
 
        logging.info("Q %d IOPS: %dK" % (qcount, io_total/10000))
 

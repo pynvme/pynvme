@@ -7,6 +7,7 @@ import nvme as d
 def test_trim_basic(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
     GB = 1024*1024*1024
     all_zero_databuf = d.Buffer(512)
+    orig_databuf = d.Buffer(512)
     trimbuf = d.Buffer(4096)
     q = d.Qpair(nvme0, 32)
 
@@ -27,6 +28,8 @@ def test_trim_basic(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
                      io_count = lba_count//io_size,
                      qdepth = 128).start().close()
 
+    nvme0n1.read(q, orig_databuf, start_lba).waitdone()
+    
     # verify data after write, data should be modified
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
         nvme0n1.compare(q, all_zero_databuf, start_lba).waitdone()
@@ -48,5 +51,6 @@ def test_trim_basic(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
 
     # verify after trim
     nvme0n1.compare(q, all_zero_databuf, start_lba).waitdone()
+    nvme0n1.compare(q, orig_databuf, start_lba).waitdone()
 
 

@@ -91,7 +91,7 @@ Ex3: parameterized tests
        # after all ioworkers complete, calculate the IOPS performance result
        for a in l:
            r = a.close()
-           io_total += (r.io_count_read+r.io_count_write)
+           io_total += (r.io_count_read+r.io_count_nonread)
        logging.info("Q %d IOPS: %dK" % (qcount, io_total/10000))
 
        
@@ -168,7 +168,7 @@ Ex6: multiple ioworkers on different namespaces and controllers
        # test results of different namespaces
        for ns in ioworkers:
            r = ioworkers[ns].close()
-           io_total = (r.io_count_read+r.io_count_write)
+           io_total = (r.io_count_read+r.io_count_nonread)
            logging.info("capacity: %u, IOPS: %.3fK" %
                         (ns.id_data(7, 0), io_total/10000))
    

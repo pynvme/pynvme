@@ -19,6 +19,7 @@ def do_power_cycle(dirty, subsystem, nvme0n1, nvme0):
     csv_start = time.time()
     start_time = time.time()
     subsystem.power_cycle(10)
+    nvme0.reset()
     logging.info("init time %.6f sec" % (time.time()-start_time-10))
 
     # first read time

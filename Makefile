@@ -32,10 +32,10 @@
 
 
 #find the first NVMe device as the DUT
-pciaddr=$(shell lspci -D | grep 'Non-Volatile memory' | grep -o '....:..:..\..' | head -1)
+pciaddr=$(shell lspci -D | grep 'Non-Volatile memory' | grep -o '....:..:..\..' | tail -1)
 
 #reserve memory for driver
-memsize=$(shell free -m | awk 'NR==2{print ($$2-$$2%8)/8*5}')
+memsize := 2430   # minimal RAM: 4GB. 2.5GB for pynvme, 1.5GB for system
 
 #pytest test targets
 TESTS := driver_test.py
@@ -56,16 +56,16 @@ spdk:
 
 doc:
 	pydocmd simple nvme++ > api.md
-	sed -i "1s/.*/# API/" api.md
 	m2r api.md
 	mv api.rst doc
 	rm api.md
 	cd doc; make clean; make html
 
 reset:
-	sudo rm -rf /run/dpdk
-	sudo ./spdk/scripts/setup.sh cleanup
-	sudo ./spdk/scripts/setup.sh reset
+	- sudo rm -rf /run/dpdk
+	- sudo rm -rf /var/run/dpdk
+	sudo ./src/setup.sh cleanup
+	sudo ./src/setup.sh reset
 	- sudo rm -f /var/tmp/spdk.sock*
 	- sudo rm -f /var/tmp/pynvme.sock*
 	- sudo rm -rf .pytest_cache
@@ -73,7 +73,7 @@ reset:
 	- sudo sh -c 'find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf'
 
 info:
-	- sudo ./spdk/scripts/setup.sh status
+	- sudo ./src/setup.sh status
 	- sudo cat /proc/meminfo
 	- sudo cat /proc/cpuinfo
 	- sudo cat /etc/*release
@@ -92,8 +92,9 @@ setup: reset
 	- xhost +local:		# enable GUI with root/sudo
 	- sudo chmod 777 /tmp
 	- sudo sh -c 'find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf'
-	sed -i 's/XXXX:BB:DD.F/${pciaddr}/g' .vscode/settings.json
-	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./spdk/scripts/setup.sh  	# UIO is recommended
+	- sed -i 's/XXXX:BB:DD.F/${pciaddr}/g' .vscode/settings.json
+	sudo ./src/pcie_hot_reset.sh ${pciaddr}
+	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./src/setup.sh  	# UIO is recommended
 
 tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=ioat --exclude=snippets --exclude=env --exclude=doc
@@ -104,6 +105,7 @@ pytest: info
 test:
 	- rm test.log
 	make pytest 2>test.log | tee -a test.log
+	- sudo rm -rf .pytest_cache
 
 
 # local nvme tcp target
