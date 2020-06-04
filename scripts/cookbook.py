@@ -155,7 +155,7 @@ def test_ioworker_fixed_iops(nvme0n1, iops):
     
 
 def test_dsm_trim(nvme0: d.Controller, nvme0n1: d.Namespace):
-    trimbuf = d.Buffer(4096*2)
+    trimbuf = d.Buffer(4096)
     q = d.Qpair(nvme0, 32)
 
     # DUT info
@@ -169,10 +169,10 @@ def test_dsm_trim(nvme0: d.Controller, nvme0n1: d.Namespace):
     nvme0n1.dsm(q, trimbuf, 1, attribute=0x4).waitdone()
 
     # multiple range
-    lba_count = lba_count//512
-    for i in range(512):
+    lba_count = lba_count//256
+    for i in range(256):
         trimbuf.set_dsm_range(i, start_lba+i*lba_count, lba_count)
-    nvme0n1.dsm(q, trimbuf, 512).waitdone()
+    nvme0n1.dsm(q, trimbuf, 256).waitdone()
 
 
 def test_ioworker_performance(nvme0n1):
@@ -198,7 +198,7 @@ def test_ioworker_performance(nvme0n1):
     plt.plot(X, Y)
     plt.xscale('log')
     plt.yscale('log')
-    plt.show()
+    #plt.show()
 
 
 def test_ioworker_jedec_enterprise_workload(nvme0n1):
@@ -310,6 +310,7 @@ def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
 def test_multiple_controllers_and_namespaces():
     # address list of the devices to test
     addr_list = [b'01:00.0', b'02:00.0', b'03:00.0', b'04:00.0']  #L3
+    addr_list = [b'3d:00.0']  #L3
     test_seconds = 10
 
     # create all controllers and namespace

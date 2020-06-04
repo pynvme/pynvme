@@ -41,6 +41,7 @@ def test_ioworker_jedec_enterprise_workload(nvme0n1):
 def test_replay_jedec_client_trace(nvme0, nvme0n1):
     q = d.Qpair(nvme0, 1024)
     buf = d.Buffer(256*512, "write", 100, 0xbeef) # upto 128K
+    trim_buf = d.Buffer(4096)
     batch = 0
     counter = 0
 
@@ -71,8 +72,8 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
                         nlba -= n
                 elif op == 's':
                     # trims
-                    buf.set_dsm_range(0, slba, nlba)
-                    nvme0n1.dsm(q, buf, 1)
+                    trim_buf.set_dsm_range(0, slba, nlba)
+                    nvme0n1.dsm(q, trim_buf, 1)
                     counter += 1
                 else:
                     logging.info(l)
