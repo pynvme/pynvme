@@ -75,6 +75,12 @@ spdk_nvme_qpair_process_completions(struct spdk_nvme_qpair *qpair, uint32_t max_
   return 0;
 }
 
+int
+nvme_qpair_submit_request(struct spdk_nvme_qpair *qpair, struct nvme_request *req)
+{
+  return 0;
+}
+
 int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl)
 {
   return 0;
@@ -88,6 +94,11 @@ uint32_t spdk_nvme_ns_get_sector_size(struct spdk_nvme_ns *ns)
 void timeval_gettimeofday(struct timeval *tv)
 {
 
+}
+
+uint32_t spdk_nvme_ns_get_max_io_xfer_size(struct spdk_nvme_ns *ns)
+{
+  return 128*1024;
 }
 
 int ns_cmd_io(uint8_t opcode,
