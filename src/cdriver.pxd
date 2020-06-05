@@ -110,8 +110,8 @@ cdef extern from "driver.h":
 
     ctrlr * nvme_init(char * traddr, unsigned int port)
     int nvme_fini(ctrlr * c)
-    void nvme_bar_recover(ctrlr* c);
-    void nvme_bar_remap(ctrlr* c);
+    void nvme_bar_recover(ctrlr* c)
+    void nvme_bar_remap(ctrlr* c)
 
     int nvme_set_reg32(ctrlr * c,
                        unsigned int offset,
@@ -164,7 +164,7 @@ cdef extern from "driver.h":
 
     namespace * ns_init(ctrlr * c, unsigned int nsid, unsigned long nlba_verify)
     int ns_refresh(namespace * ns, unsigned int nsid, ctrlr * c)
-    bint ns_verify_enable(namespace * ns, bint enable);
+    bint ns_verify_enable(namespace * ns, bint enable)
     int ns_cmd_io(unsigned char opcode,
                   namespace * ns,
                   qpair * qpair,
@@ -174,7 +174,10 @@ cdef extern from "driver.h":
                   unsigned int lba_count,
                   unsigned int io_flags,
                   cmd_cb_func cb_fn,
-                  void * cb_arg)
+                  void * cb_arg,
+                  unsigned int dword13,
+                  unsigned int dword14,
+                  unsigned int dword15)
     unsigned int ns_get_sector_size(namespace * ns)
     unsigned long ns_get_num_sectors(namespace * ns)
     int ns_fini(namespace * ns)

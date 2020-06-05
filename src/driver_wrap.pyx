@@ -2022,7 +2022,8 @@ cdef class Namespace(object):
                          output_percentile_latency,
                          output_cmdlog_list)
 
-    def read(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
+    def read(self, qpair, buf, lba, lba_count=1, io_flags=0,
+             dword13=0, dword14=0, dword15=0, cb=None):
         """read IO command
 
         Notice
@@ -2045,11 +2046,13 @@ cdef class Namespace(object):
 
         assert buf is not None, "no buffer allocated"
         if 0 != self.send_read_write(2, qpair, buf, lba, lba_count,
-                                     io_flags, cmd_cb, <void*>cb):
+                                     io_flags, cmd_cb, <void*>cb,
+                                     dword13, dword14, dword15):
             raise SystemError()
         return qpair
 
-    def write(self, qpair, buf, lba, lba_count=1, io_flags=0, cb=None):
+    def write(self, qpair, buf, lba, lba_count=1, io_flags=0,
+              dword13=0, dword14=0, dword15=0, cb=None):
         """write IO command
 
         Notice
@@ -2073,7 +2076,8 @@ cdef class Namespace(object):
         assert buf is not None, "no buffer allocated"
 
         if 0 != self.send_read_write(1, qpair, buf, lba, lba_count,
-                                     io_flags, cmd_cb, <void*>cb):
+                                     io_flags, cmd_cb, <void*>cb,
+                                     dword13, dword14, dword15):
             raise SystemError()
 
         return qpair
@@ -2236,13 +2240,17 @@ cdef class Namespace(object):
                              unsigned int lba_count,
                              unsigned int io_flags,
                              d.cmd_cb_func cb_func,
-                             void* cb_arg):
+                             void* cb_arg,
+                             unsigned int dword13, 
+                             unsigned int dword14, 
+                             unsigned int dword15):
         assert lba_count <= 64*1024, "exceed lba count limit"
         self._ns = d.nvme_get_ns(self._nvme.pcie._ctrlr, self._nsid)
         ret = d.ns_cmd_io(opcode, self._ns, qpair._qpair,
                           buf.ptr, buf.size,
                           lba, lba_count, io_flags<<16,
-                          cb_func, cb_arg)
+                          cb_func, cb_arg,
+                          dword13, dword14, dword15)
         assert ret == 0, "error in submitting read write commands: 0x%x" % ret
         return ret
 

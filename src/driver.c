@@ -1449,7 +1449,10 @@ int ns_cmd_io(uint8_t opcode,
               uint32_t lba_count,
               uint32_t io_flags,
               spdk_nvme_cmd_cb cb_fn,
-              void* cb_arg)
+              void* cb_arg,
+              unsigned int dword13, 
+              unsigned int dword14, 
+              unsigned int dword15)
 {
   struct spdk_nvme_cmd cmd;
   uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
@@ -1472,9 +1475,9 @@ int ns_cmd_io(uint8_t opcode,
   cmd.cdw10 = lba;
   cmd.cdw11 = lba>>32;
   cmd.cdw12 = io_flags | (lba_count-1);
-  cmd.cdw13 = 0;
-  cmd.cdw14 = 0;
-  cmd.cdw15 = 0;
+  cmd.cdw13 = dword13;
+  cmd.cdw14 = dword14;
+  cmd.cdw15 = dword15;
 
   if ((opcode&3) == 0)
   {

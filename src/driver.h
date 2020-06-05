@@ -234,7 +234,10 @@ extern int ns_cmd_io(uint8_t opcode,
                      uint32_t lba_count,
                      uint32_t io_flags,
                      cmd_cb_func cb_fn,
-                     void* cb_arg);
+                     void* cb_arg,
+                     unsigned int dword13, 
+                     unsigned int dword14, 
+                     unsigned int dword15);
 extern uint32_t ns_get_sector_size(namespace* ns);
 extern uint64_t ns_get_num_sectors(namespace* ns);
 extern int ns_fini(namespace* ns);

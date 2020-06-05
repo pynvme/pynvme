@@ -437,7 +437,8 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
                   buf, lba_count*sector_size,
                   lba_starting, lba_count,
                   0,  //do not have more options in ioworkers
-                  ioworker_one_cb, ctx);
+                  ioworker_one_cb, ctx,
+                  0, 0, 0);  //no PI, DSM, directive ...
   if (ret != 0)
   {
     SPDK_ERRLOG("ioworker error happen in sending cmd\n");
