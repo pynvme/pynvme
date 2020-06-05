@@ -333,7 +333,15 @@ static inline uint64_t ioworker_send_one_lba_random(struct ioworker_args* args,
   }
 
   // pick up a random lba in the section
-  return (random()%(end-start)) + start;
+  if (end == start)
+  {
+    return start;
+  }
+  else
+  {
+    assert(end>start);
+    return (random()%(end-start)) + start;
+  }
 }
 
 

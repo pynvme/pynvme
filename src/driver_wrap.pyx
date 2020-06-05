@@ -1980,6 +1980,12 @@ cdef class Namespace(object):
         if lba_random < 100:
             assert type(io_size) is int, "sequential workload cannot work with complex io_size"
 
+        # io_size should be smaller than test region
+        if type(io_size) is int:
+            assert io_size <= region_end-region_start, "region is smaller than IO!"
+        else:
+            assert max(list(io_size)) < region_end-region_start, "region is smaller than IO"
+            
         # lba_step works with pure sequential workload only
         if lba_step is None:
             if lba_random < 100:

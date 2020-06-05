@@ -375,6 +375,30 @@ def test_ioworker_is_running(nvme0n1):
     assert b.running == False
 
 
+def test_ioworker_input_out_of_range(nvme0n1):
+    nvme0n1.ioworker(io_size=128, region_end=200, qdepth=2, io_count=2).start().close()
+    nvme0n1.ioworker(io_size=128, region_end=300, time=1).start().close()
+    nvme0n1.ioworker(io_size=8, region_end=100, time=1).start().close()
+    nvme0n1.ioworker(io_size=range(8, 32, 16), region_end=100, time=1).start().close()
+    with pytest.raises(AssertionError):
+        nvme0n1.ioworker(io_size=128, region_end=100, time=1).start().close()
+    with pytest.raises(AssertionError):
+        nvme0n1.ioworker(io_size=range(8, 128, 8), region_end=100, time=1).start().close()
+    with pytest.raises(AssertionError):
+        nvme0n1.ioworker(io_size=[8, 64, 128], region_end=100, time=1).start().close()
+    with pytest.raises(AssertionError):
+        nvme0n1.ioworker(io_size={1:1, 128:1}, region_end=100, time=1).start().close()
+    nvme0n1.ioworker(io_size=128, region_end=300, time=1).start().close()
+    nvme0n1.ioworker(io_size=range(8, 64, 16), region_end=100, time=1).start().close()
+    nvme0n1.ioworker(io_size=128, region_end=200, time=1).start().close()
+    nvme0n1.ioworker(io_size=128, region_end=256, time=1).start().close()
+    nvme0n1.ioworker(io_size=128, region_start=128, region_end=256, time=1).start().close()
+    nvme0n1.ioworker(io_size=128, region_end=128, time=1).start().close()
+    nvme0n1.ioworker(io_size=128, region_end=256, time=1).start().close()
+    nvme0n1.ioworker(io_size=64, region_end=100, time=1).start().close()
+    nvme0n1.ioworker(io_size=8, region_end=1024, time=1).start().close()
+    
+
 def test_ioworker_power_cycle_async_cmdlog(nvme0, nvme0n1, subsystem):
     cmdlog_list = [None]*11
     with nvme0n1.ioworker(io_size=8, time=10, iops=2,
