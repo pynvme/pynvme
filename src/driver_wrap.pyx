@@ -60,6 +60,7 @@ import multiprocessing
 
 # c library
 import cython
+from inspect import signature
 from libc.string cimport strncpy, memset, strlen
 from libc.stdio cimport printf
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
@@ -118,6 +119,9 @@ cdef struct _cpl:
 
 
 cdef void cmd_cb(void* f, const d.cpl* cpl):
+    cdef unsigned int cdw2
+    cdef unsigned int cdw3
+
     global _latest_cqe_cdw0
     arg = <_cpl*>cpl  # no qa
     status1 = arg.status1
@@ -127,7 +131,16 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
     if func is not None:
         # call script callback function to check cpl
         try:
-            func(arg.cdw0, status1)
+            # we support 2 types of callback (dword0, status1), and (cpl)
+            if 2 == len(signature(func).parameters):
+                func(arg.cdw0, status1)
+            else:
+                cdw2 = arg.sqid
+                cdw3 = arg.status1
+                func((arg.cdw0,
+                      arg.rsvd1,
+                      (cdw2<<16)+arg.sqhead,
+                      (cdw3<<16)+arg.cid))
         except AssertionError as e:
             warnings.warn("ASSERT: "+str(e))
 
@@ -140,29 +153,15 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
 
 cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
     arg = <_cpl*>cpl  # no qa
-    status1 = arg.status1
-    func = <object>f   # no qa
-
+    
     # filter aer completion at SQ deletion
-    if (status1>>1) == 8:
+    if (arg.status1>>1) == 8:
         return
 
     logging.warning("AER triggered, dword0: 0x%x, status1: 0x%x" %
-                    (arg.cdw0, status1))
+                    (arg.cdw0, arg.status1))
     warnings.warn("AER notification is triggered")
-
-    if func is not None:
-        # call script callback function to check cpl
-        try:
-            func(arg.cdw0, status1)
-        except AssertionError as e:
-            warnings.warn("ASSERT: "+str(e))
-
-    if d.nvme_cpl_is_error(cpl):
-        # script not check, so driver check cpl
-        sc = (status1>>1) & 0xff
-        sct = (status1>>9) & 0x7
-        warnings.warn("ERROR status: %02x/%02x" % (sct, sc))
+    cmd_cb(f, cpl)
 
 
 cdef class Buffer(object):

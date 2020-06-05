@@ -780,6 +780,28 @@ def test_write_identify_and_verify(nvme0n1, nvme0):
     logging.info("test end")
 
 
+def test_callback_with_whole_cpl(nvme0, nvme0n1, buf):
+    f1 = 0
+    def cb1(cpl):
+        nonlocal f1; f1 = cpl[0]
+        logging.info(cpl)
+        assert cpl[1] == 0
+    nvme0.getfeatures(7, cb=cb1).waitdone()
+
+    def cb2(cpl):
+        logging.info(cpl)
+        assert cpl[1] == 0
+    qpair = d.Qpair(nvme0, 10)
+    nvme0n1.read(qpair, buf, 0, cb=cb2).waitdone()
+
+    a1 = 0
+    def cb1(cdw0, status):
+        nonlocal a1; a1 = cdw0
+    nvme0.getfeatures(7, cb=cb1).waitdone()
+
+    assert a1 == f1
+    
+    
 def test_multiple_callbacks(nvme0):
     a1 = 0
     def cb1(cdw0, status):
@@ -1839,8 +1861,8 @@ def test_get_smart_data(nvme0):
 
 
 def test_aer_cb_mixed_with_admin_commands(nvme0, buf):
-    def aer_cb(cdw0, status1):
-        pass
+    def aer_cb(cpl):
+        logging.info("0x%x" % cpl[3])
     # this is the 2nd aer, 1st is in default nvme init
     nvme0.aer(cb=aer_cb)
 
