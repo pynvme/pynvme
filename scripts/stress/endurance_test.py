@@ -4,10 +4,9 @@ import logging
 import nvme as d
 
 
-def test_ioworker_jedec_enterprise_workload(nvme0n1):
+def test_ioworker_jedec_enterprise_workload_512(nvme0n1):
+    nvme0n1.format(512)
     distribution = [1000]*5 + [200]*15 + [25]*80
-
-    # for 512B LBA
     iosz_distribution = {1: 4,
                          2: 1,
                          3: 1,
@@ -21,14 +20,6 @@ def test_ioworker_jedec_enterprise_workload(nvme0n1):
                          64: 3,
                          128: 3}
 
-    # for 4K LBA
-    iosz_distribution_4k = {8: 77,
-                            16: 10,
-                            32: 7,
-                            64: 3,
-                            128: 3}
-
-    # choose the corrent distribution against LBA format
     nvme0n1.ioworker(io_size=iosz_distribution,
                      lba_random=True,
                      qdepth=128,
@@ -38,6 +29,24 @@ def test_ioworker_jedec_enterprise_workload(nvme0n1):
                      time=12*3600).start().close()
 
 
+def test_ioworker_jedec_enterprise_workload_4k(nvme0n1):
+    nvme0n1.format(4096)
+    distribution = [1000]*5 + [200]*15 + [25]*80
+    iosz_distribution = {8: 77,
+                         16: 10,
+                         32: 7,
+                         64: 3,
+                         128: 3}
+
+    nvme0n1.ioworker(io_size=iosz_distribution,
+                     lba_random=True,
+                     qdepth=128,
+                     distribution = distribution,
+                     read_percentage=0,
+                     ptype=0xbeef, pvalue=100, 
+                     time=12*3600).start().close()
+
+    
 def test_replay_jedec_client_trace(nvme0, nvme0n1):
     q = d.Qpair(nvme0, 1024)
     buf = d.Buffer(256*512, "write", 100, 0xbeef) # upto 128K
@@ -45,9 +54,7 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
     batch = 0
     counter = 0
 
-    nvme0.timeout=1000000
     nvme0n1.format(512)
-    nvme0.timeout=10000
     
     with zipfile.ZipFile("scripts/stress/MasterTrace_128GB-SSD.zip") as z:
         for s in z.open("Client_128_GB_Master_Trace.txt"):
