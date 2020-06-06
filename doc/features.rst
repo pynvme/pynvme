@@ -35,7 +35,7 @@ In order to transfer data with NVMe devices, users need to allocate and provide 
 
 
 data pattern
-============
+^^^^^^^^^^^^
 
 Users can identify the data pattern of the `Buffer`. Pynvme supports following different data patterns by argument `pvalue` and `ptype`.
 
@@ -62,8 +62,8 @@ Users can also specify argument `pvalue` and `ptype` in `Namespace.ioworker()` i
 
 The first 8-byte and the last 8-byte of each LBA are not filled by the data pattern. The first 8-byte is the LBA address, and the last 8-byte is a token which changes on every LBA written.
 
-PSD
-===
+Python Space Drive
+^^^^^^^^^^^^^^^^^^
 
 Based on SPDK, pynvme provides a high performance NVMe driver for product test. However, it lacks of flexibility to test every details defined in the NVMe Specification. Here are some of the examples:
 
@@ -725,7 +725,7 @@ Misc
 ----
 
 Power
-=====
+^^^^^
 
 Without any addtional equipment, pynvme can power off NVMe devices through S3 power state, and use RTC to wake it up. We implemented this process in API `Subsystem.power_cycle()`.
 
@@ -777,7 +777,7 @@ It is required to call Controller.reset() after Subsystem.power_cycle() and Subs
 
    
 Reset
-=====
+^^^^^
 
 Pynvme provides different ways of reset: 
 
@@ -794,7 +794,7 @@ Pynvme provides different ways of reset:
 It is required to call Controller.reset() after Pcie.reset() and Subsystem.reset(). 
 
 Random Number
-=============
+^^^^^^^^^^^^^
 
 Before every test item, pynvme sets a different random seed to get different serie of random numbers. When user wants to reproduce the test with the identical random numbers, just manually set the random seed in the beginning of the test scripts. For example:
 
