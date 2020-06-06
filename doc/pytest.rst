@@ -73,7 +73,7 @@ With pytest, we can execute tests in many flexible ways, like these:
 
    sudo python3 -B -m pytest driver_test.py::test_ioworker_simplified_context --pciaddr=03:00.0
 
-We can even specify the IP address of NVMe over TCP target to run the same test case:
+We can start multiple test sessions with different NVMe devices specified in the command line. We can even specify the IP address of NVMe over TCP target to run the same test case:
 
 .. code-block:: shell
 

@@ -1,7 +1,24 @@
 Features
 ========
 
-By pynvme, Users can operate NVMe controllers, namespaces, PCI devices, data buffers and etc. We will dive into the details of these classes. 
+In order to fully test NVMe devices for functionality, performance and even endurance, pynvme supports many features about NVMe controller, namespace, as well as PCIe and otheir essential parts in the system. 
+
+PCIe
+----
+
+NVMe devices are firstly PCIe devices, so we need to management the PCIe resources. Pynvme can access NVMe device's PCI memory space and configuration space, including all capabilities.
+
+.. code-block:: python
+
+   pcie = d.Pcie('3d:00.0')
+   hex(pcie[0:4])                  # Byte 0/1/2/3
+   pm_offset = pcie.cap_offset(1)  # find Power Management Capability
+   pcie.reset()
+   pcie.aspm = 2                   # set ASPM control to enable L1 only
+   pcie.power_state = 3            # set PCI PM power state to D3hot
+   
+Actually, pynvme can also test non-NVMe PCIe devices. 
+
 
 Buffer
 ------
@@ -14,12 +31,11 @@ In order to transfer data with NVMe devices, users need to allocate and provide 
    nvme.identify(buf).waitdone()
    # now, the buf contains the identify data
    print(buf[0:4])
-   del buf
+   del buf  # delete the `Buffer` after the commands complete.
 
-Delete the `Buffer` after the commands complete.
 
 data pattern
-^^^^^^^^^^^^
+============
 
 Users can identify the data pattern of the `Buffer`. Pynvme supports following different data patterns by argument `pvalue` and `ptype`.
 
@@ -44,7 +60,87 @@ Users can identify the data pattern of the `Buffer`. Pynvme supports following d
 
 Users can also specify argument `pvalue` and `ptype` in `Namespace.ioworker()` in the same manner.
 
-The first 8-byte and the last 8-byte of each LBA are not filled by the data pattern. The first 8-byte is the LBA address, and the last 8-byte is a token which changes on every LBA written. 
+The first 8-byte and the last 8-byte of each LBA are not filled by the data pattern. The first 8-byte is the LBA address, and the last 8-byte is a token which changes on every LBA written.
+
+PSD
+===
+
+Based on SPDK, pynvme provides a high performance NVMe driver for product test. However, it lacks of flexibility to test every details defined in the NVMe Specification. Here are some of the examples:
+
+#. Multiple SQ share one CQ. Pynvme abstracts CQ and SQ as the Qpair.
+#. Non-contiguous memory for SQ and/or CQ. Pynvme always allocates contiguous memory when creating Qpairs.
+#. Complicated PRP tests. Pynvme creates PRP with some reasonable limitations, but it cannot cover all corner cases in protocol tests.
+
+In order to cover these considerations, pynvme provides an extension of **Python Space Driver** (PSD). It is an NVMe driver implemented in pure Python based on two fundamental pynvme classes:
+
+#. DMA memory allocation abstracted by class `Buffer`.
+#. PCIe configuration and memory spaceprovided by class `Pcie`.
+
+PSD implements NVMe data structures and operations in the module *scripts/psd.py* based on Buffer: 
+
+#. PRP: alias of Buffer, and the size is the memory page by default.
+#. PRPList: maintain the list of PRP entries, which are physical addresses of `Buffer`.
+#. IOSQ: create and maintain IO Submission Queue.
+#. IOCQ: create and maintain IO Completion Queue.
+#. SQE: submission queue entry for NVMe commands dwords.
+#. CQE: completion queue entry for NVMe completion dwords.
+
+Here is an example: 
+
+.. code-block:: python
+
+   # import psd classes
+   from psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
+
+   def test_send_cmd_2sq_1cq(nvme0):
+       # 2 SQ share one CQ
+       cq = IOCQ(nvme0, 1, 10, PRP())
+       sq1 = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
+       sq2 = IOSQ(nvme0, 2, 16, PRP(), cqid=1)
+   
+       # write lba0, 16K data organized by PRPList
+       write_cmd = SQE(1, 1)  # write to namespace 1
+       write_cmd.prp1 = PRP() # PRP1 is a 4K page
+       prp_list = PRPList()   # PRPList contains 3 pages
+       prp_list[0] = PRP()
+       prp_list[1] = PRP()
+       prp_list[2] = PRP()
+       write_cmd.prp2 = prp_list   # PRP2 points to the PRPList
+       write_cmd[10] = 0           # starting LBA
+       write_cmd[12] = 31          # LBA count: 32, 16K, 4 pages
+       write_cmd.cid = 123;        # verify cid later
+   
+       # send write commands in both SQ
+       sq1[0] = write_cmd          # fill command dwords in SQ1
+       write_cmd.cid = 567;        # verify cid later
+       sq2[0] = write_cmd          # fill command dwords in SQ2
+       sq2.tail = 1                # ring doorbell of SQ2 first
+       time.sleep(0.1)             # delay to ring SQ1, 
+       sq1.tail = 1                #  so command in SQ2 should comple first
+   
+       # wait for 2 command completions
+       while CQE(cq[1]).p == 0: pass
+   
+       # check first cpl
+       cqe = CQE(cq[0])
+       assert cqe.sqid == 2
+       assert cqe.sqhd == 1
+       assert cqe.cid == 567
+   
+       # check second cpl
+       cqe = CQE(cq[1])
+       assert cqe.sqid == 1
+       assert cqe.sqhd == 1
+       assert cqe.cid == 123
+   
+       # update cq head doorbell to device
+       cq.head = 2
+   
+       # delete all queues
+       sq1.delete()
+       sq2.delete()
+       cq.delete()
+
 
 Controller
 ----------
@@ -347,6 +443,23 @@ With `Namespace`, `Qpair`, and `Buffer`, we can send IO commands to NVMe devices
 
 Pynvme inserts LBA and calculates CRC data for each LBA to write. On the other side, pynvme checks LBA and CRC data for each LBA to read. It verifies the data integrity on the fly with ultra-low CPU cost. 
 
+
+Trim
+^^^^
+
+Dataset Management (e.g. deallocate, or trim) is another commonly used IO command. It needs a prepared data buffer to specify LBA ranges to trim. Users can use API `Buffer.set_dsm_range()` for that. 
+
+.. code-block:: python
+
+   nvme0 = d.Controller(b'01:00.0')
+   buf = d.Buffer(4096)
+   qpair = d.Qpair(nvme0, 8)
+   nvme0n1 = d.Namespace(nvme0)
+   buf.set_dsm_range(0, 0, 8)
+   buf.set_dsm_range(1, 8, 64)
+   nvme0n1.dsm(qpair, buf, 2).waitdone()
+
+
 Generic Commands
 ^^^^^^^^^^^^^^^^
 
@@ -360,8 +473,34 @@ We can also send any IO commands through generic commands API `Namespace.send_cm
 
 It is actually a fused operation of compare and write in the above script.
 
+                
+Data Verify
+^^^^^^^^^^^
+
+We mentioned earlier that pynvme verifies data integrity on the fly of data IO. However, the controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). For example, when two IOWorkers write the same LBA simultaneously, the order of these writes is not defined. Similarly, in a read/write mixed IOWorker, when both read and write IO happen on the same LBA, their order is also not defined. So, it is impossible for any host driver to determine the data content of read.
+
+So, how we verify the data integrity in test scripts? We need to construct conflict-free IOWorkers with dedicated consideration. When we need to check the data integrity, and ensure that no data conflict could happen, we can specify the fixture `verify` to enable this feature.
+
+.. code-block:: python
+
+   def test_ioworker_write_read_verify(nvme0n1, verify):
+       assert verify
+       
+       nvme0n1.ioworker(io_size=8, lba_align=8, lba_random=False,
+                        region_start=0, region_end=100000
+                        read_percentage=0, time=2).start().close()
+   
+       nvme0n1.ioworker(io_size=8, lba_align=8, lba_random=False,
+                        region_start=0, region_end=100000
+                        read_percentage=100, time=2).start().close()
+
+To avoid data conflict, we can start IOWorkers one after another. Otherwise, when we have to start multiple IOWorkers in parallel, we can separate them to different LBA regions. 
+
+Another consideration on data verify is the memory space. During Namespace initialization, only if pynvme can allocate enough memory to hold the CRC data for each LBA, the data verify feature is enabled on this Namespace. Otherwise, the data verify feature cannot be enabled. Take a 512GB namespace for an example, it needs at least 4GB memory space for CRC data.
+
+
 IOWorker
-^^^^^^^^
+--------
 
 It is inconvenient and expensive to send each IO command in Python scripts. Pynvme provides the low-cost high-performance `IOWorker` to send IOs in separated process. IOWorkers make full use of multi-core CPU to improve IO test performance and stress. Scripts create the `IOWorker` object by API `Namespace.ioworker()`, and start it. Then scripts can do anything else, and finally close it to wait the IOWorker completed and get the result data. Each IOWorker occupies one Qpair. Here is an IOWorker to randomly write 4K data for 2 seconds.
 
@@ -580,64 +719,13 @@ Here is an example to display how ioworker implements JEDEC workload by these pa
                         ptype=0xbeef, pvalue=100, 
                         time=10).start().close()
 
-       
-Data Verify
-^^^^^^^^^^^
-
-We mentioned earlier that pynvme verifies data integrity on the fly of data IO. However, the controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). For example, when two IOWorkers write the same LBA simultaneously, the order of these writes is not defined. Similarly, in a read/write mixed IOWorker, when both read and write IO happen on the same LBA, their order is also not defined. So, it is impossible for any host driver to determine the data content of read.
-
-So, how we verify the data integrity in test scripts? We need to construct conflict-free IOWorkers with dedicated consideration. When we need to check the data integrity, and ensure that no data conflict could happen, we can specify the fixture `verify` to enable this feature.
-
-.. code-block:: python
-
-   def test_ioworker_write_read_verify(nvme0n1, verify):
-       assert verify
-       
-       nvme0n1.ioworker(io_size=8, lba_align=8, lba_random=False,
-                        region_start=0, region_end=100000
-                        read_percentage=0, time=2).start().close()
-   
-       nvme0n1.ioworker(io_size=8, lba_align=8, lba_random=False,
-                        region_start=0, region_end=100000
-                        read_percentage=100, time=2).start().close()
-
-To avoid data conflict, we can start IOWorkers one after another. Otherwise, when we have to start multiple IOWorkers in parallel, we can separate them to different LBA regions. 
-
-Another consideration on data verify is the memory space. During Namespace initialization, only if pynvme can allocate enough memory to hold the CRC data for each LBA, the data verify feature is enabled on this Namespace. Otherwise, the data verify feature cannot be enabled. Take a 512GB namespace for an example, it needs at least 4GB memory space for CRC data.
-
-Trim
-^^^^
-
-Dataset Management (e.g. deallocate, or trim) is another commonly used IO command. It needs a prepared data buffer to specify LBA ranges to trim. Users can use API `Buffer.set_dsm_range()` for that. 
-
-.. code-block:: python
-
-   nvme0 = d.Controller(b'01:00.0')
-   buf = d.Buffer(4096)
-   qpair = d.Qpair(nvme0, 8)
-   nvme0n1 = d.Namespace(nvme0)
-   buf.set_dsm_range(0, 0, 8)
-   buf.set_dsm_range(1, 8, 64)
-   nvme0n1.dsm(qpair, buf, 2).waitdone()
 
 
-PCIe
+Misc
 ----
 
-Pynvme can access NVMe device's PCI configuration space, including all capabilities.
-
-.. code-block:: python
-
-   pcie = d.Pcie(nvme0)
-   hex(pcie[0:4])                  # Byte 0/1/2/3
-   pm_offset = pcie.cap_offset(1)  # find Power Management Capability
-   pcie.reset()
-   pcie.aspm = 2                   # set ASPM control to enable L1 only
-   pcie.power_state = 3            # set PCI PM power state to D3hot
-   
-
 Power
------
+=====
 
 Without any addtional equipment, pynvme can power off NVMe devices through S3 power state, and use RTC to wake it up. We implemented this process in API `Subsystem.power_cycle()`.
 
@@ -663,102 +751,50 @@ Scripts can send a notification to NVMe device before turn power off, and this i
    subsystem.shutdown_notify()
    subsystem.power_cycle()
 
+Pynvme also supports third-party hardware power module. Users provides the function of poweron and poweroff when creating subsystem objects, and pynvme calls them in Subsystem.poweron() and Subsystem.poweroff().
+
+.. code-block:: python
+
+   def test_quarch_defined_poweron_poweroff(nvme0):
+       import quarchpy
+   
+       def quarch_poweron():
+           logging.info("power off by quarch")
+           pwr = quarchpy.quarchDevice("SERIAL:/dev/ttyUSB0")
+           pwr.sendCommand("run:power up")
+           pwr.closeConnection()
+   
+       def quarch_poweroff():
+           logging.info("power on by quarch")
+           pwr = quarchpy.quarchDevice("SERIAL:/dev/ttyUSB0")
+           pwr.sendCommand("signal:all:source 7")
+           pwr.sendCommand("run:power down")
+           pwr.closeConnection()
+   
+       s = d.Subsystem(nvme0, quarch_poweron, quarch_poweroff)
+
+It is required to call Controller.reset() after Subsystem.power_cycle() and Subssytem.poweron(). 
+
    
 Reset
------
+=====
 
 Pynvme provides different ways of reset: 
 
 .. code-block:: python
 
    nvme0.reset()     # reset controller by its CC.EN register. We can also reset the NVMe device as a PCIe device:
+   
    pcie.reset()      # PCIe hot reset
+   nvme0.reset()
+   
    subsystem.reset() # use register NSSR.NSSRC
+   nvme0.reset()
 
-
-PSD
----
-
-Based on SPDK, pynvme provides a high performance NVMe driver for product test. However, it lacks of flexibility to test every details defined in the NVMe Specification. Here are some of the examples:
-
-#. Multiple SQ share one CQ. Pynvme abstracts CQ and SQ as the Qpair.
-#. Non-contiguous memory for SQ and/or CQ. Pynvme always allocates contiguous memory when creating Qpairs.
-#. Complicated PRP tests. Pynvme creates PRP with some reasonable limitations, but it cannot cover all corner cases in protocol tests.
-
-In order to cover these considerations, pynvme provides an extension of **Python Space Driver** (PSD). It is an NVMe driver implemented in pure Python based on some fundamental capabilities provided by Pynvme. Specifically, they are:
-
-#. DMA memory allocation abstracted by class `Buffer`.
-#. NVMe register access provided by class `Controller`.
-
-PSD implements NVMe data structures and operations in the module *scripts/psd.py*. It consists of classes below:
-
-#. PRP: alias of Buffer, and the size is the memory page by default.
-#. PRPList: maintain the list of PRP entries, which are physical addresses of `Buffer`.
-#. IOSQ: create and maintain IO Submission Queue.
-#. IOCQ: create and maintain IO Completion Queue.
-#. SQE: submission queue entry for NVMe commands dwords.
-#. CQE: completion queue entry for NVMe completion dwords.
-
-Here is an example: 
-
-.. code-block:: python
-
-   # import psd classes
-   from psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
-
-   def test_send_cmd_2sq_1cq(nvme0):
-       # 2 SQ share one CQ
-       cq = IOCQ(nvme0, 1, 10, PRP())
-       sq1 = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
-       sq2 = IOSQ(nvme0, 2, 16, PRP(), cqid=1)
-   
-       # write lba0, 16K data organized by PRPList
-       write_cmd = SQE(1, 1)  # write to namespace 1
-       write_cmd.prp1 = PRP() # PRP1 is a 4K page
-       prp_list = PRPList()   # PRPList contains 3 pages
-       prp_list[0] = PRP()
-       prp_list[1] = PRP()
-       prp_list[2] = PRP()
-       write_cmd.prp2 = prp_list   # PRP2 points to the PRPList
-       write_cmd[10] = 0           # starting LBA
-       write_cmd[12] = 31          # LBA count: 32, 16K, 4 pages
-       write_cmd.cid = 123;        # verify cid later
-   
-       # send write commands in both SQ
-       sq1[0] = write_cmd          # fill command dwords in SQ1
-       write_cmd.cid = 567;        # verify cid later
-       sq2[0] = write_cmd          # fill command dwords in SQ2
-       sq2.tail = 1                # ring doorbell of SQ2 first
-       time.sleep(0.1)             # delay to ring SQ1, 
-       sq1.tail = 1                #  so command in SQ2 should comple first
-   
-       # wait for 2 command completions
-       while CQE(cq[1]).p == 0: pass
-   
-       # check first cpl
-       cqe = CQE(cq[0])
-       assert cqe.sqid == 2
-       assert cqe.sqhd == 1
-       assert cqe.cid == 567
-   
-       # check second cpl
-       cqe = CQE(cq[1])
-       assert cqe.sqid == 1
-       assert cqe.sqhd == 1
-       assert cqe.cid == 123
-   
-       # update cq head doorbell to device
-       cq.head = 2
-   
-       # delete all queues
-       sq1.delete()
-       sq2.delete()
-       cq.delete()
-
-
+It is required to call Controller.reset() after Pcie.reset() and Subsystem.reset(). 
 
 Random Number
--------------
+=============
 
 Before every test item, pynvme sets a different random seed to get different serie of random numbers. When user wants to reproduce the test with the identical random numbers, just manually set the random seed in the beginning of the test scripts. For example:
 
