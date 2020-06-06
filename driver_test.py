@@ -790,16 +790,24 @@ def test_callback_with_whole_cpl(nvme0, nvme0n1, buf):
 
     def cb2(cpl):
         logging.info(cpl)
+        assert cpl[0] == 0
         assert cpl[1] == 0
+        assert len(cpl) == 4
+        assert type(cpl) is tuple
     qpair = d.Qpair(nvme0, 10)
     nvme0n1.read(qpair, buf, 0, cb=cb2).waitdone()
 
     a1 = 0
     def cb1(cdw0, status):
         nonlocal a1; a1 = cdw0
+        logging.info("in 2nd cb1")
     nvme0.getfeatures(7, cb=cb1).waitdone()
-
     assert a1 == f1
+
+    def cb3(cdw0, status, third):
+        pass
+    with pytest.warns(UserWarning, match="ASSERT: command callback"):
+        nvme0.getfeatures(7, cb=cb3).waitdone()
     
     
 def test_multiple_callbacks(nvme0):
@@ -1978,9 +1986,15 @@ def test_ioworker_lba_random_percentage(nvme0n1, lba_random):
     nvme0n1.ioworker(io_size=8, lba_random=lba_random,
                      output_cmdlog_list = cmdlog_list,
                      io_count=100).start().close()
-    #logging.info(cmdlog_list)
 
 
+def test_ioworker_lba_random_illegal(nvme0n1):
+    with pytest.raises(AssertionError):
+        nvme0n1.ioworker(io_size=8, lba_random=101, time=1).start().close()
+    with pytest.raises(AssertionError):
+        nvme0n1.ioworker(io_size=8, lba_random=[0, 1], time=1).start().close()
+
+    
 def test_ioworker_lba_step_multiple(nvme0n1):
     cmdlog_lists = [[None]*10, [None]*10, [None]*10, [None]*10]
     with nvme0n1.ioworker(io_size=1, io_count=10, lba_start=0,

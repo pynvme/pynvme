@@ -132,7 +132,9 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
         # call script callback function to check cpl
         try:
             # we support 2 types of callback (dword0, status1), and (cpl)
-            if 2 == len(signature(func).parameters):
+            argc = len(signature(func).parameters)
+            assert argc == 1 or argc == 2, "command callback has illegal parameter list"
+            if argc == 2:
                 func(arg.cdw0, status1)
             else:
                 cdw2 = arg.sqid
@@ -1973,8 +1975,8 @@ cdef class Namespace(object):
         if type(lba_random) is bool:
             if lba_random == True: lba_random = 100
             if lba_random == False: lba_random = 0
-        assert lba_random >= 0
-        assert lba_random <= 100, "lba_random is a percentage"
+        assert type(lba_random) is int, "lba_random is a percentage, int"
+        assert lba_random >= 0 and lba_random <= 100, "lba_random is a percentage, 0-100"
 
         if lba_random < 100:
             assert type(io_size) is int, "sequential workload cannot work with complex io_size"
