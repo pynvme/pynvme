@@ -4,27 +4,25 @@ Introduction
 Background
 ----------
 
-Storage is important to client computers, data centers and enterprise servers. NVMe is a fast growing standard of storage in the era of Solid State Storage. However, most of the developers and users test NVMe devices by legacy utilities which are not designed for NVMe compatibility, performance, reliability and rapid evolution. On the other side, different kinds of storage materials have been developing in a fast and steady pace. Storage developers have to keep the same pace to develop products with latest storage technologies. In this condition, Agile development methodologies are widely adopted.
+Storage is important to client computers, data centers and enterprise servers. NVMe is a fast growing standard of storage in the era of Solid State Storage. However, most of the developers and users test NVMe devices with traditional utilities which are not designed for NVMe compatibility, performance, reliability and rapid evolution. On the other hand, different kinds of storage materials have been developing in a fast and steady pace. Developers have to keep the same pace as the latest storage technologies.
 
-Testing in Agile development is very different from traditional development life cycle. It is no longer a standalone stage of the project. Instead, it is an important everyday practice in each stage of the project. So, we need a solid tool to support the NVMe testing. But, do we have the one?
+In these conditions, traditional test utilities and methodologies became the bottle neck of the project. First, many existed tools do not provide source code or API, so it is very difficult to be integrited into the automatic test flow, which is critical to Agile project management. Second, Many testing tools are developed in HDD/SATA era, so it cannot consistently benchmark the super-fast NVMe SSD. Last but not least, NVMe specification is keeping growing, so we are always looking for new test tools for those new introduced NVMe features.
 
-We have great tools to test IO, for example, FIO and IOMeter. But IO is just a part of the storage features. We have some commercial softwares to test overall functions of NVMe devices, but they are not flexible to development, debug, and maintain test scripts. The testing infrastructure tool is always a frustrating **TODO** item in the backlogs.
+Then, pynvme comes.
 
-Requirement
------------
-
-The most essential part of pynvme is a test dedicated driver, which shifts test in device-side to host-side. This driver should be:
-
-1. lightweight. It exposes device functions, performance and issues to the host. We do not need file system nor cache between the raw devices and test scripts.
-2. compact interface. We need an easy to use API, so developers can implement and maintain their test scripts easily.
-3. high performance. NVMe is born with high performance, so is pynvme.
-4. debug logs. We should keep enough debug information for both scripts developers and product developers, so they can investigate issues happened in the tests before blindly repeat the same tests.
-5. automation. We need to make full use of modern software testing frameworks to improve the efficiency.
 
 Design
 ------
 
-We did not build pynvme from scratch. We build it based on the `SPDK <https://spdk.io/>`_, a reliable library of NVMe storage software stack. We extended SPDK NVMe driver with several testing-purpose functions in pynvme:
+Pynvme is an user-space PCIe/NVMe test driver with Python API. It is open, fast, and extensible.
+
+Pynvme is an open-source project. So every people and team can use it and make contributions to pynvme. Different from the window-based closed application, pynvme is an open module with Python API. With pynvme, as well as the whole Python community and ecosystem, engineers can efficiently develop test scripts.
+
+Pynvme is an user-space software. It bypasses the whole Kernel and accesses PCIe/NVMe hardware resources directly to elliminate system-call overhead. Pynvme is also a poll mode driver (PMD), which further elliminates the cost of interrupts. So its performance is very high and consistent.
+
+Pynvme is extensible. It provides API to access PCIe and physical memory. As the result, scripts can read and write PCIe configuration space, PCIe memory space (aka BAR space), and physical (instead of logical) memory space. With these low-level capabilites, scripts are free to make more innovations.
+
+We did not build pynvme from scratch. We build it based on the `SPDK <https://spdk.io/>`_, a reliable software stack developed by Intel. We extended SPDK NVMe driver with several testing-purpose functions in pynvme: 
 
 1. Interrupts. SPDK is a polling mode driver, so it does not support interrupts, like MSIx and MSI. We implemented a software interrupt host controller to enable and check interrupt signals.
 2. Checksum. Storage cares data integrity. Pynvme verifies each LBA block with CRC32 checksum, without any penalty on performance.
@@ -35,11 +33,30 @@ We did not build pynvme from scratch. We build it based on the `SPDK <https://sp
    :target: pic/pynvme.png
    :alt: pynvme design
    
-We then wrap all these SPDK and pynvme functions in a Python module. Users can use Python classes (e.g. Controller, Namespace, ...) to manage NVMe resources in the scripts, like this:
+We then wrap all these SPDK and pynvme functions in a Python module. Users can use Python classes (e.g. Controller, Namespace, ...) to access NVMe resources. Here is an identical script as SPDK's 400-line example: https://github.com/spdk/spdk/blob/master/examples/nvme/hello_world/hello_world.c
 
 .. code-block:: python
+   :linenos:
                 
-   # create an NVMe controller with its PCIe address
-   nvme0 = d.Controller(b"01:00.0")  
+   import pytest
+   import nvme as d
 
-Now, let's install pynvme from source code before we dive into it. 
+   def test_hello_world(nvme0, nvme0n1):
+       # buffer holding read/write data
+       read_buf = d.Buffer(512)
+       write_buf = d.Buffer(512)
+       write_buf[10:21] = b'hello world'
+       
+       # send write and read command
+       qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
+       def write_cb(cdw0, status1):  # command callback function
+           nvme0n1.read(qpair, read_buf, 0, 1)
+       nvme0n1.write(qpair, write_buf, 0, 1, cb=write_cb)
+   
+       # wait commands complete and verify data
+       assert read_buf[10:21] != b'hello world'
+       qpair.waitdone(2)
+       assert read_buf[10:21] == b'hello world'
+
+
+Now, let's install pynvme.

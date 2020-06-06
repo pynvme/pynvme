@@ -1,10 +1,10 @@
 Install
 =======
 
-Quick Start
------------
+All-in-One
+----------
 
-Normally, users can build pynvme by simply running *install.sh*. It generates the pynvme Python package *nvme.so*. This is the recommended method to compile pynvme.
+Users can build pynvme by simply running *install.sh* after getting source code from github. This is the recommended method to compile pynvme.
 
 .. code-block:: shell
 
@@ -12,14 +12,14 @@ Normally, users can build pynvme by simply running *install.sh*. It generates th
    cd pynvme
    ./install.sh
    
-Users then can import the package for NVMe test scripts:
+Now, it generates binary python module *nvme.so*. Users can import it in Python scripts:
 
 .. code-block:: python
 
    import nvme as d
-   nvme0 = d.Controller(b"01:00.0")  
+   nvme0 = d.Controller(d.Pcie("01:00.0"))
    
-We will describe more details of installation below, in case *install.sh* cannot give you the expected package binary file. 
+Below, We will describe more details of installation.
 
 System Requirements
 -------------------
@@ -96,7 +96,7 @@ We need to compile and test SPDK first.
    # compile pynvme
    make
 
-Now, we can find a generated binary file like: *nvme.cpython-37m-x86_64-linux-gnu.so*.
+Now, we can find a generated binary file *nvme.so*.
 
 Test
 ----
@@ -108,12 +108,8 @@ After compilation, let's first verify if SPDK works in your platform with SPDK a
    # setup SPDK runtime environment             
    make setup
 
-   # compile the application
-   cd spdk/examples/nvme/identify
-   sudo make
-
-   # run the application
-   sudo ./identify
+   # run pre-built SPDK application
+   sudo ./identify_nvme
 
 This application lists identify data of your NVMe SSD. If it works, let's move ahead to run pynvme tests!
 
@@ -131,4 +127,16 @@ After the test, we can find the file *test.log* in pynvme directory, which keeps
 
    make reset
 
-OK! Pynvme is ready now. 
+pip
+---
+
+As an alternative way, we can also install pynvme with pip in the latest Fedora Linux. 
+
+.. code-block:: shell
+ 
+   pip install pynvme
+   cd /usr/local/pynvme
+   make setup
+   make test TESTS="driver_test.py::test_ioworker_iops_multiple_queue[1]"
+
+It installs a prebuilt pynvme binary module. But we still recommend to clone pynvme source code and compile it by *install.sh*.

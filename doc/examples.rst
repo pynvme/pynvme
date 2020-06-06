@@ -1,12 +1,13 @@
 Examples
 ========
 
-In this chapter, we will review several typical NVMe test scripts. 
+In this chapter, we will review several typical NVMe test scripts. You can find more example scripts here: https://github.com/pynvme/pynvme/blob/master/scripts/test_examples.py
 
 Ex1: hello world
 ----------------
 
 .. code-block:: python
+   :linenos:
 
    # import packages
    import pytest
@@ -44,6 +45,7 @@ Ex2: sanitize
 -------------
 
 .. code-block:: python
+   :linenos:
 
    # import more package for GUI programming
    import PySimpleGUI as sg
@@ -73,6 +75,7 @@ Ex3: parameterized tests
 ------------------------
 
 .. code-block:: python
+   :linenos:
 
    # create a parameter with a argument list
    @pytest.mark.parametrize("qcount", [1, 2, 4, 8, 16])
@@ -99,6 +102,7 @@ Ex4: upgrade and reboot the drive
 ---------------------------------
 
 .. code-block:: python
+   :linenos:
 
    # this test function is actually a utility to upgrade SSD firmware
    def test_download_firmware(nvme0, subsystem):
@@ -118,6 +122,7 @@ Ex5: write drive and monitor temperature
 ----------------------------------------
 
 .. code-block:: python
+   :linenos:
 
    # a temperature calculation package
    from pytemperature import k2c
@@ -143,6 +148,7 @@ Ex6: multiple ioworkers on different namespaces and controllers
 ---------------------------------------------------------------
 
 .. code-block:: python
+   :linenos:
 
    def test_multiple_controllers_and_namespaces():
        # address list of the devices to test
@@ -177,6 +183,7 @@ Ex7: format and fused operations
 --------------------------------
 
 .. code-block:: python
+   :linenos:
 
    # fused operation is not directly supported by pynvme APIs
    def test_fused_operations(nvme0, nvme0n1):
