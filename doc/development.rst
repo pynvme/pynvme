@@ -53,7 +53,7 @@ Our official repository is at: https://github.com/pynvme/pynvme. We built pynvme
 - SPDK: https://github.com/cranechu/spdk
 - DPDK: https://github.com/cranechu/dpdk
 
-The pynvme modified code is in the branch of pynvme_1.x. We will regularly (e.g. every 6 months) rebase pynvme modifications to latest SPDK/DPDK stable release. 
+The pynvme modified code is in the branch of pynvme_1.x. We will regularly rebase pynvme modifications to the latest SPDK/DPDK stable release. 
 
 CI
 --
@@ -92,4 +92,4 @@ Debug
                       
          sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
 
-If you meet any issue, or have any suggestions, please report them to `Issues <https://github.com/pynvme/pynvme/issues>`_! Please attach the *test.log* file. 
+If you meet any problem, please report it to `Issues <https://github.com/pynvme/pynvme/issues>`_ with the *test.log* file uploaded.

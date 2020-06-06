@@ -260,6 +260,7 @@ cdef class Buffer(object):
 
     @property
     def offset(self):
+        """get the offset of the PRP in bytes"""
         return self.offset
 
     @offset.setter
@@ -560,7 +561,7 @@ class NvmeDeletionError(Exception):
     pass
 
 cdef class Pcie(object):
-    """Pcie class. Prefer to use fixture "pcie" in test scripts
+    """Pcie class to access PCIe configuration and memory space
 
     # Parameters
         nvme (Controller): the nvme controller object of that subsystem
@@ -717,13 +718,6 @@ cdef class Pcie(object):
 
     @property
     def aspm(self):
-        """current ASPM setting"""
-
-        linkctrl_addr = self.cap_offset(0x10)+16
-        return self.register(linkctrl_addr, 2) & 0x3
-
-    @aspm.setter
-    def aspm(self, control):
         """config new ASPM Control:
 
         # Parameters
@@ -734,6 +728,11 @@ cdef class Pcie(object):
                      b11: L0s and L1
         """
 
+        linkctrl_addr = self.cap_offset(0x10)+16
+        return self.register(linkctrl_addr, 2) & 0x3
+
+    @aspm.setter
+    def aspm(self, control):
         assert control < 4 and control >= 0
         linkctrl_addr = self.cap_offset(0x10)+16
         linkctrl = self.register(linkctrl_addr, 2)
@@ -741,13 +740,6 @@ cdef class Pcie(object):
 
     @property
     def power_state(self):
-        """current power state"""
-
-        pmcsr_addr = self.cap_offset(1) + 4
-        return self.register(pmcsr_addr, 4) & 0x3
-
-    @power_state.setter
-    def power_state(self, state):
         """config new power state:
 
         # Parameters
@@ -758,6 +750,11 @@ cdef class Pcie(object):
                    3: D3hot
         """
 
+        pmcsr_addr = self.cap_offset(1) + 4
+        return self.register(pmcsr_addr, 4) & 0x3
+
+    @power_state.setter
+    def power_state(self, state):
         assert state < 4 and state >= 0
         pmcsr_addr = self.cap_offset(1) + 4
         pmcsr =  self.register(pmcsr_addr, 4)
@@ -1016,9 +1013,13 @@ cdef class Controller(object):
             raise TypeError()
 
     def init_adminq(self):
+        """used by NVMe init process in scripts"""
+        
         return d.nvme_set_adminq(self.pcie._ctrlr)
 
     def init_ns(self):
+        """used by NVMe init process in scripts"""
+
         return d.nvme_set_ns(self.pcie._ctrlr)
 
     def cmdlog(self, count=0):
@@ -1751,7 +1752,7 @@ class NamespaceDeletionError(Exception):
 
 
 cdef class Namespace(object):
-    """Namespace class. Prefer to use fixture "nvme0n1" in test scripts.
+    """Namespace class.
 
     # Parameters
         nvme (Controller): controller where to create the queue
@@ -2037,6 +2038,9 @@ cdef class Namespace(object):
             lba (int): the starting lba address, 64 bits
             lba_count (int): the lba count of this command, 16 bits. Default: 1
             io_flags (int): io flags defined in NVMe specification, 16 bits. Default: 0
+            dword13 (int): command SQE dword13
+            dword14 (int): command SQE dword14
+            dword15 (int): command SQE dword15
             cb (function): callback function called at completion. Default: None
 
         Returns
@@ -2066,6 +2070,9 @@ cdef class Namespace(object):
             lba (int): the starting lba address, 64 bits
             lba_count (int): the lba count of this command, 16 bits
             io_flags (int): io flags defined in NVMe specification, 16 bits. Default: 0
+            dword13 (int): command SQE dword13
+            dword14 (int): command SQE dword14
+            dword15 (int): command SQE dword15
             cb (function): callback function called at completion. Default: None
 
         Returns
@@ -2269,6 +2276,7 @@ cdef class Namespace(object):
             qpair (Qpair): qpair used to send this command
             buf (Buffer): buffer of the command. Default: None
             nsid (int): nsid field of the command. Default: 0
+            cdw1x (int): command SQE dword10 - dword15
             cb (function): callback function called at completion. Default: None
 
         Returns
@@ -2314,10 +2322,10 @@ cdef class Namespace(object):
         return ret
 
 
-class DotDict(dict):
+class _DotDict(dict):
     """utility class to access dict members by . operation"""
     def __init__(self, *args, **kwargs):
-        super(DotDict, self).__init__(*args, **kwargs)
+        super(_DotDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
 
@@ -2411,7 +2419,7 @@ class _IOWorker(object):
         if error != 0:
             warnings.warn("ioworker host ERROR %d: %s" % (error, error_str))
 
-        rets = DotDict(rets)
+        rets = _DotDict(rets)
         if rets.error != 0:
             warnings.warn("ioworker device respond an ERROR status: %02x/%02x" %
                           ((rets.error>>8)&0x7, rets.error&0xff))
