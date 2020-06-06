@@ -1,7 +1,7 @@
 VSCode
 ======
 
-VSCode is an excellent source code editor and IDE. It officially supports python and pytest with an extension: https://github.com/microsoft/vscode-python. We developed another plugin for pynvme. So users can develop and run test scripts in VSCode. 
+VSCode is an excellent source code editor and IDE. It supports python and pytest with an offical extension: https://github.com/microsoft/vscode-python. We developed another extension for pynvme to make VSCode more friendly to SSD test. 
 
 Layout
 ------

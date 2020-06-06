@@ -1,7 +1,7 @@
 Pytest
 ======
 
-The `pytest <https://pytest.org/en/latest/>`_ framework helps developers writing test scripts from simple to complex. Pynvme is integrated with pytest to write simpler and safer scripts.
+The `pytest <https://pytest.org/en/latest/>`_ framework helps developers writing test scripts from simple to complex. Pynvme is integrated with pytest, but it can also be used standalone. 
 
 Fixtures
 --------
@@ -22,10 +22,10 @@ Pytest's fixture is a powerful way to create and free resources in the test. Pyn
      - the object of the PCIe device.
    * - nvme0
      - session
-     - the object of NVMe controller
+     - the object of default NVMe controller
    * - nvme0n1
      - session
-     - the object of first Namespace of the controller
+     - the object of first Namespace of the default controller
    * - verify
      - function
      - declare this fixture in test cases where data CRC is to be verified.
@@ -51,7 +51,7 @@ We no longer need to repeat nvme0n1 creation in every test case as usual way:
 Execution
 ---------
 
-With pytest, we can execute tests in flexible ways, like these: 
+With pytest, we can execute tests in many flexible ways, like these: 
 
 .. code-block:: shell
 
@@ -67,16 +67,16 @@ With pytest, we can execute tests in flexible ways, like these:
    # a test function with a specified parameter
    make test TESTS="driver_test.py::test_ioworker_iops_multiple_queue[1]"
 
-*make test* automatically uses the last PCIe NVMe device in the lspci list. We can also specify PCIe address of the NVMe device under test (DUT) in command line:
+*make test* automatically uses the last PCIe NVMe device in the lspci list. We can also specify PCIe address of the NVMe device in command line:
 
 .. code-block:: shell
 
    sudo python3 -B -m pytest driver_test.py::test_ioworker_simplified_context --pciaddr=03:00.0
 
-We can even specify the IP address of NVMe over TCP target for the same test case:
+We can even specify the IP address of NVMe over TCP target to run the same test case:
 
 .. code-block:: shell
 
    sudo python3 -B -m pytest driver_test.py::test_ioworker_simplified_context --pciaddr=10.24.48.17
 
-Yes, pynvme supports both PCIe and TCP NVMe devices! 
+You can find that pynvme supports both PCIe and TCP NVMe devices seemlessly! 

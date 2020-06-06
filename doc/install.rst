@@ -19,7 +19,7 @@ Now, it generates binary python module *nvme.so*. Users can import it in Python 
    import nvme as d
    nvme0 = d.Controller(d.Pcie("01:00.0"))
    
-Below, We will describe more details of installation.
+We will describe more details of installation below. You can skip to the next chapter if you have already got the binary *nvme.so*.
 
 System Requirements
 -------------------
