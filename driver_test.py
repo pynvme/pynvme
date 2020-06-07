@@ -2135,6 +2135,8 @@ def test_ioworker_op_dict_invalid(nvme0n1):
 
 
 def test_ioworker_op_dict_trim(nvme0n1):
+    nvme0n1.ioworker(io_size=2, lba_random=30, time=2, op_percentage={2: 40, 9: 30, 1: 30}).start().close()
+
     op_percentage = {2: 40, 9: 60}
     ret = nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
     assert ret.io_count_write == 0

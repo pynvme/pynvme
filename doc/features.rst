@@ -233,76 +233,78 @@ The timeout duration is configurable, and the default time is 10 seconds. Users 
 
 When a command timeout happens, pynvme notifies user scripts in two ways. First, pynvme will throw a timeout warning. Second, pynvme completes (not abort) the command by itself with an all-1 completion dwords returned.     
 
+
 Asynchronous Event Request
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-NVMe Admin Command AER is somewhat special - they are not applicable to timeout setting. Pynvme driver sends some AER commands during the Controller initialization. When an error or event happen, one AER command completes to notify host driver for the unexpected error or event, and resend one more AER command. Then, pynvme driver notifies the scripts by AER command's callback function. In the example below, we use the pytest fixture `aer` to define the AER callback function. When an AER command completion is triggered by the NVMe device, this callback function will be called with arguments `cdw0` and `status1`, which is the same as the usual command's callback function.
+AER is a special NVMe admin command. It is not applicable to timeout setting. In default NVMe initialization process, pynvme sends only one AER command for those unexpected AER events during the test. However, scripts can replace this default initializaiton process with which sends more AER commands. When one AER completed during the test, a warning is raised, and scripts have to call one more `waitdone` and send one more AER command. Scripts can also give a callback function to any AER command which is the same as the usual command.
+
+Here is an example of AER with sanitize operations. 
 
 .. code-block:: python
-   :emphasize-lines: 5-7
+   :emphasize-lines: 19-20
 
-   def test_sanitize(nvme0, nvme0n1, buf, aer):
-       if nvme0.id_data(331, 328) == 0:
-           pytest.skip("sanitize operation is not supported")
+   def test_aer_with_multiple_sanitize(nvme0, nvme0n1, buf):  #L8
+      if nvme0.id_data(331, 328) == 0:  #L9
+          pytest.skip("sanitize operation is not supported")  #L10
+          
+      logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
+      
+      for i in range(3):
+          nvme0.sanitize().waitdone()  #L13
+          
+          # check sanitize status in log page
+          with pytest.warns(UserWarning, match="AER notification is triggered"):
+              nvme0.getlogpage(0x81, buf, 20).waitdone()  #L17
+              while buf.data(3, 2) & 0x7 != 1:  #L18
+                  time.sleep(1)
+                  nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
+                  progress = buf.data(1, 0)*100//0xffff
+                  logging.info("%d%%" % progress)
+                   
+          nvme0.waitdone()  # reap one more CQE for completed AER
+          nvme0.aer()  # send one more AER for the next sanitize operation
 
-       def cb(cdw0, status1):
-           logging.info("aer cb in script: 0x%x, 0x%x" % (cdw0, status))
-       aer(cb)
 
-       logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
-       nvme0.sanitize().waitdone()
-
-       # sanitize status log page
-       nvme0.getlogpage(0x81, buf, 20).waitdone()
-       while buf.data(3, 2) & 0x7 != 1:  # sanitize is not completed
-           progress = buf.data(1, 0)*100//0xffff
-           sg.OneLineProgressMeter('sanitize progress', progress, 100,
-                                   'progress', orientation='h')
-           nvme0.getlogpage(0x81, buf, 20).waitdone()
-           time.sleep(1)
-
-For NVMe Admin command Sanitize, an AER command should be triggered. We can find the log information printed in the AER's callback function. Here is the output of the above test function. 
+AER completion is triggered when sanitize operation is finished. We can find the UserWarning for the AER notification in the test log below. The first AER command is sent by pynvme initialization process, while the remaining AER commands are sent by user scripts. 
 
 .. code-block:: shell
-   :emphasize-lines: 18, 26
-                     
-   cwd: /home/cranechu/pynvme/
-   cmd: sudo python3 -B -m pytest --color=yes --pciaddr=01:00.0 'scripts/utility_test.py::test_sanitize'
+   :emphasize-lines: 15, 18, 21
 
-   ======================================= test session starts =======================================
-   platform linux -- Python 3.7.3, pytest-4.3.1, py-1.8.0, pluggy-0.9.0 -- /usr/bin/python3
-   cachedir: .pytest_cache
+   cmd: sudo python3 -B -m pytest --color=yes --pciaddr=3d:00.0 'scripts/test_examples.py::test_aer_with_multiple_sanitize'
+   
+   ================================ test session starts =================================
+   platform linux -- Python 3.8.3, pytest-5.4.2, py-1.8.1, pluggy-0.13.1
    rootdir: /home/cranechu/pynvme, inifile: pytest.ini
-   plugins: cov-2.6.1
-   collected 1 item                                                                                  
+   plugins: cov-2.9.0
+   collected 1 item                                                                     
+   
+   scripts/test_examples.py::test_aer_with_multiple_sanitize 
+   ----------------------------------- live log setup -----------------------------------
+   [2020-06-07 22:57:09.934] INFO script(65): setup random seed: 0xb56b1bda
+   ----------------------------------- live log call ------------------------------------
+   [2020-06-07 22:57:10.334] INFO test_aer_with_multiple_sanitize(580): supported sanitize operation: 2
+   [2020-06-07 22:57:13.139] INFO test_aer_with_multiple_sanitize(592): 10%
+   [2020-06-07 22:57:14.140] WARNING test_aer_with_multiple_sanitize(590): AER triggered, dword0: 0x810106, status1: 0x1
+   [2020-06-07 22:57:14.140] INFO test_aer_with_multiple_sanitize(592): 100%
+   [2020-06-07 22:57:16.967] INFO test_aer_with_multiple_sanitize(592): 10%
+   [2020-06-07 22:57:17.968] WARNING test_aer_with_multiple_sanitize(590): AER triggered, dword0: 0x810106, status1: 0x1
+   [2020-06-07 22:57:17.969] INFO test_aer_with_multiple_sanitize(592): 100%
+   [2020-06-07 22:57:20.777] INFO test_aer_with_multiple_sanitize(592): 10%
+   [2020-06-07 22:57:21.779] WARNING test_aer_with_multiple_sanitize(590): AER triggered, dword0: 0x810106, status1: 0x1
+   [2020-06-07 22:57:21.780] INFO test_aer_with_multiple_sanitize(592): 100%
+   PASSED                                                                         [100%]
+   --------------------------------- live log teardown ----------------------------------
+   [2020-06-07 22:57:21.782] INFO script(67): test duration: 11.848 sec
+   
+   
+   ================================= 1 passed in 12.30s =================================
 
-   scripts/utility_test.py::test_sanitize 
-   ----------------------------------------- live log setup ------------------------------------------
-   [2019-05-28 22:55:34.394] INFO pciaddr(19): running tests on DUT 01:00.0
-   ------------------------------------------ live log call ------------------------------------------
-   [2019-05-28 22:55:35.092] INFO test_sanitize(73): supported sanitize operation: 2
-   [2019-05-28 22:55:35.093] INFO test_sanitize(74): sanitize, option 2
-   [2019-05-28 22:55:41.288] WARNING test_sanitize(82): AER triggered, dword0: 0x810106
-   [2019-05-28 22:55:41.289] INFO cb(70): aer cb in script: 0x810106, 0x1
-   PASSED                                                                                      [100%]
-   ---------------------------------------- live log teardown ----------------------------------------
-   [2019-05-28 22:55:42.292] INFO script(33): test duration: 7.200 sec
-
-
-   ======================================== warnings summary =========================================
-   scripts/utility_test.py::test_sanitize
-     /home/cranechu/pynvme/scripts/utility_test.py:82: UserWarning: AER notification is triggered
-       nvme0.getlogpage(0x81, buf, 20).waitdone()
-
-   -- Docs: https://docs.pytest.org/en/latest/warnings.html
-   ============================== 1 passed, 1 warnings in 8.28 seconds ===============================
-
-Besides the log information printed in the AER callback function, we can also find an UserWarning for the AER notification. So, even if AER and AER callback function is not provided in scripts, pynvme can still highlight those unexpected errors and events. 
 
 Multiple Controllers
 ^^^^^^^^^^^^^^^^^^^^
 
-Users can create as many controllers as they have, even mixed PCIe devices with NVMe over TCP targets.
+Users can create as many controllers as they have, even mixed PCIe devices with NVMe over TCP targets in the test.
 
 .. code-block:: python
 
@@ -313,6 +315,14 @@ Users can create as many controllers as they have, even mixed PCIe devices with 
    for n in (nvme0, nvme1, nvme2, nvme3):
        logging.info("model number: %s" % n.id_data(63, 24, str))
 
+One script can be executed multiple times with different NVMe drives' BDF address in the command line.
+
+.. code-block:: shell
+
+   laptop:~▶ sudo python3 -m pytest scripts/cookbook.py::test_verify_partial_namespace -s --pciaddr=01:00.0
+   laptop:~▶ sudo python3 -m pytest scripts/cookbook.py::test_verify_partial_namespace -s --pciaddr=02:00.0
+
+   
 Qpair
 -----
 
@@ -349,9 +359,9 @@ Pynvme traces recent thousands of commands in the cmdlog, as well as the complet
 Notice
 ^^^^^^
 
-The Qpair object is created on a Controller object. So, users create the Qpair after the Controller. On the other side, users should free Qpair before the Controller. Without explicit `del` in Python scripts, Python may not garbage collect these objects in the right order. We recommend to use pytest in your tests. The fixture `nvme0` is defined as session scope, and so the Controller is always created before any Qpair, and deleted after any Qpair.
+The Qpair object is created with a Controller object. So, users create the Qpair after the Controller. On the other side, users should free Qpair before the Controller. We recommend to use pytest and its fixture `nvme0`. It always creates controller before qpairs, and deletes controller after any qpairs.
 
-Qpair objects may be reclaimed by Python Garbage Collection, when they are not used in the scripts. So, qpairs would be deleted implicitly. If you really want to keep qpairs alive, remember to keep their references as this example:
+Qpair objects may be reclaimed by Python Garbage Collection, when they are not used in the script. So, qpairs would be deleted and qid would be reused. If you really want to keep qpairs alive, remember to keep their references, for example, in a list:
 
 .. code-block:: python
 
@@ -442,9 +452,13 @@ It is actually a fused operation of compare and write in the above script.
 Data Verify
 ^^^^^^^^^^^
 
-We mentioned earlier that pynvme verifies data integrity on the fly of data IO. However, the controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands (NVMe spec 1.3c, 6.3). For example, when two IOWorkers write the same LBA simultaneously, the order of these writes is not defined. Similarly, in a read/write mixed IOWorker, when both read and write IO happen on the same LBA, their order is also not defined. So, it is impossible for any host driver to determine the data content of read.
+We mentioned earlier that pynvme verifies data integrity on the fly of data IO. However, the controller is not responsible for checking the LBA of a Read or Write command to ensure any type of ordering between commands. See explanation from NVMe specification:
 
-So, how we verify the data integrity in test scripts? We need to construct conflict-free IOWorkers with dedicated consideration. When we need to check the data integrity, and ensure that no data conflict could happen, we can specify the fixture `verify` to enable this feature.
+    It is recommended that the host wait a minimum of the RTD3 Entry Latency reported in the Identify Controller data structure for the shutdown operations to complete; if the value reported in RTD3 Entry Latency is 0h, then the host should wait for a minimum of one second.
+
+For example, when two IOWorkers write the same LBA simultaneously, the order of these writes is not defined. Similarly, in a read/write mixed IOWorker, when both read and write IO happen on the same LBA, their order is also not defined. So, it is impossible for host to determine the data content of the read.
+
+To avoid data conflict, we can start IOWorkers one after another. Otherwise, when we have to start multiple IOWorkers in parallel, we can separate them to different LBA regions. Pynvme maintains a lock for each LBA, so within a single ioworker, pynvme can detect and resolve the LBA conflication mention above, and thus make the data verification possible and reliable in one ioworker. For those conflict-free scripts, we can enable the data verify by the fixture `verify`.
 
 .. code-block:: python
 
@@ -459,15 +473,28 @@ So, how we verify the data integrity in test scripts? We need to construct confl
                         region_start=0, region_end=100000
                         read_percentage=100, time=2).start().close()
 
-To avoid data conflict, we can start IOWorkers one after another. Otherwise, when we have to start multiple IOWorkers in parallel, we can separate them to different LBA regions. 
 
-Another consideration on data verify is the memory space. During Namespace initialization, only if pynvme can allocate enough memory to hold the CRC data for each LBA, the data verify feature is enabled on this Namespace. Otherwise, the data verify feature cannot be enabled. Take a 512GB namespace for an example, it needs at least 4GB memory space for CRC data.
+Another consideration on data verify is the memory space. During Namespace initialization, only if pynvme can allocate enough memory to hold the CRC data for each LBA, the data verify feature is enabled on this Namespace. Otherwise, the data verify feature cannot be enabled. Take a 512GB namespace for an example, it needs about 4GB memory space for CRC data. However, scripts can specify a limited scope to enable verify function with limited DRAM usage.
+
+.. code-block:: python
+   :emphasize-lines: 3-4
+
+   def test_verify_partial_namespace(nvme0):
+       region_end=1024*1024*1024//512  # 1GB space
+       nvme0n1 = d.Namespace(nvme0, 1, region_end)
+       assert True == nvme0n1.verify_enable(True)
+   
+       nvme0n1.ioworker(io_size=8,
+                        lba_random=True,
+                        region_end=region_end,
+                        read_percentage=50,
+                        time=30).start().close()
 
 
 IOWorker
 --------
 
-It is inconvenient and expensive to send each IO command in Python scripts. Pynvme provides the low-cost high-performance `IOWorker` to send IOs in separated process. IOWorkers make full use of multi-core CPU to improve IO test performance and stress. Scripts create the `IOWorker` object by API `Namespace.ioworker()`, and start it. Then scripts can do anything else, and finally close it to wait the IOWorker completed and get the result data. Each IOWorker occupies one Qpair. Here is an IOWorker to randomly write 4K data for 2 seconds.
+It is inconvenient and expensive to send each IO command in Python scripts. Pynvme provides the low-cost high-performance `IOWorker` to send IOs in separated processes. IOWorkers make full use of multi-core CPU to improve IO test performance and stress. Scripts create the `IOWorker` object by API `Namespace.ioworker()`, and start it. Then scripts can do anything else, and finally close it to wait the IOWorker process finish and get its result data. Each IOWorker occupies one Qpair in runtime. Here is an IOWorker randomly writing 4K data for 2 seconds.
 
 .. code-block:: python
 
@@ -475,7 +502,7 @@ It is inconvenient and expensive to send each IO command in Python scripts. Pynv
                         read_percentage=0, time=2).start().close()
    logging.info(r)
 
-   
+
 Return Data
 ^^^^^^^^^^^
 
@@ -492,22 +519,45 @@ The IOWorker result data includes these information:
      - total read IO in the IOWorker
    * - io_count_nonread
      - int
+     - total write and other non-read IO in the IOWorker
+   * - io_count_write
+     - int
      - total write IO in the IOWorker
    * - mseconds
      - int
      - IOWorker duration in milli-seconds
+   * - cpu_usage
+     - int
+     - the percentage of CPU time used by ioworker
    * - latency_max_us
      - int
      - maximum latency in the IOWorker, unit is micro-seconds
+   * - latency_average_us
+     - int
+     - average latency in the IOWorker, unit is micro-seconds
    * - error
      - int
      - error code of the IOWorker
 
+Here are ioworker's error code:
 
++  0: no erro
++ -1: generic error
++ -2: io_size is larger than MDTS
++ -3: io timeout
++ -4: ioworker timeout
+
+  
 Output Parameters
 ^^^^^^^^^^^^^^^^^
 
-To get more result of the ioworkers, we should provide arguments output_io_per_second and/or output_percentile_latency. When an empty list is provided to output_io_per_second, ioworker will fill the io count of every seconds during the whole test. When a dict, whose keys are a series of percentiles, is provided to output_percentile_latency, ioworker will fill the latency of these percentiles as the values of the dict. With these detail output data, we can test IOPS consistency, latency QoS, and etc. Here is an example: 
+To get more result of the ioworkers, we should provide output parameters.
+
+- output_io_per_second: when an empty list is provided to output_io_per_second, ioworker will fill the io count of every seconds during the whole test.
+- output_percentile_latency: when a dict, whose keys are a series of percentiles, is provided to output_percentile_latency, ioworker will fill the latency of these percentiles as the values of the dict.
+- output_cmdlog_list: when a list is provided, ioworker fills the last completed commands information. 
+  
+With these detail output data, we can test IOPS consistency, latency QoS, and etc. Here is an example: 
 
 .. code-block:: python
 
@@ -521,6 +571,10 @@ To get more result of the ioworkers, we should provide arguments output_io_per_s
                             output_percentile_latency=output_percentile_latency).start().close()
        assert len(output_io_per_second) == 10
        assert output_percentile_latency[99.999] < output_percentile_latency[99.99999]
+
+           
+Concurrent
+^^^^^^^^^^
 
 We can simultaneously start as many ioworkers as the IO Qpairs NVMe device provides.
 
@@ -551,8 +605,9 @@ We can simultaneously start as many ioworkers as the IO Qpairs NVMe device provi
                          iops=0, io_count=10, time=0,
                          qprio=0, qdepth=9):
        pass
-   
-We can even start IOWorkers on different Namespaces:
+
+                
+We can even start IOWorkers on different Namespaces in one script:
 
 .. code-block:: python
    :emphasize-lines: 7
@@ -568,11 +623,9 @@ We can even start IOWorkers on different Namespaces:
                              read_percentage=0, time=100):
            pass
 
-           
-Input Parameters
-^^^^^^^^^^^^^^^^
+                
 
-And we can also send other NVMe commands accompanied with IOWorkers. In this example, the script monitors SMART temperature value while writing NVMe device in an IOWorker. 
+Scripts can send NVMe commands accompanied with IOWorkers. In this example, the script monitors SMART temperature value while writing NVMe device in an IOWorker. 
 
 .. code-block:: python
 
@@ -587,18 +640,22 @@ And we can also send other NVMe commands accompanied with IOWorkers. In this exa
                logging.info("temperature: %0.2f degreeC" % k2c(ktemp))
                time.sleep(1)
 
-However, pynvme does not support power_cycle or reset when IOWorkers are working. We have to close ioworkers first. 
+Scripts can also make a reset or power operation when iowrokers are active. But before these kinds of operations, scripts need to wait for seconds before ioworkers are started. In these way, we can inject abnormal events into the IO workload like dirty power cycle. 
 
 .. code-block:: python
 
    def test_power_cycle_dirty(nvme0n1, subsystem):
        with nvme0n1.ioworker(io_size=256, lba_align=256,
                              lba_random=False, qdepth=64,
-                             read_percentage=0, time=5):
-           pass
-       subsystem.power_cycle()
-  
-The performance of `IOWorker` is super high and super consistent. We can use it extensively in performance tests and stress tests. For example, we can get the 4K read IOPS in the following script.
+                             read_percentage=0, time=30):
+           time.sleep(10)
+           subsystem.power_cycle()
+
+           
+Performance
+^^^^^^^^^^^
+
+The performance of `IOWorker` is super high and super consistent because pynvme is an user-space driver. We can use it extensively in performance tests and stress tests. For example, we can get the 4K read IOPS in the following script.
 
 .. code-block:: python
 
@@ -619,8 +676,11 @@ The performance of `IOWorker` is super high and super consistent. We can use it 
 
        logging.info("Q %d IOPS: %dK" % (qcount, io_total/10000))
 
-       
-IOWorker can accurately control the IO speed by the parameter `iops`. Here is an example test script: 
+
+Input Parameters
+^^^^^^^^^^^^^^^^
+
+IOWorker can also accurately control the IO pressure by the input parameter `iops`. 
 
 .. code-block:: python
    :emphasize-lines: 6
@@ -638,11 +698,11 @@ IOWorker can accurately control the IO speed by the parameter `iops`. Here is an
        assert output_io_per_second[-1] >= 1233
        assert output_io_per_second[-1] <= 1235
 
-The result of the IOWorker shows that it takes 7 seconds, and it sends 1234 IOs in each second. In this way, we can measure the latency against different IOPS pressure.
+The result of the IOWorker shows that it tests for 7 seconds, and sends 1234 IOs in each second. In this way, we can measure the latency against different IOPS pressure.
 
-We can create an ioworker up to 24 hours. We can also specify different data pattern in the IOWorker with arguments pvalue and ptype, which are the same definition as that in class Buffer.
+Scripts can create an ioworker up to 24 hours. We can also specify different data pattern in the IOWorker with arguments pvalue and ptype, which are the same definition as that in class Buffer.
 
-We can send different size IO in an ioworker through parameter io_size, which accepts different types of input: int, range, list, and dict.
+Scripts can send different size IO in an ioworker through parameter io_size, which accepts different types of input: int, range, list, and dict.
 
 .. list-table::
    :header-rows: 1
@@ -697,9 +757,23 @@ Here is an example to display how ioworker implements JEDEC workload by these pa
                         time=10).start().close()
 
 
+`lba_random` is the percentage of random IO, while `read_percentage` defines the percentage of read IO. `op_percentage` can specify any IO opcodes as the keys of the dict, and the values are the percentage of that IO. So, we can send any kind of IO commands in ioworker, like Trim, Write Zeroes, Compare, and even VU commands.
+
+.. code-block:: python
+
+   def test_ioworker_op_dict_trim(nvme0n1):
+       nvme0n1.ioworker(io_size=2,
+                        lba_random=30,
+                        op_percentage={2: 40, 9: 30, 1: 30},
+                        time=2).start().close()
+
+For more details on these input parameters, please refer to the lastest chapter of API documents, we well as the examples in the file: https://github.com/pynvme/pynvme/blob/master/scripts/test_examples.py
+
 
 Miscellaneous
 -------------
+
+Besides functions described above, pynvme provides more facilities to make your tests more simple and powerful.
 
 Power
 ^^^^^
@@ -864,4 +938,6 @@ Here is an example:
        sq1.delete()
        sq2.delete()
        cq.delete()
+
        
+Pynvme opens quite many APIs of low-level resources, so people are free to make innovations with pynvme in user scripts. 

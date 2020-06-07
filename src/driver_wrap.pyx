@@ -1969,7 +1969,7 @@ cdef class Namespace(object):
             io_sequence (list): io sequence of captured trace from real workload. Ignore other input parameters when io_sequence is given. Default: None
             output_io_per_second (list): list to hold the output data of io_per_second. Default: None, not to collect the data
             output_percentile_latency (dict): dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in micro-second. Default: None, not to collect the data
-            output_cmdlog_list (list): list of dwords of lastest commands sent in the ioworker. Default: None, not to collect the data
+            output_cmdlog_list (list): list of dwords of lastest commands completed in the ioworker. Default: None, not to collect the data
 
         Returns
             ioworker instance
