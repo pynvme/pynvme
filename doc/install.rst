@@ -32,10 +32,10 @@ Pynvme is a software-defined NVMe test solution, so users can install and use py
 #. Python3: Python2 is not supported.
 #. sudo privilege is required.
 #. NVMe: NVMe SSD is the devices to be tested. Backup your data!
-#. RAID mode (Intel® RST): should be disabled in BIOS.
-#. Secure boot: should be disabled in BIOS.
-#. IOMMU: (a.k.a. VT for Direct I/O) should be disabled in BIOS.
-#. VMD: should be disabled in BIOS.
+#. RAID mode (Intel® RST): shall be disabled in BIOS.
+#. Secure boot: shall be disabled in BIOS.
+#. IOMMU: (a.k.a. VT for Direct I/O) shall be disabled in BIOS.
+#. VMD: shall be disabled in BIOS.
 #. NUMA: recommend to be disabled in BIOS.
 #. SATA: recommend to install OS and pynvme in a SATA drive.
 

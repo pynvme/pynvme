@@ -62,85 +62,6 @@ Users can also specify argument `pvalue` and `ptype` in `Namespace.ioworker()` i
 
 The first 8-byte and the last 8-byte of each LBA are not filled by the data pattern. The first 8-byte is the LBA address, and the last 8-byte is a token which changes on every LBA written.
 
-Python Space Drive
-^^^^^^^^^^^^^^^^^^
-
-Based on SPDK, pynvme provides a high performance NVMe driver for product test. However, it lacks of flexibility to test every details defined in the NVMe Specification. Here are some of the examples:
-
-#. Multiple SQ share one CQ. Pynvme abstracts CQ and SQ as the Qpair.
-#. Non-contiguous memory for SQ and/or CQ. Pynvme always allocates contiguous memory when creating Qpairs.
-#. Complicated PRP tests. Pynvme creates PRP with some reasonable limitations, but it cannot cover all corner cases in protocol tests.
-
-In order to cover these considerations, pynvme provides an extension of **Python Space Driver** (PSD). It is an NVMe driver implemented in pure Python based on two fundamental pynvme classes:
-
-#. DMA memory allocation abstracted by class `Buffer`.
-#. PCIe configuration and memory spaceprovided by class `Pcie`.
-
-PSD implements NVMe data structures and operations in the module *scripts/psd.py* based on Buffer: 
-
-#. PRP: alias of Buffer, and the size is the memory page by default.
-#. PRPList: maintain the list of PRP entries, which are physical addresses of `Buffer`.
-#. IOSQ: create and maintain IO Submission Queue.
-#. IOCQ: create and maintain IO Completion Queue.
-#. SQE: submission queue entry for NVMe commands dwords.
-#. CQE: completion queue entry for NVMe completion dwords.
-
-Here is an example: 
-
-.. code-block:: python
-
-   # import psd classes
-   from psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
-
-   def test_send_cmd_2sq_1cq(nvme0):
-       # 2 SQ share one CQ
-       cq = IOCQ(nvme0, 1, 10, PRP())
-       sq1 = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
-       sq2 = IOSQ(nvme0, 2, 16, PRP(), cqid=1)
-   
-       # write lba0, 16K data organized by PRPList
-       write_cmd = SQE(1, 1)  # write to namespace 1
-       write_cmd.prp1 = PRP() # PRP1 is a 4K page
-       prp_list = PRPList()   # PRPList contains 3 pages
-       prp_list[0] = PRP()
-       prp_list[1] = PRP()
-       prp_list[2] = PRP()
-       write_cmd.prp2 = prp_list   # PRP2 points to the PRPList
-       write_cmd[10] = 0           # starting LBA
-       write_cmd[12] = 31          # LBA count: 32, 16K, 4 pages
-       write_cmd.cid = 123;        # verify cid later
-   
-       # send write commands in both SQ
-       sq1[0] = write_cmd          # fill command dwords in SQ1
-       write_cmd.cid = 567;        # verify cid later
-       sq2[0] = write_cmd          # fill command dwords in SQ2
-       sq2.tail = 1                # ring doorbell of SQ2 first
-       time.sleep(0.1)             # delay to ring SQ1, 
-       sq1.tail = 1                #  so command in SQ2 should comple first
-   
-       # wait for 2 command completions
-       while CQE(cq[1]).p == 0: pass
-   
-       # check first cpl
-       cqe = CQE(cq[0])
-       assert cqe.sqid == 2
-       assert cqe.sqhd == 1
-       assert cqe.cid == 567
-   
-       # check second cpl
-       cqe = CQE(cq[1])
-       assert cqe.sqid == 1
-       assert cqe.sqhd == 1
-       assert cqe.cid == 123
-   
-       # update cq head doorbell to device
-       cq.head = 2
-   
-       # delete all queues
-       sq1.delete()
-       sq2.delete()
-       cq.delete()
-
 
 Controller
 ----------
@@ -149,64 +70,105 @@ Controller
    :target: ./pic/controller.png
    :alt: NVMe Controller from NVMe spec
 
-To operate the NVMe controller, users need to create the `Controller` object in the scripts, for example:
+To access the NVMe device, scripts shall firstly create and initialize the `Controller` object from the `Pcie` object, for example:
 
 .. code-block:: python
 
    import nvme as d
-   nvme0 = d.Controller(b'01:00.0')
+   nvme0 = d.Controller(d.Pcie('01:00.0'))
 
-It uses Bus:Device:Function address to specify a PCIe DUT. We can also provide the IP address to create the controller for the NVMe over TCP target. 
-
-We can access NVMe registers dwords in BAR space by its offset:
+It uses Bus:Device:Function address to specify a PCIe DUT. Then, We can access NVMe registers and send admin commands to the NVMe device. 
 
 .. code-block:: python
 
    csts = nvme0[0x1c]  # CSTS register, e.g.: '0x1'
+   nvme0.setfeatures(0x7, cdw11=(15<<16)+15).waitdone()
 
+
+NVMe Initialization
+^^^^^^^^^^^^^^^^^^^
+
+When creating controller object, pynvme implements a initialization process defined in NVMe specification 7.6.1 (v1.4). However, scripts can skip pynvme's initialization flow, and replace with its own flow. Here is an example:
+
+.. code-block:: python
+   :emphasize-lines: 6
+
+   # 1. set pcie registers
+   pcie = d.Pcie(pciaddr)
+   pcie.aspm = 0
+
+   # 2. disable cc.en and wait csts.rdy to 0
+   nvme0 = d.Controller(pcie, skip_nvme_init=True)
+   nvme0[0x14] = 0
+   while not (nvme0[0x1c]&0x1) == 0: pass
+
+   # 3. set admin queue registers
+   nvme0.init_adminq()
+
+   # 4. set register cc
+   nvme0[0x14] = 0x00460000
+
+   # 5. enable cc.en
+   nvme0[0x14] = 0x00460001
+
+   # 6. wait csts.rdy to 1
+   while not (nvme0[0x1c]&0x1) == 1: pass
+
+   # 7. identify controller
+   nvme0.identify(d.Buffer(4096)).waitdone()
+
+   # 8. create and identify all namespace
+   nvme0.init_ns()
+
+   # 9. set/get num of queues
+   nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
+   nvme0.getfeatures(0x7).waitdone()
+
+                
 Admin Commands
 ^^^^^^^^^^^^^^
 
-We can send NVMe Admin Commands like this:
+We set the feature number of queues (07h) above, and now we try to get the configuration data back with admin command `Controller.getfeatures()`.
 
 .. code-block:: python
 
    nvme0.getfeatures(7)
 
-Pynvme sends the commands asynchronously, and so we need to sync and wait the commands complete by API `Controller.waitdone()``.
+Pynvme sends the commands asynchronously, and so we can sync and wait for the commands completion by API `Controller.waitdone()`.
 
 .. code-block:: python
 
    nvme0.waitdone(1)
 
-Most of the time, we can send and reap one Admin Command in this form:
+Also, `Controller.waitdone()` returns dword0 of the latest completion data structure. So, we can get the feature data in one line:
 
 .. code-block:: python
 
-   nvme0.getfeatures(7).waitdone()
+   assert (15<<16)+15 == nvme0.getfeatures(0x7).waitdone()
 
-Callback
-^^^^^^^^
 
-After one command completes, pynvme calls the callback we specified for that command. Here is an example:   
-
-.. code-block:: python
-
-   def getfeatures_cb(cdw0, status1):
-       logging.info(status1)
-   nvme0.getfeatures(7, cb=getfeatures_cb).waitdone()
-
-Pynvme provides two arguments to python callback functions: *cdw0* of the Completion Queue Entry, and the *status1*. The argument *status1* is a 16-bit integer, which includes both **Phase Tag** and Status Field.
-   
-.. code-block:: python
+Pynvme supports all mandatory admin commands defined in the NVMe spec, as well as most of the optional admin commands. 
                 
-   def write_cb(cdw0, status1):
-       nvme0n1.read(qpair, read_buf, 0, 1)
-   nvme0n1.write(qpair, data_buf, 0, 1, cb=write_cb).waitdone(2)
 
-In the above example, the waitdone() function-call reaps two commands. One is the write command, and the other is the read command which was sent in the write command's callback function. The function-call waitdone() polls commands Completion Queue, and the callback functions are called within this waitdone() function. 
+Command Callback
+^^^^^^^^^^^^^^^^
 
+Scripts can specify one callback function for every command call. After the command completes, pynvme calls the specified callback function. Here is an example:   
 
+.. code-block:: python
+
+   def getfeatures_cb1(cpl):
+       logging.info(cpl)
+   nvme0.getfeatures(7, cb=getfeatures_cb1).waitdone()
+   
+   def getfeatures_cb2(cdw0, status1):
+       logging.info(status1)
+   nvme0.getfeatures(7, cb=getfeatures_cb2).waitdone()
+
+Pynvme provides two forms of callback function.
+1. single parameters: *cpl*. Pynvme shall pass the whole 16-byte completion data structure to the single parameter callback funciton. This is recommended form. 
+2. two parameters: *cdw0* and *status1*. Pynvme shall pass the dword0 and higher 16-bit of dword2 of Completion Queue Entry to the two-parameter callback function. *status1* is a 16-bit integer, which includes both **Phase Tag** and Status Field. This is the obsoleted form for back-compatibility only. 
+   
 Identify Data
 ^^^^^^^^^^^^^
 
@@ -218,51 +180,45 @@ Here is an usual way to get controller's identify data:
    nvme0.identify(buf, 0, 1).waitdone()
    logging.info("model number: %s" % buf[24:63, 24])
 
-Pynvme provides an API Controller.id_data() to get a field of the identify data:
+Scripts shall call `Controller.waitdone()` to make sure the `buf` is filled by the NVMe device with identify data. Moving one step forward, because identify data is so frequently used, pynvme provides another API `Controller.id_data()` to get a field of the controller's identify data more easily:
 
 .. code-block:: python
 
    logging.info("model number: %s" % nvme0.id_data(63, 24, str))
+   logging.info("vid: 0x%x" % nvme0.id_data(1, 0))
 
-It retrieves bytes from 24 to 63, and interpret them as a `str` object. If the third argument is omitted, they are interpreted as an `int`.
+It retrieves bytes from 24 to 63, and interpret them as a `str` object. If the third argument is omitted, they are interpreted as an `int`. Users can refer to NVMe specification to get the fields of the data. 
 
-.. code-block:: python
-                
-    logging.info("vid: 0x%x" % nvme0.id_data(1, 0))
 
 Generic Commands
 ^^^^^^^^^^^^^^^^
 
-We can send most of the Admin Commands listed in the NVMe specification. Besides that, we can also send Vendor Specific Admin Commands, as well as any legal and illegal Admin Commands, through the generic API `Controller.send_cmd()`: 
+Pynvme provides API for all mandatory admin commands and most of the optional admin commands listed in the NVMe specification. However, pynvme also provides the API to send the generic admin commands, `Controller.send_cmd()`. This API can be used for:
+1. pynvme un-supported admin commands,
+2. Vendor Specific admin commands
+3. illegal Admin Commands
 
 .. code-block:: python
 
    nvme0.send_cmd(0xff).waitdone()
+   
+   def getfeatures_cb_2(cdw0, status1):
+       logging.info(status1)
+   nvme0.send_cmd(0xa, nsid=1, cdw10=7, cb=getfeatures_cb_2).waitdone()
 
-We can specify more arguments for the generic Admin Commands, as well as the callback function:
-
-.. code-block:: python
-
-    def getfeatures_cb_2(cdw0, status1):
-        logging.info(status1)
-    nvme0.send_cmd(0xa, nsid=1, cdw10=7, cb=getfeatures_cb_2).waitdone()
-    
+   
 Utility Functions
 ^^^^^^^^^^^^^^^^^
 
-By writing NVMe register `CC.EN`, we can reset the controller. Pynvme implemented it in the API `Controller.reset()`.
-
-.. code-block:: python
-
-   nvme0.reset()
-
-Controller also provides more APIs for usual operations. For example, we can upgrade firmware in the script like this: 
+Besides admin commands, class `Controller` also provides some utility functions, such as `Controller.reset()` and `Controller.downfw()`. Please refer to the last chapter for the full list of APIs. 
 
 .. code-block:: python
 
    nvme0.downfw('path/to/firmware_image_file')
+   nvme0.reset()
 
-Please note that, these utility APIs (`id_data`, `reset`, `downfw`, and etc) are not NVMe Admin Commands, so we do not need to reap them by `Controller.waitdone()`. 
+Please note that, these utility functions are not NVMe admin commands, so we do not need to reap them by `Controller.waitdone()`. 
+
 
 Timeout
 ^^^^^^^
@@ -280,7 +236,7 @@ When a command timeout happens, pynvme notifies user scripts in two ways. First,
 Asynchronous Event Request
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-NVMe Admin Command AER is somewhat special - they are not applicable to timeout. Pynvme driver sends some AER commands during the Controller initialization. When an error or event happen, one AER command completes to notify host driver for the unexpected error or event, and resend one more AER command. Then, pynvme driver notifies the scripts by AER command's callback function. In the example below, we use the pytest fixture `aer` to define the AER callback function. When an AER command completion is triggered by the NVMe device, this callback function will be called with arguments `cdw0` and `status1`, which is the same as the usual command's callback function.
+NVMe Admin Command AER is somewhat special - they are not applicable to timeout setting. Pynvme driver sends some AER commands during the Controller initialization. When an error or event happen, one AER command completes to notify host driver for the unexpected error or event, and resend one more AER command. Then, pynvme driver notifies the scripts by AER command's callback function. In the example below, we use the pytest fixture `aer` to define the AER callback function. When an AER command completion is triggered by the NVMe device, this callback function will be called with arguments `cdw0` and `status1`, which is the same as the usual command's callback function.
 
 .. code-block:: python
    :emphasize-lines: 5-7
@@ -422,6 +378,15 @@ We can create a Namespace and attach it to a Controller:
 For most Client NVMe SSD, we only need to use the fixture `nvme0n1` to declare the single namespace. Pynvme also supports callback functions of IO commands.
 
 .. code-block:: python
+                
+   def write_cb(cdw0, status1):
+       nvme0n1.read(qpair, read_buf, 0, 1)
+   nvme0n1.write(qpair, data_buf, 0, 1, cb=write_cb).waitdone(2)
+
+In the above example, the waitdone() function-call reaps two commands. One is the write command, and the other is the read command which was sent in the write command's callback function. The function-call waitdone() polls commands Completion Queue, and the callback functions are called within this waitdone() function. 
+
+
+.. code-block:: python
 
    def test_invalid_io_command_0xff(nvme0n1):
        logging.info("controller0 namespace size: %d" % nvme0n1.id_data(7, 0))
@@ -510,6 +475,10 @@ It is inconvenient and expensive to send each IO command in Python scripts. Pynv
                         read_percentage=0, time=2).start().close()
    logging.info(r)
 
+   
+Return Data
+^^^^^^^^^^^
+
 The IOWorker result data includes these information:
 
 .. list-table::
@@ -533,6 +502,10 @@ The IOWorker result data includes these information:
    * - error
      - int
      - error code of the IOWorker
+
+
+Output Parameters
+^^^^^^^^^^^^^^^^^
 
 To get more result of the ioworkers, we should provide arguments output_io_per_second and/or output_percentile_latency. When an empty list is provided to output_io_per_second, ioworker will fill the io count of every seconds during the whole test. When a dict, whose keys are a series of percentiles, is provided to output_percentile_latency, ioworker will fill the latency of these percentiles as the values of the dict. With these detail output data, we can test IOPS consistency, latency QoS, and etc. Here is an example: 
 
@@ -594,6 +567,10 @@ We can even start IOWorkers on different Namespaces:
                              lba_random=True, qdepth=16,
                              read_percentage=0, time=100):
            pass
+
+           
+Input Parameters
+^^^^^^^^^^^^^^^^
 
 And we can also send other NVMe commands accompanied with IOWorkers. In this example, the script monitors SMART temperature value while writing NVMe device in an IOWorker. 
 
@@ -721,8 +698,8 @@ Here is an example to display how ioworker implements JEDEC workload by these pa
 
 
 
-Misc
-----
+Miscellaneous
+-------------
 
 Power
 ^^^^^
@@ -751,7 +728,7 @@ Scripts can send a notification to NVMe device before turn power off, and this i
    subsystem.shutdown_notify()
    subsystem.power_cycle()
 
-Pynvme also supports third-party hardware power module. Users provides the function of poweron and poweroff when creating subsystem objects, and pynvme calls them in Subsystem.poweron() and Subsystem.poweroff().
+Pynvme also supports third-party hardware power module. Users provides the function of poweron and poweroff when creating subsystem objects, and pynvme calls them in `Subsystem.poweron()` and `Subsystem.poweroff()`.
 
 .. code-block:: python
 
@@ -773,7 +750,7 @@ Pynvme also supports third-party hardware power module. Users provides the funct
    
        s = d.Subsystem(nvme0, quarch_poweron, quarch_poweroff)
 
-It is required to call Controller.reset() after Subsystem.power_cycle() and Subssytem.poweron(). 
+It is required to call `Controller.reset()` after `Subsystem.power_cycle()` and `Subssytem.poweron()`. 
 
    
 Reset
@@ -791,7 +768,8 @@ Pynvme provides different ways of reset:
    subsystem.reset() # use register NSSR.NSSRC
    nvme0.reset()
 
-It is required to call Controller.reset() after Pcie.reset() and Subsystem.reset(). 
+It is required to call `Controller.reset()` after `Pcie.reset()` and `Subsystem.reset()`.
+
 
 Random Number
 ^^^^^^^^^^^^^
@@ -806,4 +784,84 @@ Before every test item, pynvme sets a different random seed to get different ser
        d.srand(0x58e7f337)
        
        nvme0n1.ioworker(io_size={1: 2, 8: 8}, time=1).start().close()
+       
+
+Python Space Drive
+^^^^^^^^^^^^^^^^^^
+
+Based on SPDK, pynvme provides a high performance NVMe driver for product test. However, it lacks of flexibility to test every details defined in the NVMe Specification. Here are some of the examples:
+
+#. Multiple SQ share one CQ. Pynvme abstracts CQ and SQ as the Qpair.
+#. Non-contiguous memory for SQ and/or CQ. Pynvme always allocates contiguous memory when creating Qpairs.
+#. Complicated PRP tests. Pynvme creates PRP with some reasonable limitations, but it cannot cover all corner cases in protocol tests.
+
+In order to cover these considerations, pynvme provides an extension of **Python Space Driver** (PSD). It is an NVMe driver implemented in pure Python based on two fundamental pynvme classes:
+
+#. DMA memory allocation abstracted by class `Buffer`.
+#. PCIe configuration and memory spaceprovided by class `Pcie`.
+
+PSD implements NVMe data structures and operations in the module *scripts/psd.py* based on Buffer: 
+
+#. PRP: alias of Buffer, and the size is the memory page by default.
+#. PRPList: maintain the list of PRP entries, which are physical addresses of `Buffer`.
+#. IOSQ: create and maintain IO Submission Queue.
+#. IOCQ: create and maintain IO Completion Queue.
+#. SQE: submission queue entry for NVMe commands dwords.
+#. CQE: completion queue entry for NVMe completion dwords.
+
+Here is an example: 
+
+.. code-block:: python
+
+   # import psd classes
+   from psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
+
+   def test_send_cmd_2sq_1cq(nvme0):
+       # 2 SQ share one CQ
+       cq = IOCQ(nvme0, 1, 10, PRP())
+       sq1 = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
+       sq2 = IOSQ(nvme0, 2, 16, PRP(), cqid=1)
+   
+       # write lba0, 16K data organized by PRPList
+       write_cmd = SQE(1, 1)  # write to namespace 1
+       write_cmd.prp1 = PRP() # PRP1 is a 4K page
+       prp_list = PRPList()   # PRPList contains 3 pages
+       prp_list[0] = PRP()
+       prp_list[1] = PRP()
+       prp_list[2] = PRP()
+       write_cmd.prp2 = prp_list   # PRP2 points to the PRPList
+       write_cmd[10] = 0           # starting LBA
+       write_cmd[12] = 31          # LBA count: 32, 16K, 4 pages
+       write_cmd.cid = 123;        # verify cid later
+   
+       # send write commands in both SQ
+       sq1[0] = write_cmd          # fill command dwords in SQ1
+       write_cmd.cid = 567;        # verify cid later
+       sq2[0] = write_cmd          # fill command dwords in SQ2
+       sq2.tail = 1                # ring doorbell of SQ2 first
+       time.sleep(0.1)             # delay to ring SQ1, 
+       sq1.tail = 1                #  so command in SQ2 should comple first
+   
+       # wait for 2 command completions
+       while CQE(cq[1]).p == 0: pass
+   
+       # check first cpl
+       cqe = CQE(cq[0])
+       assert cqe.sqid == 2
+       assert cqe.sqhd == 1
+       assert cqe.cid == 567
+   
+       # check second cpl
+       cqe = CQE(cq[1])
+       assert cqe.sqid == 1
+       assert cqe.sqhd == 1
+       assert cqe.cid == 123
+   
+       # update cq head doorbell to device
+       cq.head = 2
+   
+       # delete all queues
+       sq1.delete()
+       sq2.delete()
+       cq.delete()
        

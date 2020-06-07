@@ -65,7 +65,7 @@ def test_init_nvme_customerized(pciaddr, repeat):
     pcie.aspm = 0
 
     # 2. disable cc.en and wait csts.rdy to 0
-    nvme0 = d.Controller(pcie, True)
+    nvme0 = d.Controller(pcie, skip_nvme_init=True)
     nvme0[0x14] = 0
     while not (nvme0[0x1c]&0x1) == 0: pass
 
@@ -1468,12 +1468,12 @@ def test_create_many_qpair(nvme0, repeat):
 
 
 def test_set_get_features(nvme0):
-    nvme0.setfeatures(0x7, cdw11=(16 << 16)+16)
-    nvme0.setfeatures(0x7, cdw11=(16 << 16)+16)
+    nvme0.setfeatures(0x7, cdw11=(15<<16)+15)
+    nvme0.setfeatures(0x7, cdw11=(15<<16)+15)
     nvme0.waitdone(2)
     nvme0.getfeatures(0x7)
     nvme0.waitdone()
-    assert True
+    assert (15<<16)+15 == nvme0.getfeatures(0x7).waitdone()
 
 
 def test_pcie_reset(nvme0, pcie, nvme0n1):
