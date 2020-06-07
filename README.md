@@ -1,4 +1,4 @@
-# pynvme: test NVMe devices in Python
+# pynvme: builds your own tests.
 
 [![Document](https://readthedocs.org/projects/pynvme/badge/?version=latest)](https://pynvme.readthedocs.io)
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/pynvme/pynvme/blob/master/LICENSE)
