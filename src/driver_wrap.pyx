@@ -75,9 +75,6 @@ __author__ = "Crane Chu"
 __version__ = "1.9"
 
 
-# random seed in all processes
-_random_seed = 0
-
 # nvme command timeout, it's a warning
 # drive times out earlier than driver timeout
 _cTIMEOUT = 10
@@ -611,15 +608,37 @@ cdef class Pcie(object):
         if self._ctrlr is NULL:
             raise NvmeEnumerateError("fail to create the controller")
 
+    def _config(self, verify=None, ioworker_terminate=None):
+        """config driver global setting
+    
+        # Parameters
+            ioworker_terminate (bool): notify ioworker to terminate immediately. Default: None, means no change
+        """
+    
+        cdef unsigned long c = d.driver_config_read()
+    
+        if verify == False:
+            c &= 0xfffffffffffffffe
+        elif verify == True:
+            logging.error("obsoleted by Namespace.verify_enable()")
+            c |= 1
+    
+        if ioworker_terminate == False:
+            c &= 0xffffffffffffffef
+        elif ioworker_terminate == True:
+            c |= 0x10
+    
+        return d.driver_config(c)
+            
     def _driver_cleanup(self):
         # notify ioworker to terminate, and wait all IO Qpair closed
         if d.driver_io_qpair_count(self._ctrlr):
-            config(ioworker_terminate=True)
+            self._config(ioworker_terminate=True)
             while d.driver_io_qpair_count(self._ctrlr):
                 pass
             #time.sleep(2)
             d.crc32_unlock_all(self._ctrlr)
-            config(ioworker_terminate=False)
+            self._config(ioworker_terminate=False)
 
     def __getitem__(self, index):
         """access pcie config space by bytes."""
@@ -2731,39 +2750,12 @@ class _IOWorker(object):
             import gc; gc.collect()
 
 
-def config(verify=None, ioworker_terminate=None):
-    """config driver global setting
-
-    # Parameters
-        verify (bool): enable inline checksum verification of read. Default: None, means no change
-        ioworker_terminate (bool): notify ioworker to terminate immediately. Default: None, means no change
-    """
-
-    cdef unsigned long c = d.driver_config_read()
-
-    if verify == False:
-        c &= 0xfffffffffffffffe
-    elif verify == True:
-        logging.error("obsoleted by Namespace.verify_enable()")
-        c |= 1
-
-    if ioworker_terminate == False:
-        c &= 0xffffffffffffffef
-    elif ioworker_terminate == True:
-        c |= 0x10
-
-    return d.driver_config(c)
-
-
 def srand(seed):
-    """setup random seed
+    """manually setup random seed
 
     # Parameters
         seed (int): the seed to setup for both python and C library
     """
-
-    global _random_seed
-    _random_seed = seed
 
     logging.info("setup random seed: 0x%x" % seed)
     d.driver_srand(seed)
