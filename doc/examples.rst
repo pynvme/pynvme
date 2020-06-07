@@ -116,6 +116,9 @@ Ex4: upgrade and reboot the drive
 
            # power cycle the SSD to activate the upgraded firmware
            subsystem.power_cycle()
+
+           # reset controller after power cycle
+           nvme0.reset()
                    
 
 Ex5: write drive and monitor temperature
@@ -152,10 +155,10 @@ Ex6: multiple ioworkers on different namespaces and controllers
 
    def test_multiple_controllers_and_namespaces():
        # address list of the devices to test
-       addr_list = [b'3a:00.0', b'10.24.48.17']
+       addr_list = ['3a:00.0', '10.24.48.17']
 
        # create the list of controllers and namespaces
-       nvme_list = [d.Controller(a) for a in addr_list]
+       nvme_list = [d.Controller(d.Pcie(a)) for a in addr_list]
        ns_list = [d.Namespace(n) for n in nvme_list]
    
        # operations on multiple controllers
