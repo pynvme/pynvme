@@ -126,21 +126,6 @@ set dsm ranges in the buffer, for dsm/deallocation (a.ka trim) commands
 * **lba_count (int)**\ : the lba count of the range
 * **attr (int)**\ : context attributes of the range
 
-config
-------
-
-.. code-block:: python
-
-   config(verify=None, ioworker_terminate=None)
-
-config driver global setting
-
-**Parameters**
-
-
-* **verify (bool)**\ : enable inline checksum verification of read. Default: None, means no change
-* **ioworker_terminate (bool)**\ : notify ioworker to terminate immediately. Default: None, means no change
-
 Controller
 ----------
 
@@ -937,7 +922,7 @@ Each ioworker can run upto 24 hours.
 * **io_sequence (list)**\ : io sequence of captured trace from real workload. Ignore other input parameters when io_sequence is given. Default: None
 * **output_io_per_second (list)**\ : list to hold the output data of io_per_second. Default: None, not to collect the data
 * **output_percentile_latency (dict)**\ : dict of io counter on different percentile latency. Dict key is the percentage, and the value is the latency in micro-second. Default: None, not to collect the data
-* **output_cmdlog_list (list)**\ : list of dwords of lastest commands sent in the ioworker. Default: None, not to collect the data
+* **output_cmdlog_list (list)**\ : list of dwords of lastest commands completed in the ioworker. Default: None, not to collect the data
 
 Returns
     ioworker instance
@@ -1316,7 +1301,7 @@ srand
 
    srand(seed)
 
-setup random seed
+manually setup random seed
 
 **Parameters**
 
