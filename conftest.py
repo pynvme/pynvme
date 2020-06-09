@@ -48,11 +48,6 @@ def pytest_addoption(parser):
     )
 
 
-@pytest.fixture(scope="session")
-def pciaddr(request):
-    return request.config.getoption("--pciaddr")
-
-
 @pytest.fixture(scope="function", autouse=True)
 def script(request):
     # skip empty tests
@@ -68,9 +63,23 @@ def script(request):
 
 
 @pytest.fixture(scope="function")
+def pciaddr(request):
+    return request.config.getoption("--pciaddr")
+
+
+@pytest.fixture(scope="function")
+def pcie(pciaddr):
+    ret = d.Pcie(pciaddr)
+    yield ret
+    logging.info("del pcie")
+    del ret
+
+    
+@pytest.fixture(scope="function")
 def nvme0(pcie):
     ret = d.Controller(pcie)
     yield ret
+    logging.info("del nvme0")
     del ret
 
 
@@ -78,13 +87,7 @@ def nvme0(pcie):
 def subsystem(nvme0, nvme0n1):
     ret = d.Subsystem(nvme0)
     yield ret
-    del ret
-
-
-@pytest.fixture(scope="function")
-def pcie(pciaddr):
-    ret = d.Pcie(pciaddr)
-    yield ret
+    logging.info("del subsystem")
     del ret
 
 
@@ -92,6 +95,7 @@ def pcie(pciaddr):
 def nvme0n1(nvme0):
     ret = d.Namespace(nvme0)
     yield ret
+    logging.info("del nvme0n1")
     del ret
 
 
