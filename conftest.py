@@ -62,16 +62,15 @@ def script(request):
     logging.info("test duration: %.3f sec" % (time.time()-start_time))
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def pciaddr(request):
     return request.config.getoption("--pciaddr")
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def pcie(pciaddr):
     ret = d.Pcie(pciaddr)
     yield ret
-    logging.info("del pcie")
     del ret
 
     
@@ -79,7 +78,6 @@ def pcie(pciaddr):
 def nvme0(pcie):
     ret = d.Controller(pcie)
     yield ret
-    logging.info("del nvme0")
     del ret
 
 
@@ -87,7 +85,6 @@ def nvme0(pcie):
 def subsystem(nvme0, nvme0n1):
     ret = d.Subsystem(nvme0)
     yield ret
-    logging.info("del subsystem")
     del ret
 
 
@@ -95,7 +92,6 @@ def subsystem(nvme0, nvme0n1):
 def nvme0n1(nvme0):
     ret = d.Namespace(nvme0)
     yield ret
-    logging.info("del nvme0n1")
     del ret
 
 

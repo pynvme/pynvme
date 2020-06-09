@@ -127,15 +127,6 @@ def test_init_nvme_customerized(pciaddr, repeat):
         nvme0.waitdone(aerl)
 
 
-def test_expected_dut(nvme0):
-    logging.info("0x%x" % nvme0.id_data(1, 0))
-    logging.info("0x%x" % nvme0.id_data(3, 2))
-    logging.info(nvme0.id_data(23, 4, str))
-    logging.info(nvme0.id_data(63, 24, str))
-    assert nvme0.id_data(1, 0) == 0x14a4
-    assert "CAZ-82256-Q11" in nvme0.id_data(63, 24, str)
-
-
 def test_jsonrpc_list_qpairs(pciaddr):
     import json
     import socket
@@ -213,6 +204,15 @@ def test_jsonrpc_list_qpairs(pciaddr):
     result = jsonrpc_call(sock, 'list_all_qpair')
     assert len(result) == 1
     assert result[0]['qid']-1 == 0
+
+
+def test_expected_dut(nvme0):
+    logging.info("0x%x" % nvme0.id_data(1, 0))
+    logging.info("0x%x" % nvme0.id_data(3, 2))
+    logging.info(nvme0.id_data(23, 4, str))
+    logging.info(nvme0.id_data(63, 24, str))
+    assert nvme0.id_data(1, 0) == 0x14a4
+    assert "CAZ-82256-Q11" in nvme0.id_data(63, 24, str)
 
 
 def test_enable_verify_with_large_namespace(nvme0):
@@ -969,6 +969,7 @@ def test_write_and_compare(nvme0, nvme0n1):
     nvme0n1.compare(q, buf, 0, 8).waitdone()
 
     logging.info("modify and then compare, should fail")
+    # a dedicated wrong status catch
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
         buf[0] = 99
         nvme0n1.compare(q, buf, 0, 8).waitdone()
