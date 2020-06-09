@@ -215,6 +215,11 @@ def test_expected_dut(nvme0):
     assert "CAZ-82256-Q11" in nvme0.id_data(63, 24, str)
 
 
+@pytest.mark.parametrize("repeat", range(2))
+def test_false(nvme0, subsystem, repeat):
+    assert False
+    
+
 def test_enable_verify_with_large_namespace(nvme0):
     # create namespace with full space verify, but memory is not enough
     nvme0n1 = d.Namespace(nvme0)

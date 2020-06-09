@@ -100,7 +100,7 @@ tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=ioat --exclude=snippets --exclude=env --exclude=doc
 
 pytest: info
-	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -x -v -r Efsx
+	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -v -r Efsx
 
 test: setup
 	- rm test.log
