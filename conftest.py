@@ -97,7 +97,7 @@ def nvme0n1(nvme0):
 def qpair(nvme0):
     ret = d.Qpair(nvme0, 64)
     yield ret
-    ret.close()
+    ret.delete()
 
     
 @pytest.fixture(scope="function")

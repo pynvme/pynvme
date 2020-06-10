@@ -127,7 +127,9 @@ def test_init_nvme_customerized(pciaddr, repeat):
         nvme0.waitdone(aerl)
 
     nvme0n1.close()
-    
+    qpair.delete()
+    pcie.close()
+
 
 def test_jsonrpc_list_qpairs(pciaddr):
     import json
@@ -196,13 +198,13 @@ def test_jsonrpc_list_qpairs(pciaddr):
     assert result[1]['qid']-1 == 1
     assert result[2]['qid']-1 == 2
 
-    del q1
+    q1.delete()
     result = jsonrpc_call(sock, 'list_all_qpair')
     assert len(result) == 2
     assert result[0]['qid']-1 == 0
     assert result[1]['qid']-1 == 2
 
-    del q2
+    q2.delete()
     result = jsonrpc_call(sock, 'list_all_qpair')
     assert len(result) == 1
     assert result[0]['qid']-1 == 0
@@ -222,7 +224,7 @@ def test_expected_dut(nvme0):
 @pytest.mark.parametrize("repeat", range(2))
 def test_false(nvme0, subsystem, repeat):
     assert False
-    
+
 
 def test_enable_verify_with_large_namespace(nvme0):
     # create namespace with full space verify, but memory is not enough
@@ -230,7 +232,7 @@ def test_enable_verify_with_large_namespace(nvme0):
     assert nvme0n1.verify_enable() == True
     nvme0n1.verify_enable(False)
     nvme0n1.close()
-    
+
 
 def test_quarch_defined_poweron_poweroff(nvme0):
     import quarchpy
@@ -278,14 +280,13 @@ def test_system_defined_poweron_poweroff_async(nvme0, nvme0n1, subsystem):
     test_hello_world(nvme0, nvme0n1, True)
 
 
-def test_hello_world(nvme0, nvme0n1, verify):
+def test_hello_world(nvme0, nvme0n1, verify, qpair):
     assert verify
 
     # prepare data buffer and IO queue
     read_buf = d.Buffer(512)
     write_buf = d.Buffer(512)
     write_buf[10:21] = b'hello world'
-    qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
 
     # send write and read command
     def write_cb(cdw0, status1):  # command callback function
@@ -334,8 +335,9 @@ def test_create_device_again(nvme0):
 def test_qpair_different_size(nvme0n1, nvme0, shift):
     size = 1 << shift
     logging.info("create io queue size %d" % size)
-    d.Qpair(nvme0, size)
+    q = d.Qpair(nvme0, size)
     nvme0.getfeatures(7).waitdone()
+    q.delete()
 
 
 @pytest.mark.skip("two controllers")
@@ -407,7 +409,7 @@ def test_ioworker_input_out_of_range(nvme0n1):
     nvme0n1.ioworker(io_size=128, region_end=256, time=1).start().close()
     nvme0n1.ioworker(io_size=64, region_end=100, time=1).start().close()
     nvme0n1.ioworker(io_size=8, region_end=1024, time=1).start().close()
-    
+
 
 def test_ioworker_power_cycle_async_cmdlog(nvme0, nvme0n1, subsystem):
     cmdlog_list = [None]*11
@@ -494,6 +496,8 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     q2.cmdlog(15)
 
     nvme1n1.close()
+    q1.delete()
+    q2.delete()
 
 
 @pytest.mark.skip("two namespaces")
@@ -523,9 +527,8 @@ def test_nvme_tcp_ioworker():
 
 @pytest.mark.parametrize("nlba", [1, 2, 8])
 @pytest.mark.parametrize("nlba_verify", [10, 100, 100*1024*1024*1024//512])
-def test_namespace_nlba_verify(nvme0, nlba, nlba_verify):
+def test_namespace_nlba_verify(nvme0, nlba, nlba_verify, qpair):
     nvme0n1 = d.Namespace(nvme0, 1, nlba_verify)
-    qpair = d.Qpair(nvme0, 10)
     buf = d.Buffer()
 
     for lba in (0, 9, 10, 11, 150*1024*1024*1024//512):
@@ -793,9 +796,10 @@ def test_write_identify_and_verify(nvme0n1, nvme0):
     n.read(q, read_buf, 5, 8).waitdone()
     assert id_buf[:10] == read_buf[:10]
     logging.info("test end")
+    q.delete()
 
 
-def test_callback_with_whole_cpl(nvme0, nvme0n1, buf):
+def test_callback_with_whole_cpl(nvme0, nvme0n1, buf, qpair):
     f1 = 0
     def cb1(cpl):
         nonlocal f1; f1 = cpl[0]
@@ -809,7 +813,6 @@ def test_callback_with_whole_cpl(nvme0, nvme0n1, buf):
         assert cpl[1] == 0
         assert len(cpl) == 4
         assert type(cpl) is tuple
-    qpair = d.Qpair(nvme0, 10)
     nvme0n1.read(qpair, buf, 0, cb=cb2).waitdone()
 
     a1 = 0
@@ -823,8 +826,8 @@ def test_callback_with_whole_cpl(nvme0, nvme0n1, buf):
         pass
     with pytest.warns(UserWarning, match="ASSERT: command callback"):
         nvme0.getfeatures(7, cb=cb3).waitdone()
-    
-    
+
+
 def test_multiple_callbacks(nvme0):
     a1 = 0
     def cb1(cdw0, status):
@@ -861,6 +864,7 @@ def test_write_identify_and_verify_with_callback(nvme0, nvme0n1):
     n.write(q, id_buf, 5, 8, cb=write_cb).waitdone(2)
     id_buf[9] = (id_buf[9] >> 1)
     n.write(q, id_buf, 5, 8, cb=write_cb).waitdone(2)
+    q.delete()
 
 
 def test_io_waitdone_many_command(nvme0, nvme0n1):
@@ -892,7 +896,7 @@ def test_io_waitdone_many_command(nvme0, nvme0n1):
     nvme0n1.write(q, id_buf, 5, 8)
     nvme0n1.write(q, id_buf, 5, 8)
     q.waitdone(5)
-
+    q.delete()
     assert True
 
 
@@ -914,6 +918,7 @@ def test_write_and_flush(nvme0, nvme0n1):
     nvme0n1.write(q, id_buf, 5, 8)
     nvme0n1.flush(q)
     q.waitdone(6)
+    q.delete()
 
 
 def test_write_zeroes(nvme0, nvme0n1):
@@ -956,6 +961,7 @@ def test_write_zeroes(nvme0, nvme0n1):
     nvme0n1.read(q, buf, 15, 1)
     q.waitdone()
     assert buf[0] != 0
+    q.delete()
 
 
 def test_write_and_compare(nvme0, nvme0n1):
@@ -989,6 +995,8 @@ def test_write_and_compare(nvme0, nvme0n1):
         buf[0] = 99
         nvme0n1.compare(q, buf, 0, 8).waitdone()
 
+    q.delete()
+
 
 def test_dsm_trim_and_read(nvme0, nvme0n1, verify):
     empty_buf = d.Buffer(4096)
@@ -1017,9 +1025,10 @@ def test_dsm_trim_and_read(nvme0, nvme0n1, verify):
     nvme0n1.read(q, buf, 0, 8).waitdone()
     nvme0n1.compare(q, buf, 0, 8).waitdone()
 
+    q.delete()
 
-def test_wrong_warns(pcie, nvme0, nvme0n1, subsystem):
-    q = d.Qpair(nvme0, 10)
+
+def test_wrong_warns(pcie, nvme0, nvme0n1, subsystem, qpair):
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
         nvme0.getfeatures(7).waitdone()
     with pytest.warns(UserWarning, match="AER notification is triggered"):
@@ -1163,6 +1172,7 @@ def test_format_basic(nvme0, nvme0n1, lbaf):
     nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
     nvme0n1.read(q, buf, 1, 1).waitdone()
     assert buf[0] == 0
+    q.delete()
 
 
 def test_dsm_deallocate_one_tu(nvme0, nvme0n1):
@@ -1181,6 +1191,7 @@ def test_dsm_deallocate_one_tu(nvme0, nvme0n1):
     nvme0n1.dsm(q, buf, 1).waitdone()
     nvme0n1.read(q, buf, 8, 8).waitdone()
     assert buf[0] == 0 or buf[0] == orig_data
+    q.delete()
 
 
 @pytest.mark.parametrize("size", [4096, 10, 4096*2])
@@ -1270,6 +1281,7 @@ def test_sanitize_operations_powercycle(nvme0, nvme0n1, buf, subsystem):
                      lba_random=False, qdepth=16,
                      read_percentage=100, time=10).start().close()
     nvme0.setfeatures(0x2, cdw11=0).waitdone()
+    q.delete()
 
 
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
@@ -1325,6 +1337,7 @@ def test_write_uncorrectable(nvme0, nvme0n1):
     q.waitdone()
     nvme0n1.read(q, buf, 0, 8)
     q.waitdone()
+    q.delete()
 
 
 def test_write_uncorrectable_unaligned(nvme0, nvme0n1):
@@ -1357,6 +1370,7 @@ def test_write_uncorrectable_unaligned(nvme0, nvme0n1):
     q.waitdone()
     nvme0n1.read(q, buf, 0, 8)
     q.waitdone()
+    q.delete()
 
 
 @pytest.mark.parametrize("io_count", [0, 1, 8, 9])
@@ -1378,6 +1392,7 @@ def test_different_io_size_and_count(nvme0, nvme0n1,
     for i in range(io_count):
         nvme0n1.read(io_qpair, bufs[i], lba_offset, lba_count)
     io_qpair.waitdone(io_count)
+    io_qpair.delete()
 
 
 def test_create_invalid_qpair(nvme0):
@@ -1486,10 +1501,12 @@ def test_create_many_qpair(nvme0, repeat):
     ql = []
     for i in range(16):
         ql.append(d.Qpair(nvme0, 8))
-    del ql
+    for q in ql:
+        q.deletee()
 
     for i in range(50):
         q = d.Qpair(nvme0, 80)
+        q.delete()
 
 
 def test_set_get_features(nvme0):
@@ -1587,6 +1604,7 @@ def test_write_fua_latency(nvme0n1, nvme0):
         nvme0n1.write(q, buf, 0, 8, 1<<30).waitdone()
     fua_time = time.time()-now
     logging.info("FUA write latency %fs" % fua_time)
+    q.delete()
 
 
 def test_read_fua_latency(nvme0n1, nvme0):
@@ -1607,18 +1625,21 @@ def test_read_fua_latency(nvme0n1, nvme0):
         nvme0n1.read(q, buf, 0, 8, 1<<30).waitdone()
     fua_time = time.time()-now
     logging.info("FUA read latency %fs" % fua_time)
+    q.delete()
 
 
 def test_write_limited_retry(nvme0n1, nvme0):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
     nvme0n1.write(q, buf, 0, 8, 1<<31).waitdone()
+    q.delete()
 
 
 def test_read_limited_retry(nvme0n1, nvme0):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
     nvme0n1.read(q, buf, 0, 8, 1<<31).waitdone()
+    q.delete()
 
 
 def test_subsystem_reset(nvme0, subsystem, nvme0n1):
@@ -1652,6 +1673,8 @@ def test_io_qpair_msix_interrupt_all(nvme0, nvme0n1):
         time.sleep(0.1)
         assert q.msix_isset()
         q.waitdone()
+    for q in ql:
+        q.delete()
 
 
 def test_io_qpair_msix_interrupt_mask(nvme0, nvme0n1):
@@ -1696,6 +1719,9 @@ def test_io_qpair_msix_interrupt_mask(nvme0, nvme0n1):
     assert q2.msix_isset()
     q2.waitdone()
 
+    q.delete()
+    q2.delete()
+
 
 def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     buf = d.Buffer(4096)
@@ -1733,6 +1759,7 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     logging.info("interrupt latency %dus" % (latency1*1000000))
     q.waitdone()
     q.msix_clear()
+    q.delete()
 
 
 def test_ioworker_fast_complete(nvme0n1):
@@ -2019,7 +2046,7 @@ def test_ioworker_lba_random_illegal(nvme0n1):
     with pytest.raises(AssertionError):
         nvme0n1.ioworker(io_size=8, lba_random=[0, 1], time=1).start().close()
 
-    
+
 def test_ioworker_lba_step_multiple(nvme0n1):
     cmdlog_lists = [[None]*10, [None]*10, [None]*10, [None]*10]
     with nvme0n1.ioworker(io_size=1, io_count=10, lba_start=0,
@@ -2701,6 +2728,7 @@ def test_waitdone_nothing(nvme0, nvme0n1):
     nvme0.waitdone(0)
     qpair = d.Qpair(nvme0, 100)
     qpair.waitdone(0)
+    qpair.delete()
 
 
 @pytest.mark.parametrize("repeat", range(2))
@@ -2775,6 +2803,7 @@ def test_io_conflict(nvme0, nvme0n1, buf, verify):
     for i in range(1000):
         nvme0n1.write(qpair, buf, 0)
     qpair.waitdone(1000)
+    qpair.delete()
 
 
 @pytest.mark.parametrize("repeat", range(2))
@@ -2905,6 +2934,7 @@ def test_io_cmd_log(nvme0, nvme0n1):
     for i in range(5):
         nvme0n1.read(q, buf, 0).waitdone()
     q.cmdlog(15)
+    q.delete()
 
 
 def test_cmd_cb_features(nvme0):
@@ -2952,6 +2982,7 @@ def test_buffer_token_single_process(nvme0, nvme0n1):
     nvme0n1.read(io_qpair, b, 1, 1).waitdone()
     token_end = b.data(507, 504)
     assert token_end-token_begin == 8*100+1
+    io_qpair.delete()
 
 
 def test_buffer_token_multi_processes(nvme0, nvme0n1):
@@ -3002,6 +3033,7 @@ def test_buffer_token_single_small_process(nvme0, nvme0n1):
     nvme0n1.read(io_qpair, b, 100, 1).waitdone()
     token_end = b.data(507, 504)
     assert token_end-token_begin == 8*1+1
+    io_qpair.delete()
 
 
 def test_buffer_token_single_large_process(nvme0, nvme0n1):
@@ -3024,6 +3056,7 @@ def test_buffer_token_single_large_process(nvme0, nvme0n1):
     nvme0n1.read(io_qpair, b, 0, 1).waitdone()
     token_end = b.data(507, 504)
     assert token_end-token_begin == 8*1000+1
+    io_qpair.delete()
 
 
 def test_command_supported_and_effect(nvme0, nvme0n1):
@@ -3048,6 +3081,7 @@ def test_pynvme_timeout_command(nvme0, nvme0n1):
     with pytest.raises(TimeoutError):
         nvme0n1.write(io_qpair, b, 0).waitdone(2)
     assert time.time()-now > 29
+    io_qpair.delete()
 
 
 def test_ioworker_timeout_command(nvme0, nvme0n1):
@@ -3076,6 +3110,7 @@ def test_reentry_waitdone_io_qpair(nvme0, nvme0n1):
         nvme0n1.read(q, b, 1, 1).waitdone()
     with pytest.warns(UserWarning, match="ASSERT: cannot re-entry waitdone()"):
         nvme0n1.read(q, b, 2, 1, cb=read_cb).waitdone()
+    q.delete()
 
 
 def test_ioworker_end(nvme0n1):
@@ -3117,6 +3152,7 @@ def test_io_generic_cmd(nvme0n1, nvme0):
 
     # flush command
     nvme0n1.send_cmd(0x0, q, nsid=1).waitdone()
+    q.delete()
 
 
 def test_ioworker_vscode_showcase(nvme0n1):
@@ -3195,6 +3231,8 @@ def test_ioworker_address_region_512(nvme0, nvme0n1, start, length):
     nvme0n1.read(q, read_buf, start+length+1).waitdone()
     assert read_buf[:] == b[:]
 
+    q.delete()
+
 
 def test_fused_operations(nvme0, nvme0n1):
     q = d.Qpair(nvme0, 10)
@@ -3214,6 +3252,8 @@ def test_fused_operations(nvme0, nvme0n1):
     nvme0n1.send_cmd(1|(1<<8), q, b, 1, 8, 0, 0).waitdone()
     #with pytest.warns(UserWarning, match="ERROR status: 00/0a"):
     nvme0n1.send_cmd(5|(1<<9), q, b, 1, 8, 0, 0).waitdone()
+
+    q.delete()
 
 
 @pytest.mark.parametrize("lba_size", [512])
@@ -3243,7 +3283,7 @@ def test_write_4k_lba(nvme0, nvme0n1, lba_size, repeat):
         nvme0n1.compare(q, zb, lba_start).waitdone()
 
     assert buf[0] == lba_start
-    #print(buf.dump())
+    q.delete()
 
 
 @pytest.mark.parametrize("start", [8, 16])
@@ -3274,6 +3314,7 @@ def test_ioworker_address_region_4k(nvme0, nvme0n1, start, length):
     assert read_buf[:] == b[:]
     nvme0n1.read(q, read_buf, start+length+1).waitdone()
     assert read_buf[:] == b[:]
+    q.delete()
 
 
 def test_ioworker_stress(nvme0n1):

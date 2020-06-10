@@ -1693,7 +1693,7 @@ cdef class Qpair(object):
         self._nvme = nvme
         #print("create qpair: %x" % <unsigned long>self._qpair); sys.stdout.flush()
 
-    def close(self):
+    def delete(self):
         #print("dealloc qpair: %x %x" % (<unsigned long>self._qpair, <unsigned long>self._nvme.pcie._ctrlr)); sys.stdout.flush()
         if self._nvme.pcie._magic == 0x1243568790bacdfe:
             if self._nvme.pcie._ctrlr is not NULL:
@@ -2701,7 +2701,7 @@ class _IOWorker(object):
                         d.nvme_bar_remap(nvme0.pcie._ctrlr)
 
                     try:
-                        del qpair
+                        qpair.delete()
                     except:
                         pass
 
@@ -2712,10 +2712,10 @@ class _IOWorker(object):
                         d.nvme_bar_recover(nvme0.pcie._ctrlr)
 
                 if 'nvme0n1' in locals():
-                    del nvme0n1
+                    nvme0n1.close()
 
-                if 'nvme0' in locals():
-                    del nvme0
+                if 'pcie' in locals():
+                    pcie.close()
 
             if args.io_sequence:
                 PyMem_Free(args.io_sequence)
