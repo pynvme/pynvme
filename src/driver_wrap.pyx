@@ -152,7 +152,7 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
 
 cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
     arg = <_cpl*>cpl  # no qa
-    
+
     # filter aer completion at SQ deletion
     if (arg.status1>>1) == 8:
         return
@@ -566,7 +566,8 @@ cdef class Pcie(object):
 
     cdef d.ctrlr * _ctrlr
     cdef char _bdf[64]
-    cdef bint backup
+    cdef bint _backup
+    cdef long _magic
 
     def __cinit__(self, addr):
         if type(addr) is Controller:
@@ -574,7 +575,7 @@ cdef class Pcie(object):
             ctrlr = <Controller>addr
 
             # copy original pcie to this one
-            self.backup = True
+            self._backup = True
             self._ctrlr = ctrlr.pcie._ctrlr
             strncpy(self._bdf, ctrlr.pcie._bdf, strlen(self._bdf)+1)
             return
@@ -585,21 +586,25 @@ cdef class Pcie(object):
             addr = "0000:"+addr
 
         bdf = addr.encode('utf-8')
+        self._magic = 0x1243568790bacdfe
         self._ctrlr = d.nvme_init(bdf, 0)
         if self._ctrlr is NULL:
             raise NvmeEnumerateError("fail to create the controller")
         strncpy(self._bdf, bdf, strlen(bdf)+1)
-        self.backup = False
+        self._backup = False
+        #print("create pcie: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
 
     def __dealloc__(self):
-        if self._ctrlr is not NULL and self.backup is not True:
+        #print("dealloc pcie: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
+        if self._ctrlr is not NULL and self._backup is not True:
             ret = d.nvme_fini(self._ctrlr)
             if ret != 0:
                 raise NvmeDeletionError("fail to close the controller")
-            self._ctrlr = NULL
+        self._magic = 0
+        self._ctrlr = NULL
 
     def _ctrlr_reinit(self):
-        assert self._ctrlr is not NULL and self.backup is not True
+        assert self._ctrlr is not NULL and self._backup is not True
         ret = d.nvme_fini(self._ctrlr)
         if ret != 0:
             raise NvmeDeletionError("fail to close the controller")
@@ -610,26 +615,26 @@ cdef class Pcie(object):
 
     def _config(self, verify=None, ioworker_terminate=None):
         """config driver global setting
-    
+
         # Parameters
             ioworker_terminate (bool): notify ioworker to terminate immediately. Default: None, means no change
         """
-    
+
         cdef unsigned long c = d.driver_config_read()
-    
+
         if verify == False:
             c &= 0xfffffffffffffffe
         elif verify == True:
             logging.error("obsoleted by Namespace.verify_enable()")
             c |= 1
-    
+
         if ioworker_terminate == False:
             c &= 0xffffffffffffffef
         elif ioworker_terminate == True:
             c |= 0x10
-    
+
         return d.driver_config(c)
-            
+
     def _driver_cleanup(self):
         # notify ioworker to terminate, and wait all IO Qpair closed
         if d.driver_io_qpair_count(self._ctrlr):
@@ -884,7 +889,6 @@ cdef class Controller(object):
         logging.debug("nvme initialized: %s", self.pcie._bdf)
 
     def __dealloc__(self):
-        # print("dealloc ctrlr: %x" % <unsigned long>self.pcie._ctrlr); sys.stdout.flush()
         pass
 
     def _nvme_init(self):
@@ -1033,7 +1037,7 @@ cdef class Controller(object):
 
     def init_adminq(self):
         """used by NVMe init process in scripts"""
-        
+
         return d.nvme_set_adminq(self.pcie._ctrlr)
 
     def init_ns(self):
@@ -1690,13 +1694,16 @@ cdef class Qpair(object):
         if self._qpair is NULL:
             raise QpairCreationError("qpair create fail")
         self._nvme = nvme
+        #print("create qpair: %x" % <unsigned long>self._qpair); sys.stdout.flush()
 
     def __dealloc__(self):
-        # print("dealloc qpair: %x" % <unsigned long>self._qpair); sys.stdout.flush()
-        if self._qpair is not NULL and self._nvme.pcie._ctrlr is not NULL:
-            if d.qpair_free(self._qpair) != 0:
-                raise QpairDeletionError()
-            self._qpair = NULL
+        #print("dealloc qpair: %x %x" % (<unsigned long>self._qpair, <unsigned long>self._nvme.pcie._ctrlr)); sys.stdout.flush()
+        if self._nvme.pcie._magic == 0x1243568790bacdfe:
+            if self._nvme.pcie._ctrlr is not NULL:
+                if self._qpair is not NULL:
+                    if d.qpair_free(self._qpair) != 0:
+                        raise QpairDeletionError()
+        self._qpair = NULL
 
     def __repr__(self):
         return "<qpair: %d>" % self.sqid
@@ -1790,11 +1797,11 @@ cdef class Namespace(object):
         self._nvme = nvme
         self._nsid = nsid
         self._ns = d.ns_init(nvme.pcie._ctrlr, nsid, nlba_verify)
-        #print("created namespace: 0x%x" % <unsigned long>self._ns); sys.stdout.flush()
         if self._ns is NULL:
             raise NamespaceCreationError()
         self.sector_size = d.ns_get_sector_size(self._ns)
         self.nlba_verify = nlba_verify
+        #print("created namespace: 0x%x" % <unsigned long>self._ns); sys.stdout.flush()
 
     def __dealloc__(self):
         """close namespace to release it resources in host memory.
@@ -1804,14 +1811,14 @@ cdef class Namespace(object):
             Fixture nvme0n1 uses this function, and prefer to use fixture in scripts, instead of calling this function directly.
         """
 
-        logging.debug("close namespace")
         #print("dealloc namespace: 0x%x" % <unsigned long>self._ns); sys.stdout.flush()
-        if self._nvme.pcie._ctrlr is not NULL:
-            self._ns = d.nvme_get_ns(self._nvme.pcie._ctrlr, self._nsid)
-            if self._ns is not NULL:
-                if d.ns_fini(self._ns) != 0:
-                    raise NamespaceDeletionError()
-                self._ns = NULL
+        if self._nvme.pcie._magic == 0x1243568790bacdfe:
+            if self._nvme.pcie._ctrlr is not NULL:
+                self._ns = d.nvme_get_ns(self._nvme.pcie._ctrlr, self._nsid)
+                if self._ns is not NULL:
+                    if d.ns_fini(self._ns) != 0:
+                        raise NamespaceDeletionError()
+        self._ns = NULL
 
     def close(self):
         """ obsoleted """
@@ -2006,7 +2013,7 @@ cdef class Namespace(object):
             assert io_size <= region_end-region_start, "region is smaller than IO!"
         else:
             assert max(list(io_size)) < region_end-region_start, "region is smaller than IO"
-            
+
         # lba_step works with pure sequential workload only
         if lba_step is None:
             if lba_random < 100:
@@ -2269,8 +2276,8 @@ cdef class Namespace(object):
                              unsigned int io_flags,
                              d.cmd_cb_func cb_func,
                              void* cb_arg,
-                             unsigned int dword13, 
-                             unsigned int dword14, 
+                             unsigned int dword13,
+                             unsigned int dword14,
                              unsigned int dword15):
         assert lba_count <= 64*1024, "exceed lba count limit"
         self._ns = d.nvme_get_ns(self._nvme.pcie._ctrlr, self._nsid)

@@ -1008,8 +1008,17 @@ def test_dsm_trim_and_read(nvme0, nvme0n1, verify):
     nvme0n1.compare(q, buf, 0, 8).waitdone()
 
 
+def test_wrong_warns(pcie, nvme0, nvme0n1, subsystem):
+    q = d.Qpair(nvme0, 10)
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+        nvme0.getfeatures(7).waitdone()
+    with pytest.warns(UserWarning, match="AER notification is triggered"):
+        nvme0.getfeatures(7).waitdone()
+
+
 def test_ioworker_subsystem_reset_async(nvme0, nvme0n1, subsystem):
-    for i in range(2):
+    for i in range(3):
+        logging.info(i)
         start_time = time.time()
         with nvme0n1.ioworker(io_size=8, time=100):
             time.sleep(5)
@@ -1025,7 +1034,8 @@ def test_ioworker_subsystem_reset_async(nvme0, nvme0n1, subsystem):
 
 
 def test_ioworker_pcie_reset_async(nvme0, nvme0n1, pcie):
-    for i in range(2):
+    for i in range(3):
+        logging.info(i)
         start_time = time.time()
         with nvme0n1.ioworker(io_size=8, time=100):
             time.sleep(5)

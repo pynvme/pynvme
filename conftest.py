@@ -95,7 +95,7 @@ def nvme0n1(nvme0):
     del ret
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def tcg(nvme0):
     ret = d.Tcg(nvme0)
     yield ret
