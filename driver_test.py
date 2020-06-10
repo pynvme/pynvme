@@ -126,6 +126,8 @@ def test_init_nvme_customerized(pciaddr, repeat):
             nvme0.abort(i).waitdone()
         nvme0.waitdone(aerl)
 
+    nvme0n1.close()
+    
 
 def test_jsonrpc_list_qpairs(pciaddr):
     import json
@@ -205,6 +207,8 @@ def test_jsonrpc_list_qpairs(pciaddr):
     assert len(result) == 1
     assert result[0]['qid']-1 == 0
 
+    nvme0n1.close()
+
 
 def test_expected_dut(nvme0):
     logging.info("0x%x" % nvme0.id_data(1, 0))
@@ -225,7 +229,8 @@ def test_enable_verify_with_large_namespace(nvme0):
     nvme0n1 = d.Namespace(nvme0)
     assert nvme0n1.verify_enable() == True
     nvme0n1.verify_enable(False)
-
+    nvme0n1.close()
+    
 
 def test_quarch_defined_poweron_poweroff(nvme0):
     import quarchpy
@@ -488,6 +493,8 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     q1.cmdlog(15)
     q2.cmdlog(15)
 
+    nvme1n1.close()
+
 
 @pytest.mark.skip("two namespaces")
 def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
@@ -500,6 +507,7 @@ def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
                           lba_random=True, qdepth=16,
                           read_percentage=0, time=1):
         pass
+    nvme1n1.close()
 
 
 @pytest.mark.skip("tcp")
@@ -510,6 +518,7 @@ def test_nvme_tcp_ioworker():
                region_start=0, region_end=0x100,
                lba_random=False, qdepth=4,
                read_percentage=50, time=15).start().close()
+    n.close()
 
 
 @pytest.mark.parametrize("nlba", [1, 2, 8])
@@ -530,6 +539,7 @@ def test_namespace_nlba_verify(nvme0, nlba, nlba_verify):
         nvme0n1.read(qpair, buf, lba, nlba).waitdone()
 
     nvme0n1.verify_enable(False)
+    nvme0n1.close()
 
 
 def test_ioworker_activate_crc32(nvme0n1, verify, nvme0):
@@ -2431,6 +2441,7 @@ def test_ioworker_iops_multiple_queue(nvme0, qcount):
         io_total += (r.io_count_read+r.io_count_nonread)
 
     logging.info("Q %d IOPS: %.3fK" % (qcount, io_total/10000))
+    nvme0n1.close()
 
 
 @pytest.mark.parametrize("qcount", [1, 2, 4, 8, 16])
@@ -2549,6 +2560,7 @@ def test_ioworker_iops_confliction_after_reset(nvme0, pcie):
     report = ww.close()
     assert report.error == 0
     assert time.time()-start_time > 2.0
+    nvme0n1.close()
 
 
 def test_ioworker_iops(nvme0n1):

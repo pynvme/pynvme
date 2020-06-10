@@ -594,7 +594,7 @@ cdef class Pcie(object):
         self._backup = False
         #print("create pcie: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
 
-    def __dealloc__(self):
+    def close(self):
         #print("dealloc pcie: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
         if self._ctrlr is not NULL and self._backup is not True:
             ret = d.nvme_fini(self._ctrlr)
@@ -798,7 +798,7 @@ cdef class Tcg(object):
         if not self._dev:
             raise TcgError("tcg init fail")
 
-    def __dealloc__(self):
+    def close(self):
         d.tcg_dev_close(self._dev)
 
     def take_ownership(self, passwd=b'cranechu@gmail.com'):
@@ -887,9 +887,6 @@ cdef class Controller(object):
         # post init, register callbacks
         d.nvme_register_timeout_cb(self.pcie._ctrlr, timeout_driver_cb, self._timeout)
         logging.debug("nvme initialized: %s", self.pcie._bdf)
-
-    def __dealloc__(self):
-        pass
 
     def _nvme_init(self):
         logging.debug("start nvme init process in pynvme")
@@ -1696,7 +1693,7 @@ cdef class Qpair(object):
         self._nvme = nvme
         #print("create qpair: %x" % <unsigned long>self._qpair); sys.stdout.flush()
 
-    def __dealloc__(self):
+    def close(self):
         #print("dealloc qpair: %x %x" % (<unsigned long>self._qpair, <unsigned long>self._nvme.pcie._ctrlr)); sys.stdout.flush()
         if self._nvme.pcie._magic == 0x1243568790bacdfe:
             if self._nvme.pcie._ctrlr is not NULL:
@@ -1803,7 +1800,7 @@ cdef class Namespace(object):
         self.nlba_verify = nlba_verify
         #print("created namespace: 0x%x" % <unsigned long>self._ns); sys.stdout.flush()
 
-    def __dealloc__(self):
+    def close(self):
         """close namespace to release it resources in host memory.
 
         Notice
@@ -1819,10 +1816,6 @@ cdef class Namespace(object):
                     if d.ns_fini(self._ns) != 0:
                         raise NamespaceDeletionError()
         self._ns = NULL
-
-    def close(self):
-        """ obsoleted """
-        pass
 
     @property
     def nsid(self):
@@ -2420,7 +2413,7 @@ class _IOWorker(object):
         assert False, "should find the latency in the loop"
 
     def close(self):
-        """Wait the worker's process finish
+        """Wait the ioworker's process finish
 
         Wait the worker process complete, and get the return report data
         """

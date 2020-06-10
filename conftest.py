@@ -71,35 +71,40 @@ def pciaddr(request):
 def pcie(pciaddr):
     ret = d.Pcie(pciaddr)
     yield ret
-    del ret
+    ret.close()
 
     
 @pytest.fixture(scope="function")
 def nvme0(pcie):
     ret = d.Controller(pcie)
     yield ret
-    del ret
 
 
 @pytest.fixture(scope="function")
 def subsystem(nvme0):
     ret = d.Subsystem(nvme0)
     yield ret
-    del ret
 
 
 @pytest.fixture(scope="function")
 def nvme0n1(nvme0):
     ret = d.Namespace(nvme0)
     yield ret
-    del ret
+    ret.close()
 
 
+@pytest.fixture(scope="function")
+def qpair(nvme0):
+    ret = d.Qpair(nvme0, 64)
+    yield ret
+    ret.close()
+
+    
 @pytest.fixture(scope="function")
 def tcg(nvme0):
     ret = d.Tcg(nvme0)
     yield ret
-    del ret
+    ret.close()
 
 
 @pytest.fixture(scope="session")
