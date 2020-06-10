@@ -570,16 +570,6 @@ cdef class Pcie(object):
     cdef long _magic
 
     def __cinit__(self, addr):
-        if type(addr) is Controller:
-            logging.debug("get backup pcie from ctrlr")
-            ctrlr = <Controller>addr
-
-            # copy original pcie to this one
-            self._backup = True
-            self._ctrlr = ctrlr.pcie._ctrlr
-            strncpy(self._bdf, ctrlr.pcie._bdf, strlen(self._bdf)+1)
-            return
-
         # pcie address, start with domain
         if not os.path.exists("/sys/bus/pci/devices/%s" % addr) and \
            not addr.startswith("0000:"):

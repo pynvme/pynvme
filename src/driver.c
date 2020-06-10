@@ -580,7 +580,7 @@ void cmdlog_init(struct spdk_nvme_qpair* q)
                                           sizeof(struct cmd_log_table_t),
                                           0,
                                           SPDK_MEMZONE_NO_IOVA_CONTIG);
-  assert(q->pynvme_cmdlog != NULL);
+  assert(q->pynvme_cmdlog != NULL);  // may not close qpair in the script
 }
 
 

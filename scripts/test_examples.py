@@ -22,6 +22,7 @@ def test_hello_world(nvme0, nvme0n1):
     assert read_buf[10:21] != b'hello world'
     qpair.waitdone(2)
     assert read_buf[10:21] == b'hello world'
+    qpair.delete()
 
 
 # access PCIe/NVMe registers, identify data, pythonic
@@ -39,7 +40,7 @@ def test_sanitize(nvme0: d.Controller, buf):
         pytest.skip("sanitize operation is not supported")
 
     import PySimpleGUI as sg
-        
+
     logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
     sg.OneLineProgressMeter('sanitize progress', 0, 100, 'progress', orientation='h')
     nvme0n1 = d.Namespace(nvme0, 1, 128*1000*1000//4)
@@ -54,6 +55,8 @@ def test_sanitize(nvme0: d.Controller, buf):
         sg.OneLineProgressMeter('sanitize progress', progress, 100, 'progress', orientation='h')
         logging.info("%d%%" % progress)
 
+    nvme0n1.close()
+
 
 # simple ioworker, complicated io_size, python function call, CI
 def test_ioworker_simplified(nvme0, nvme0n1: d.Namespace):
@@ -62,10 +65,11 @@ def test_ioworker_simplified(nvme0, nvme0n1: d.Namespace):
     nvme0n1.ioworker(op_percentage={2:10, 1:20, 0:30, 9:40}, time=1).start().close()
     test_hello_world(nvme0, nvme0n1)
 
-    
+
 # ioworker with admin commands, multiprocessing, log, cmdlog, pythonic
 def subprocess_trim(pciaddr, seconds):
-    nvme0 = d.Controller(pciaddr, True)
+    pcie = d.Pcie(pciaddr)
+    nvme0 = d.Controller(pcie, True)
     nvme0n1 = d.Namespace(nvme0)
     q = d.Qpair(nvme0, 8)
     buf = d.Buffer(4096)
@@ -75,10 +79,14 @@ def subprocess_trim(pciaddr, seconds):
     start = time.time()
     while time.time()-start < seconds:
         nvme0n1.dsm(q, buf, 1).waitdone()
-    
+
+    q.delete()
+    nvme0n1.close()
+    pcie.close()
+
 def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
     test_seconds = 10
-    
+
     # start trim process
     import multiprocessing
     mp = multiprocessing.get_context("spawn")
@@ -89,14 +97,14 @@ def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
     # start read/write ioworker and admin commands
     smart_log = d.Buffer(512, "smart log")
     with nvme0n1.ioworker(io_size=256,
-                          lba_random=False, 
-                          read_percentage=0, 
+                          lba_random=False,
+                          read_percentage=0,
                           time=test_seconds):
         for i in range(15):
             time.sleep(1)
             nvme0.getlogpage(0x02, smart_log, 512).waitdone()
             ktemp = smart_log.data(2, 1)
-            
+
             from pytemperature import k2c
             logging.info("temperature: %0.2f degreeC" % k2c(ktemp))
 
@@ -112,7 +120,8 @@ def test_multiple_controllers_and_namespaces():
     test_seconds = 10
 
     # create all controllers and namespace
-    nvme_list = [d.Controller(d.Pcie(a)) for a in addr_list]
+    pcie_list = [d.Pcie(a) for a in addr_list]
+    nvme_list = [d.Controller(p) for p in pcie_list]
     ns_list = [d.Namespace(n) for n in nvme_list]
 
     # create two ioworkers on each namespace
@@ -128,35 +137,41 @@ def test_multiple_controllers_and_namespaces():
                         lba_random=True, qdepth=256,
                         read_percentage=0, time=test_seconds).start()
         ioworkers.append(w)
-        
+
     # collect test results
     io_total = 0
     for w in ioworkers:
         r = w.close()
         io_total += (r.io_count_read+r.io_count_nonread)
     logging.info("total throughput: %d IOPS" % (io_total/test_seconds))
-    
+
+    for n in ns_list:
+        n.close()
+
+    for p in pcie_list:
+        p.close()
+
 
 # GUI, productivity
 def test_get_log_page(nvme0):
     import PySimpleGUI as sg
-    
+
     lid = int(sg.PopupGetText("Which Log ID to read?", "pynvme"))
     buf = d.Buffer(512, "%s, Log ID: %d" % (nvme0.id_data(63, 24, str), lid))
     nvme0.getlogpage(lid, buf).waitdone()
-    
+
     layout = [ [sg.OK(), sg.Cancel()],
                [sg.Multiline(buf.dump(), enter_submits=True, disabled=True, size=(80, 25))] ]
-    sg.Window(str(buf), layout, font=('monospace', 12)).Read()    
+    sg.Window(str(buf), layout, font=('monospace', 12)).Read()
 
-    
+
 # PCIe, different of power states and resets
 def test_power_and_reset(pcie, nvme0, subsystem):
     pcie.aspm = 2              # ASPM L1
     pcie.power_state = 3       # PCI PM D3hot
     pcie.aspm = 0
     pcie.power_state = 0
-    
+
     nvme0.reset()              # controller reset: CC.EN
     nvme0.getfeatures(7).waitdone()
 
@@ -182,11 +197,8 @@ def test_power_and_reset(pcie, nvme0, subsystem):
 @pytest.mark.parametrize("io_count", [1, 9])
 @pytest.mark.parametrize("lba_count", [1, 8])
 @pytest.mark.parametrize("lba_offset", [0, 8])
-def test_different_io_size_and_count(nvme0, nvme0n1,
+def test_different_io_size_and_count(nvme0, nvme0n1, qpair,
                                      lba_offset, lba_count, io_count):
-    # IO Qpair for IO commands
-    io_qpair = d.Qpair(nvme0, 64)
-
     # allcoate all DMA buffers for IO commands
     bufs = []
     for i in range(io_count):
@@ -194,8 +206,8 @@ def test_different_io_size_and_count(nvme0, nvme0n1,
 
     # send and reap all IO command dwords
     for i in range(io_count):
-        nvme0n1.read(io_qpair, bufs[i], lba_offset, lba_count)
-    io_qpair.waitdone(io_count)
+        nvme0n1.read(qpair, bufs[i], lba_offset, lba_count)
+    qpair.waitdone(io_count)
 
 
 # IO commands, fused operations, generic commands
@@ -203,19 +215,20 @@ def test_fused_operations(nvme0, nvme0n1):
     # create qpair and buffer for IO commands
     q = d.Qpair(nvme0, 10)
     b = d.Buffer()
-    
+
     # separate compare and write commands
     nvme0n1.write(q, b, 8).waitdone()
     nvme0n1.compare(q, b, 8).waitdone()
 
     # implement fused compare and write operations with generic commands
     # Controller.send_cmd() sends admin commands,
-    # and Namespace.send_cmd() here sends IO commands. 
+    # and Namespace.send_cmd() here sends IO commands.
     nvme0n1.send_cmd(5|(1<<8), q, b, 1, 8, 0, 0)
     nvme0n1.send_cmd(1|(1<<9), q, b, 1, 8, 0, 0)
     q.waitdone(2)
+    q.delete()
 
-    
+
 # protocol tests on queue, buffer, PRP, and doorbells
 from psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 def test_send_cmd_2sq_1cq(nvme0):
@@ -228,7 +241,7 @@ def test_send_cmd_2sq_1cq(nvme0):
     write_cmd = SQE(1, 1)       # write to namespace 1
     write_cmd.prp1 = PRP()      # PRP1 is a 4K page
     prp_list = PRPList()        # PRPList contains 3 pages
-    prp_list[0] = PRP()     
+    prp_list[0] = PRP()
     prp_list[1] = PRP()
     prp_list[2] = PRP()
     write_cmd.prp2 = prp_list   # PRP2 points to the PRPList
@@ -241,7 +254,7 @@ def test_send_cmd_2sq_1cq(nvme0):
     write_cmd.cid = 567         # verify cid later
     sq2[0] = write_cmd          # fill command dwords in SQ2
     sq2.tail = 1                # ring doorbell of SQ2 first
-    time.sleep(0.1)             # delay to ring SQ1, 
+    time.sleep(0.1)             # delay to ring SQ1,
     sq1.tail = 1                #  so command in SQ2 should complete first
 
     # wait for 2 command completions
@@ -289,11 +302,11 @@ def test_sanitize_operations_basic(nvme0, nvme0n1):  #L8
 def test_buffer_read_write(nvme0, nvme0n1):
     buf = d.Buffer(512, 'ascii table')  #L2
     logging.info("physical address of buffer: 0x%lx" % buf.phys_addr)  #L3
-    
+
     for i in range(512):
         buf[i] = i%256  #L6
     print(buf.dump(128))  #L7
-    
+
     buf = d.Buffer(512, 'random', pvalue=100, ptype=0xbeef)  #L15
     print(buf.dump())
     buf = d.Buffer(512, 'random', pvalue=100, ptype=0xbeef)  #L17
@@ -303,6 +316,7 @@ def test_buffer_read_write(nvme0, nvme0n1):
     nvme0n1.write(qpair, buf, 0).waitdone()
     nvme0n1.read(qpair, buf, 0).waitdone()
     print(buf.dump())
+    qpair.delete()
 
 
 def test_create_qpairs(nvme0, nvme0n1, buf):
@@ -310,7 +324,7 @@ def test_create_qpairs(nvme0, nvme0n1, buf):
     nvme0n1.read(qpair, buf, 0)
     qpair.waitdone()
     nvme0n1.read(qpair, buf, 0, 8).waitdone()
-    
+
     ql = []
     for i in range(15):
         ql.append(d.Qpair(nvme0, 8))
@@ -318,18 +332,23 @@ def test_create_qpairs(nvme0, nvme0n1, buf):
     with pytest.raises(d.QpairCreationError):
         ql.append(d.Qpair(nvme0, 8))
 
-    nvme0n1.ioworker(io_size=8, time=1000).start().close()
-        
-    del qpair
+    with pytest.warns(UserWarning, match="ioworker host ERROR -1: generic error"):
+        nvme0n1.ioworker(io_size=8, time=1000).start().close()
+
+    qpair.delete()
     nvme0n1.ioworker(io_size=8, time=1).start().close()
+
+    for q in ql:
+        q.delete()
 
 
 def test_namespace_multiple(buf):
     # create all controllers and namespace
-    addr_list = [b'3d:00.0']
-    nvme_list = [d.Controller(a) for a in addr_list]
+    addr_list = ['3d:00.0']
+    pcie_list = [d.Pcie(a) for a in addr_list]
 
-    for nvmex in nvme_list:
+    for p in pcie_list:
+        nvmex = d.Controller(p)
         qpair = d.Qpair(nvmex, 8)
         nvmexn1 = d.Namespace(nvmex)
 
@@ -339,7 +358,7 @@ def test_namespace_multiple(buf):
             nvmexn1.write_uncorrectable(qpair, 0, 8).waitdone()
             with pytest.warns(UserWarning, match="ERROR status: 02/81"):
                 nvmexn1.read(qpair, buf, 0, 8).waitdone()
-                
+
             nvmexn1.write(qpair, buf, 0, 8).waitdone()
             def this_read_cb(dword0, status1):
                 assert status1>>1 == 0
@@ -356,9 +375,15 @@ def test_namespace_multiple(buf):
             with pytest.warns(UserWarning, match="ERROR status: 02/81"):
                 nvmexn1.read(qpair, buf, 0, 8, cb=another_read_cb).waitdone()
 
+        qpair.delete()
+        nvmexn1.close()
+        p.close()
+        
                 
 @pytest.mark.parametrize("qcount", [1, 1, 2, 4])
 def test_ioworker_iops_multiple_queue(nvme0n1, qcount):
+    nvme0n1.format(512)
+    
     l = []
     io_total = 0
     for i in range(qcount):
@@ -382,14 +407,13 @@ def test_ioworker_fixed_iops(nvme0n1, iops):
                      lba_random=True,
                      read_percentage=100,
                      iops=iops,
-                     output_io_per_second=output_io_per_second, 
+                     output_io_per_second=output_io_per_second,
                      time=10).start().close()
     logging.info(output_io_per_second)
-    
 
-def test_dsm_trim(nvme0: d.Controller, nvme0n1: d.Namespace):
+
+def test_dsm_trim(nvme0: d.Controller, nvme0n1: d.Namespace, qpair: d.Qpair):
     trimbuf = d.Buffer(4096)
-    q = d.Qpair(nvme0, 32)
 
     # DUT info
     logging.info("model number: %s" % nvme0.id_data(63, 24, str))
@@ -399,13 +423,13 @@ def test_dsm_trim(nvme0: d.Controller, nvme0n1: d.Namespace):
     start_lba = 0
     lba_count = 8*1024
     trimbuf.set_dsm_range(0, start_lba, lba_count)
-    nvme0n1.dsm(q, trimbuf, 1, attribute=0x4).waitdone()
+    nvme0n1.dsm(qpair, trimbuf, 1, attribute=0x4).waitdone()
 
     # multiple range
     lba_count = lba_count//256
     for i in range(256):
         trimbuf.set_dsm_range(i, start_lba+i*lba_count, lba_count)
-    nvme0n1.dsm(q, trimbuf, 256).waitdone()
+    nvme0n1.dsm(qpair, trimbuf, 256).waitdone()
 
 
 def test_ioworker_performance(nvme0n1):
@@ -417,7 +441,7 @@ def test_ioworker_performance(nvme0n1):
                      lba_random=True,
                      read_percentage=100,
                      output_io_per_second=output_io_per_second,
-                     output_percentile_latency=percentile_latency, 
+                     output_percentile_latency=percentile_latency,
                      time=10).start().close()
     logging.info(output_io_per_second)
     logging.info(percentile_latency)
@@ -453,11 +477,11 @@ def test_ioworker_jedec_enterprise_workload(nvme0n1):
                      distribution = distribution,
                      lba_random=True,
                      read_percentage=0,
-                     ptype=0xbeef, pvalue=100, 
-                     time=10).start().close()    
+                     ptype=0xbeef, pvalue=100,
+                     time=10).start().close()
 
 
-def test_static_wear_leveling(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
+def _test_static_wear_leveling(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
     logging.info("format")
     nvme0n1.format(512)
 
@@ -469,7 +493,7 @@ def test_static_wear_leveling(nvme0: d.Controller, nvme0n1: d.Namespace, verify)
                      lba_random=False,
                      io_count=io_count,
                      read_percentage=0).start().close()
-    
+
     distribution = [0]*100
     for i in [0, 3, 11, 28, 60, 71, 73, 88, 92, 98]:
         distribution[i] = 1000
@@ -487,8 +511,8 @@ def test_static_wear_leveling(nvme0: d.Controller, nvme0n1: d.Namespace, verify)
     nvme0n1.ioworker(io_size=io_size,
                      lba_random=False,
                      io_count=io_count,
-                     read_percentage=100).start().close()    
-        
+                     read_percentage=100).start().close()
+
 
 def test_power_on_off(nvme0):
     def poweron():
@@ -498,17 +522,17 @@ def test_power_on_off(nvme0):
         logging.info("poweroff")
         pass
     subsystem = d.Subsystem(nvme0, poweron, poweroff)
-    
+
     subsystem = d.Subsystem(nvme0)
     subsystem.poweroff()
     subsystem.poweron()
     nvme0.reset()
 
-    
+
 def test_init_nvme_customerized(pciaddr):
     pcie = d.Pcie(pciaddr)
     nvme0 = d.Controller(pcie, skip_nvme_init=True)
-    
+
     # 1. set pcie registers
     pcie.aspm = 0
 
@@ -538,7 +562,9 @@ def test_init_nvme_customerized(pciaddr):
     nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
     nvme0.getfeatures(0x7).waitdone()
 
-    
+    pcie.close()
+
+
 def test_ioworker_op_dict_trim(nvme0n1):
     cmdlog_list = [None]*10000
     op_percentage = {2: 40, 9: 30, 1: 30}
@@ -546,7 +572,7 @@ def test_ioworker_op_dict_trim(nvme0n1):
                      io_count=10000,
                      op_percentage=op_percentage,
                      output_cmdlog_list=cmdlog_list).start().close()
-    
+
     op_log = [c[2] for c in cmdlog_list]
     for op in (2, 9, 1):
         logging.info("occurance of %d: %d" % (op, op_log.count(op)))
@@ -590,7 +616,7 @@ def test_aer_with_multiple_sanitize(nvme0, nvme0n1, buf):  #L8
                 nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
                 progress = buf.data(1, 0)*100//0xffff
                 logging.info("%d%%" % progress)
-                
+
         nvme0.waitdone()
         nvme0.aer()
 
@@ -606,7 +632,7 @@ def test_read_write_mixed_verify(nvme0n1, verify):  #L1
                           lba_random=True, qdepth=64,
                           read_percentage=100, time=1):  #L10
         pass
-    
+
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):  #L13
         with nvme0n1.ioworker(io_size=8, lba_align=8,
                               region_start=0, region_end=256,
@@ -616,7 +642,7 @@ def test_read_write_mixed_verify(nvme0n1, verify):  #L1
                               region_start=0, region_end=256,
                               lba_random=True, qdepth=64,
                               read_percentage=100, time=1):  #L21
-            pass        
+            pass
 
 
 def test_verify_partial_namespace(nvme0):
@@ -629,7 +655,7 @@ def test_verify_partial_namespace(nvme0):
                      region_end=region_end,
                      read_percentage=50,
                      time=30).start().close()
-    
+
 
 def test_jsonrpc_list_qpairs(pciaddr):
     import json
@@ -654,13 +680,17 @@ def test_jsonrpc_list_qpairs(pciaddr):
         assert resp['jsonrpc'] == '2.0'
         return resp['result']
 
+    result = jsonrpc_call(sock, 'list_all_qpair')
+    assert len(result) == 0
+
     # create controller and admin queue
-    nvme0 = d.Controller(d.Pcie(pciaddr))
-    
+    pcie = d.Pcie(pciaddr)
+    nvme0 = d.Controller(pcie)
+
     result = jsonrpc_call(sock, 'list_all_qpair')
     assert len(result) == 1
     assert result[0]['qid']-1 == 0
-    
+
     result = jsonrpc_call(sock, 'list_all_qpair')
     assert len(result) == 1
     assert result[0]['qid']-1 == 0
@@ -671,5 +701,24 @@ def test_jsonrpc_list_qpairs(pciaddr):
     assert result[0]['qid']-1 == 0
     assert result[1]['qid']-1 == 1
 
-    q2 = d.Qpair(nvme0, 8)        
-    
+    q2 = d.Qpair(nvme0, 8)
+    result = jsonrpc_call(sock, 'list_all_qpair')
+    assert len(result) == 3
+    assert result[0]['qid']-1 == 0
+    assert result[1]['qid']-1 == 1
+    assert result[2]['qid']-1 == 2
+
+    q1.delete()
+    result = jsonrpc_call(sock, 'list_all_qpair')
+    assert len(result) == 2
+    assert result[0]['qid']-1 == 0
+    assert result[1]['qid']-1 == 2
+
+    q2.delete()
+    result = jsonrpc_call(sock, 'list_all_qpair')
+    assert len(result) == 1
+    assert result[0]['qid']-1 == 0
+
+    pcie.close()
+    result = jsonrpc_call(sock, 'list_all_qpair')
+    assert len(result) == 0

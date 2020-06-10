@@ -67,7 +67,7 @@ def pciaddr(request):
     return request.config.getoption("--pciaddr")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def pcie(pciaddr):
     ret = d.Pcie(pciaddr)
     yield ret
@@ -81,7 +81,7 @@ def nvme0(pcie):
 
 
 @pytest.fixture(scope="function")
-def subsystem(nvme0):
+def subsystem(nvme0, nvme0n1):
     ret = d.Subsystem(nvme0)
     yield ret
 

@@ -48,14 +48,15 @@ tcp_target = b'10.24.48.17'  #b'127.0.0.1'
 
 @pytest.mark.parametrize("repeat", range(2))
 def test_init_nvme_back_compatibility(repeat):
-    nvme0 = d.Controller(b"3d:00.0")
-    pcie = d.Pcie(nvme0)
+    pcie = d.Pcie("3d:00.0")
+    nvme0 = d.Controller(pcie)
     logging.info(hex(pcie.register(0, 4)))
     nvme0n1 = d.Namespace(nvme0, 1)
     with nvme0n1.ioworker(time=1), \
          nvme0n1.ioworker(time=1):
         pass
     nvme0n1.close()
+    pcie.close()
 
 
 @pytest.mark.parametrize("repeat", range(2))
@@ -159,7 +160,8 @@ def test_jsonrpc_list_qpairs(pciaddr):
     assert len(result) == 0
 
     # create controller and namespace
-    nvme0 = d.Controller(d.Pcie(pciaddr))
+    pcie = d.Pcie(pciaddr)
+    nvme0 = d.Controller(pcie)
 
     result = jsonrpc_call(sock, 'list_all_qpair')
     assert len(result) == 1
@@ -210,6 +212,7 @@ def test_jsonrpc_list_qpairs(pciaddr):
     assert result[0]['qid']-1 == 0
 
     nvme0n1.close()
+    pcie.close()
 
 
 def test_expected_dut(nvme0):
@@ -280,14 +283,15 @@ def test_system_defined_poweron_poweroff_async(nvme0, nvme0n1, subsystem):
     test_hello_world(nvme0, nvme0n1, True)
 
 
-def test_hello_world(nvme0, nvme0n1, verify, qpair):
+def test_hello_world(nvme0, nvme0n1, verify):
     assert verify
 
     # prepare data buffer and IO queue
     read_buf = d.Buffer(512)
     write_buf = d.Buffer(512)
     write_buf[10:21] = b'hello world'
-
+    qpair = d.Qpair(nvme0, 10)
+    
     # send write and read command
     def write_cb(cdw0, status1):  # command callback function
         nvme0n1.read(qpair, read_buf, 0, 1)
@@ -298,7 +302,8 @@ def test_hello_world(nvme0, nvme0n1, verify, qpair):
     qpair.waitdone(2)
     assert read_buf[10:21] == b'hello world'
     nvme0n1.compare(qpair, read_buf, 0).waitdone()
-
+    qpair.delete()
+    
 
 @pytest.mark.skip("tcp")
 @pytest.mark.parametrize("repeat", range(2))
@@ -342,9 +347,11 @@ def test_qpair_different_size(nvme0n1, nvme0, shift):
 
 @pytest.mark.skip("two controllers")
 def test_two_controllers(nvme0):
-    nvme1 = d.Controller(d.Pcie('03:00.0'))
+    pcie = d.Pcie('03:00.0')
+    nvme1 = d.Controller(pcie)
     assert nvme0.id_data(63, 24, str)[:6] != nvme1.id_data(63, 24, str)[:6]
     assert nvme0.id_data(23, 4, str) != nvme1.id_data(23, 4, str)
+    pcie.close()
 
 
 def test_random_seed():
@@ -429,7 +436,8 @@ def test_ioworker_power_cycle_async_cmdlog(nvme0, nvme0n1, subsystem):
 
 @pytest.mark.skip("two namespaces")
 def test_two_namespace_basic(nvme0n1, nvme0, verify):
-    nvme1 = d.Controller(d.Pcie('03:00.0'))
+    pcie = d.Pcie('03:00.0')
+    nvme1 = d.Controller(pcie)
     nvme1n1 = d.Namespace(nvme1)
     nvme0n1.format()
     nvme1n1.format()
@@ -499,10 +507,12 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     q1.delete()
     q2.delete()
 
+    pcie.close()
 
 @pytest.mark.skip("two namespaces")
 def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
-    nvme1 = d.Controller(d.Pcie('03:00.0'))
+    pcie = d.Pcie('03:00.0')
+    nvme1 = d.Controller(pcie)
     nvme1n1 = d.Namespace(nvme1)
     with nvme0n1.ioworker(io_size=8, lba_align=16,
                           lba_random=True, qdepth=16,
@@ -511,7 +521,9 @@ def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
                           lba_random=True, qdepth=16,
                           read_percentage=0, time=1):
         pass
+
     nvme1n1.close()
+    pcie.close()
 
 
 @pytest.mark.skip("tcp")
@@ -1502,7 +1514,7 @@ def test_create_many_qpair(nvme0, repeat):
     for i in range(16):
         ql.append(d.Qpair(nvme0, 8))
     for q in ql:
-        q.deletee()
+        q.delete()
 
     for i in range(50):
         q = d.Qpair(nvme0, 80)
@@ -3011,6 +3023,7 @@ def test_buffer_token_multi_processes(nvme0, nvme0n1):
     nvme0n1.read(io_qpair, b, 1, 1).waitdone()
     token_end = b.data(507, 504)
     assert token_end-token_begin == 8*128*2+1
+    io_qpair.delete()
 
 
 def test_buffer_token_single_small_process(nvme0, nvme0n1):
