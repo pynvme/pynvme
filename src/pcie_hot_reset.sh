@@ -21,16 +21,18 @@ fi
 port=$(basename $(dirname $(readlink "/sys/bus/pci/devices/$dev")))
 
 if [ ! -e "/sys/bus/pci/devices/$port" ]; then
-    #echo "Error: device $port not found"
-    #exit 1
-    port="0000:00:00.0"
+    port=$(echo "$port" | cut -c4-)
+    port="$port:00.0"
 fi
 
-# echo "Removing $dev..."
+if [ ! -e "/sys/bus/pci/devices/$port" ]; then
+    echo "Error: device $port not found"
+    exit 1
+fi
+
+echo "hot reset $dev from $port"
 
 echo 1 > "/sys/bus/pci/devices/$dev/remove"
-
-##echo "hot reset $dev from $port"
 
 bc=$(setpci -s $port BRIDGE_CONTROL)
 
@@ -43,6 +45,12 @@ sleep 0.5
 
 # echo "Rescanning bus..."
 
-echo 1 > "/sys/bus/pci/devices/$port/rescan"
-echo 1 > "/sys/bus/pci/devices/$port/dev_rescan"
+if [ -e "/sys/bus/pci/devices/$port/rescan" ]; then
+    echo 1 > "/sys/bus/pci/devices/$port/rescan"
+fi
+
+if [ -e "/sys/bus/pci/devices/$port/dev_rescan" ]; then
+    echo 1 > "/sys/bus/pci/devices/$port/dev_rescan"
+fi
+
 sleep 1
