@@ -224,14 +224,19 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
 
 void intc_init(struct spdk_nvme_ctrlr *ctrlr)
 {
+  bool ret;
+  
   // interrupt is enabled on PCIe devices only
   assert(ctrlr->trid.trtype == SPDK_NVME_TRANSPORT_PCIE);
 
   //search msix first, if the operation fail, will switch to msi intr
-  if (!msix_intc_init(ctrlr, &ctrlr->pynvme_intc_ctrl))
+  ret = msix_intc_init(ctrlr, &ctrlr->pynvme_intc_ctrl);
+  if (ret == false)
   {
-    msi_intc_init(ctrlr, &ctrlr->pynvme_intc_ctrl);
+    ret = msi_intc_init(ctrlr, &ctrlr->pynvme_intc_ctrl);
   }
+
+  assert(ret == true);  // controller must support at least one kind of interrupt
 }
 
 static void intc_info_release(struct spdk_nvme_ctrlr* ctrlr)
