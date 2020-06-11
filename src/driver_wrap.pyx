@@ -585,6 +585,8 @@ cdef class Pcie(object):
         #print("create pcie: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
 
     def close(self):
+        """close to explictly release its resources instead of del"""
+
         #print("dealloc pcie: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
         if self._ctrlr is not NULL and self._backup is not True:
             ret = d.nvme_fini(self._ctrlr)
@@ -789,6 +791,8 @@ cdef class Tcg(object):
             raise TcgError("tcg init fail")
 
     def close(self):
+        """close to explictly release its resources instead of del"""
+        
         d.tcg_dev_close(self._dev)
 
     def take_ownership(self, passwd=b'cranechu@gmail.com'):
@@ -1687,6 +1691,8 @@ cdef class Qpair(object):
         assert False, "use Qpair.delete()"
 
     def delete(self):
+        """delete qpair's SQ and CQ"""
+        
         #print("dealloc qpair: %x %x" % (<unsigned long>self._qpair, <unsigned long>self._nvme.pcie._ctrlr)); sys.stdout.flush()
         if self._nvme.pcie._magic == 0x1243568790bacdfe:
             if self._nvme.pcie._ctrlr is not NULL:
@@ -1794,12 +1800,7 @@ cdef class Namespace(object):
         #print("created namespace: 0x%x" % <unsigned long>self._ns); sys.stdout.flush()
 
     def close(self):
-        """close namespace to release it resources in host memory.
-
-        Notice
-            Release resources explictly, del is not garentee to call __dealloc__.
-            Fixture nvme0n1 uses this function, and prefer to use fixture in scripts, instead of calling this function directly.
-        """
+        """close to explictly release its resources instead of del"""
 
         #print("dealloc namespace: 0x%x" % <unsigned long>self._ns); sys.stdout.flush()
         if self._nvme.pcie._magic == 0x1243568790bacdfe:
