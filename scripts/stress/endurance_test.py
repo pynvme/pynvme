@@ -32,11 +32,11 @@ def test_ioworker_jedec_enterprise_workload_512(nvme0n1):
 def test_ioworker_jedec_enterprise_workload_4k(nvme0n1):
     nvme0n1.format(4096)
     distribution = [1000]*5 + [200]*15 + [25]*80
-    iosz_distribution = {8: 77,
-                         16: 10,
-                         32: 7,
-                         64: 3,
-                         128: 3}
+    iosz_distribution = {1: 77,
+                         2: 10,
+                         4: 7,
+                         8: 3,
+                         16: 3}
 
     nvme0n1.ioworker(io_size=iosz_distribution,
                      lba_random=True,
@@ -45,6 +45,9 @@ def test_ioworker_jedec_enterprise_workload_4k(nvme0n1):
                      read_percentage=0,
                      ptype=0xbeef, pvalue=100, 
                      time=12*3600).start().close()
+
+    # change back to 512B LBA format
+    nvme0n1.format(512)
 
     
 def test_replay_jedec_client_trace(nvme0, nvme0n1):
@@ -94,3 +97,5 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
                 counter = 0
 
     q.waitdone(counter)
+    q.delete()
+    

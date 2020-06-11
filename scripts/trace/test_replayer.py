@@ -7,13 +7,16 @@ import nvme as d
 import PySimpleGUI as sg
 
 
-def test_replay_pynvme_trace(pciaddr, accelerator=1.0):
+def test_replay_pynvme_trace(nvme0, nvme0n1, accelerator=1.0):
     filename = sg.PopupGetFile('select the trace file to replay', 'pynvme')
     if filename:
         logging.info(filename)
+
+        # format before replay
+        nvme0n1.format(512)
         
         responce_time = [0]*1000000
-        replay_logfile(filename, pciaddr, accelerator, responce_time)
+        replay_logfile(filename, nvme0n1, nvme0.mdts, accelerator, responce_time)
 
         import matplotlib.pyplot as plt
         plt.plot(responce_time)
@@ -29,21 +32,15 @@ def test_replay_pynvme_trace(pciaddr, accelerator=1.0):
         plt.show()
 
 
-def replay_logfile(filename, pciaddr, accelerator, responce_time):
+def replay_logfile(filename, nvme0n1, mdts, accelerator, responce_time):
     zfile = zipfile.ZipFile(filename)
     files = zfile.namelist()
     files.sort()
     
-    nvme0 = d.Controller(d.Pcie(pciaddr))
-    nvme0n1 = d.Namespace(nvme0)
-
-    # format before replay
-    nvme0n1.format(512)
-    
     fid = nvme0n1.id_data(26)%16
     format_support = nvme0n1.id_data(128+fid*4+3, 128+fid*4)
     data_size = (1<<((format_support>>16)&0xff))
-    max_lba = nvme0.mdts//data_size
+    max_lba = mdts//data_size
     logging.info(max_lba)
 
     opcode = {b'flush': 0,

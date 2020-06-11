@@ -1683,6 +1683,9 @@ cdef class Qpair(object):
         self._nvme = nvme
         #print("create qpair: %x" % <unsigned long>self._qpair); sys.stdout.flush()
 
+    def close(self):
+        assert False, "use Qpair.delete()"
+
     def delete(self):
         #print("dealloc qpair: %x %x" % (<unsigned long>self._qpair, <unsigned long>self._nvme.pcie._ctrlr)); sys.stdout.flush()
         if self._nvme.pcie._magic == 0x1243568790bacdfe:

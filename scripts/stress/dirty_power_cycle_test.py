@@ -54,43 +54,9 @@ def test_quarch_dirty_power_cycle_single(nvme0, nvme0n1, subsystem, buf, verify)
             nvme0n1.read(qpair, read_buf, slba, nlba, cb=read_cb).waitdone()
             # re-write to clear CRC mismatch
             nvme0n1.write(qpair, read_buf, slba, nlba, cb=read_cb).waitdone()
-
-            
-def quarch_dirty_power_cycle_process(pciaddr, repeat):
-    nvme0 = d.Controller(d.Pcie(pciaddr))
-    nvme0n1 = d.Namespace(nvme0, 1, 128*1000*1000//4)
-    subsystem = d.Subsystem(nvme0)
-    buf = d.Buffer(4096)
-
-    for i in range(repeat):
-        print("test %s loop %d" % (pciaddr, i))
-        test_quarch_dirty_power_cycle_single(nvme0, nvme0n1, subsystem, buf, True)
-
-        
-def test_quarch_dirty_power_cycle_multiple_processes(repeat=2):
-    addr_list = ['3d:00.0']
-    #addr_list = ['01:00.0', '03:00.0', '192.168.0.3', '127.0.0.1:4420']
-
-    import multiprocessing
-    mp = multiprocessing.get_context("spawn")
-    processes = {}
+    qpair.delete()
     
-    for a in addr_list:
-        # create controller and namespace in main process
-        nvme0 = d.Controller(d.Pcie(a))
-        nvme0n1 = d.Namespace(nvme0, 1, 128*1000*1000//4)
-        nvme0n1.verify_enable(True)
-
-        # create subprocess on the device
-        p = mp.Process(target = quarch_dirty_power_cycle_process,
-                       args = (a, repeat))
-        p.start()
-        processes[a] = p
-
-    for _, k in enumerate(processes):
-        processes[k].join()
-
-
+        
 # define the power on/off funciton
 class quarch_power:
     def __init__(self, url: str, event: str, port: int):
@@ -137,12 +103,11 @@ device_list = {
 }
 
 @pytest.mark.parametrize("repeat", range(10))
-def test_quarch_dirty_power_cycle_multiple(pciaddr, repeat):
+def test_quarch_dirty_power_cycle_multiple(pciaddr, nvme0, repeat):
     poweron, poweroff = device_list[pciaddr]
     
     # run the test one by one
     buf = d.Buffer(4096)
-    nvme0 = d.Controller(d.Pcie(pciaddr))
     nvme0n1 = d.Namespace(nvme0, 1, 256*1000*1000)
     subsystem = d.Subsystem(nvme0, poweron, poweroff)
     assert True == nvme0n1.verify_enable(True)
@@ -150,6 +115,7 @@ def test_quarch_dirty_power_cycle_multiple(pciaddr, repeat):
     # enable inline data verify in the test
     logging.info("testing device %s" % pciaddr)
     test_quarch_dirty_power_cycle_single(nvme0, nvme0n1, subsystem, buf, True)
+    nvme0n1.close()
     
 
 #TODO: set CC.SHN and dirty shutdown

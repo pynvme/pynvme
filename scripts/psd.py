@@ -674,7 +674,7 @@ def test_psd_with_qpair(nvme0):
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         cq = IOCQ(nvme0, qid, 5, buf_cq)
     cq.delete()
-    del qpair
+    qpair.delete()
 
     cq = IOCQ(nvme0, qid, 5, buf_cq)
     # the qid 1 was occupied by psd IOCQ first
