@@ -70,12 +70,17 @@ Controller
    :target: ./pic/controller.png
    :alt: NVMe Controller from NVMe spec
 
-To access the NVMe device, scripts shall firstly create and initialize the `Controller` object from the `Pcie` object, for example:
+To access the NVMe device, scripts have to create `Pcie` object first, and then create the `Controller` object from this `Pcie` object. It is required to close `Pcie` object when it is not used. For example:
+
 
 .. code-block:: python
 
    import nvme as d
-   nvme0 = d.Controller(d.Pcie('01:00.0'))
+   pcie = d.Pcie('01:00.0')
+   nvme0 = d.Controller(pcie)
+   # ...
+   pcie.close()
+   
 
 It uses Bus:Device:Function address to specify a PCIe DUT. Then, We can access NVMe registers and send admin commands to the NVMe device. 
 
@@ -326,16 +331,19 @@ One script can be executed multiple times with different NVMe drives' BDF addres
 Qpair
 -----
 
-In pynvme, we combine a Submission Queue and a Completion Queue as a Qpair. The Admin `Qpair` is created within the `Controller` object implicitly. However, we need to create IO `Qpair` explicitly for IO commands. We can specify the queue depth for IO Qpairs. 
+In pynvme, we combine a Submission Queue and a Completion Queue as a Qpair. The Admin `Qpair` is created within the `Controller` object implicitly. However, we need to create IO `Qpair` explicitly for IO commands. We can specify the queue depth for IO Qpairs. Scripts can delete both SQ and CQ by calling `Qpair.delete()`.
 
 .. code-block:: python
 
    qpair = d.Qpair(nvme0, 10)
+   # ...
+   qpair.delete()
 
+   
 Similar to Admin Commands, we use `Qpair.waitdone()` to wait IO commands complete.
 
-Interrupts
-^^^^^^^^^^
+Interrupt
+^^^^^^^^^
 
 Pynvme creates the IO Completion Queues with interrupt (e.g. MSIx or MSI) enabled. However, pynvme does not check the interrupt signals on IO Qpairs. We can check interrupt signals through a set of API `Qpair.msix_*()` in the scripts. Here is an example. 
 
@@ -375,12 +383,15 @@ Qpair objects may be reclaimed by Python Garbage Collection, when they are not u
 Namespace
 ---------
 
-We can create a Namespace and attach it to a Controller:
+We can create a Namespace and attach it to a Controller. It is required to close `Namespace` object when it is not used. 
 
 .. code-block:: python
 
    nvme0n1 = d.Namespace(nvme0, nsid=1)
+   # ...
+   nvme0n1.close()
 
+   
 .. image:: ./pic/controller.png
    :target: ./pic/controller.png
    :alt: NVMe Controller from NVMe spec

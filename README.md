@@ -23,6 +23,7 @@ The pynvme is a python extension module. Users can test NVMe devices intuitively
 
 ## Links:
 * GitHub: [https://github.com/pynvme/pynvme](https://github.com/pynvme/pynvme)
+* Mirror: [https://gitee.com/pynvme/pynvme](https://gitee.com/pynvme/pynvme)
 * Document: [https://pynvme.readthedocs.io/](https://pynvme.readthedocs.io/)
 * PDF: [https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf](https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf)
 * 21天pynvme之旅: [https://github.com/pynvme/pynvme/wiki](https://github.com/pynvme/pynvme/wiki)

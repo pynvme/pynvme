@@ -51,7 +51,13 @@ We clone the pynvme source code from GitHub. We recommend to checkout the latest
    cd pynvme
    git checkout tags/1.9
 
-   
+Or you can clone the code from the mirror repository:
+
+.. code-block:: shell
+
+   git clone https://gitee.com/pynvme/pynvme
+
+                
 Prerequisites
 -------------
 
