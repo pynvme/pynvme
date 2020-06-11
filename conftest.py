@@ -81,7 +81,7 @@ def nvme0(pcie):
 
 
 @pytest.fixture(scope="function")
-def subsystem(nvme0, nvme0n1):
+def subsystem(nvme0):
     ret = d.Subsystem(nvme0)
     yield ret
 

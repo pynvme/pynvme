@@ -481,39 +481,6 @@ def test_ioworker_jedec_enterprise_workload(nvme0n1):
                      time=10).start().close()
 
 
-def _test_static_wear_leveling(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
-    logging.info("format")
-    nvme0n1.format(512)
-
-    io_size = 128
-    ns_size = nvme0n1.id_data(7, 0)
-    io_count = ns_size//io_size
-    logging.info("fill whole drive")
-    nvme0n1.ioworker(io_size=io_size,
-                     lba_random=False,
-                     io_count=io_count,
-                     read_percentage=0).start().close()
-
-    distribution = [0]*100
-    for i in [0, 3, 11, 28, 60, 71, 73, 88, 92, 98]:
-        distribution[i] = 1000
-    io_per_second = []
-    logging.info("write hot data")
-    nvme0n1.ioworker(io_size=8,
-                     lba_random=True,
-                     distribution = distribution,
-                     read_percentage=0,
-                     time=10*3600,
-                     output_io_per_second=io_per_second).start().close()
-    logging.info(io_per_second)
-
-    logging.info("verify whole drive")
-    nvme0n1.ioworker(io_size=io_size,
-                     lba_random=False,
-                     io_count=io_count,
-                     read_percentage=100).start().close()
-
-
 def test_power_on_off(nvme0):
     def poweron():
         logging.info("poweron")

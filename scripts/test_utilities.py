@@ -54,14 +54,12 @@ def test_namespace_identify_data(nvme0):
     sg_show_hex_buffer(b)
 
 
-def test_read_lba_data(nvme0):
+def test_read_lba_data(nvme0, nvme0n1, qpair):
     import PySimpleGUI as sg
     
     lba = int(sg.PopupGetText("Which LBA to read?", "pynvme"))
-    q = d.Qpair(nvme0, 10)
     b = d.Buffer(512, "LBA 0x%08x" % lba)
-    nvme0n1 = d.Namespace(nvme0)
-    nvme0n1.read(q, b, lba).waitdone()
+    nvme0n1.read(qpair, b, lba).waitdone()
     sg_show_hex_buffer(b)
 
         
