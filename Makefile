@@ -93,7 +93,6 @@ setup: reset
 	- sudo chmod 777 /tmp
 	- sudo sh -c 'find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf'
 	- sed -i 's/XXXX:BB:DD.F/${pciaddr}/g' .vscode/settings.json
-	sudo ./src/pcie_hot_reset.sh ${pciaddr}
 	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./src/setup.sh  	# UIO is recommended
 
 tags:
