@@ -21,8 +21,9 @@ fi
 port=$(basename $(dirname $(readlink "/sys/bus/pci/devices/$dev")))
 
 if [ ! -e "/sys/bus/pci/devices/$port" ]; then
-    echo "Error: device $port not found"
-    exit 1
+    #echo "Error: device $port not found"
+    #exit 1
+    port="0000:00:00.0"
 fi
 
 # echo "Removing $dev..."

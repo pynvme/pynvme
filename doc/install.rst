@@ -26,7 +26,7 @@ System Requirements
 
 Pynvme is a software-defined NVMe test solution, so users can install and use pynvme in most of the commodity computers with some requirements:
 
-#. CPU: Intel x86_64.
+#. CPU: Intel x86_64, 4-core or more.
 #. Memory: 4GB or larger.
 #. OS: Linux. Fedora is recommanded. 
 #. Python3: Python2 is not supported.

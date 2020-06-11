@@ -2107,6 +2107,9 @@ int driver_init(void)
   struct stat sb;
   int shm_id = getpid();
 
+  // at least 4-core system
+  assert(get_nprocs() >= 4);
+  
   // get the shared memory group id among primary and secondary processes
   sprintf(buf, "/var/run/dpdk/spdk%d", getppid());
   if (stat(buf, &sb) == 0 && S_ISDIR(sb.st_mode))
