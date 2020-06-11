@@ -110,7 +110,10 @@ int ns_cmd_io(uint8_t opcode,
               uint32_t lba_count,
               uint32_t io_flags,
               spdk_nvme_cmd_cb cb_fn,
-              void* cb_arg)
+              void* cb_arg, 
+              unsigned int dword13, 
+              unsigned int dword14, 
+              unsigned int dword15)
 {
   return 0;
 }
