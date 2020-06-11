@@ -6,12 +6,11 @@ import nvme as d
 
 
 # intuitive, spec, qpair, vscode, debug, cmdlog, assert
-def test_hello_world(nvme0, nvme0n1):
+def test_hello_world(nvme0, nvme0n1, qpair):
     # prepare data buffer and IO queue
     read_buf = d.Buffer(512)
     write_buf = d.Buffer(512)
     write_buf[10:21] = b'hello world'
-    qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
 
     # send write and read command
     def write_cb(cdw0, status1):  # command callback function
@@ -22,7 +21,6 @@ def test_hello_world(nvme0, nvme0n1):
     assert read_buf[10:21] != b'hello world'
     qpair.waitdone(2)
     assert read_buf[10:21] == b'hello world'
-    qpair.delete()
 
 
 # access PCIe/NVMe registers, identify data, pythonic
@@ -344,7 +342,7 @@ def test_create_qpairs(nvme0, nvme0n1, buf):
 
 def test_namespace_multiple(buf):
     # create all controllers and namespace
-    addr_list = ['3d:00.0']
+    addr_list = ['3d:00.0', ] # add more DUT BDF here
     pcie_list = [d.Pcie(a) for a in addr_list]
 
     for p in pcie_list:

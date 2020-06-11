@@ -4,12 +4,11 @@ import logging
 import nvme as d
 
 
-def test_trim_basic(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
+def test_trim_basic(nvme0: d.Controller, nvme0n1, verify, qpair):
     GB = 1024*1024*1024
     all_zero_databuf = d.Buffer(512)
     orig_databuf = d.Buffer(512)
     trimbuf = d.Buffer(4096)
-    q = d.Qpair(nvme0, 32)
 
     # DUT info
     logging.info("model number: %s" % nvme0.id_data(63, 24, str))
@@ -28,29 +27,29 @@ def test_trim_basic(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
                      io_count = lba_count//io_size,
                      qdepth = 128).start().close()
 
-    nvme0n1.read(q, orig_databuf, start_lba).waitdone()
+    nvme0n1.read(qpair, orig_databuf, start_lba).waitdone()
     
     # verify data after write, data should be modified
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
-        nvme0n1.compare(q, all_zero_databuf, start_lba).waitdone()
+        nvme0n1.compare(qpair, all_zero_databuf, start_lba).waitdone()
 
     # get the empty trim time
     trimbuf.set_dsm_range(0, 0, 0)
-    trim_cmd = nvme0n1.dsm(q, trimbuf, 1).waitdone() # first call is longer, due to cache?
+    trim_cmd = nvme0n1.dsm(qpair, trimbuf, 1).waitdone() # first call is longer, due to cache?
     start_time = time.time()
-    trim_cmd = nvme0n1.dsm(q, trimbuf, 1).waitdone()
+    trim_cmd = nvme0n1.dsm(qpair, trimbuf, 1).waitdone()
     empty_trim_time = time.time()-start_time
 
     # the trim time on device-side only
     logging.info("trim the 10G data from LBA 0x%lx" % start_lba)
     trimbuf.set_dsm_range(0, start_lba, lba_count)
     start_time = time.time()
-    trim_cmd = nvme0n1.dsm(q, trimbuf, 1).waitdone()
+    trim_cmd = nvme0n1.dsm(qpair, trimbuf, 1).waitdone()
     trim_time = time.time()-start_time-empty_trim_time
     logging.info("trim bandwidth: %0.2fGB/s" % (10/trim_time))
 
     # verify after trim
-    nvme0n1.compare(q, all_zero_databuf, start_lba).waitdone()
-    nvme0n1.compare(q, orig_databuf, start_lba).waitdone()
+    nvme0n1.compare(qpair, all_zero_databuf, start_lba).waitdone()
+    nvme0n1.compare(qpair, orig_databuf, start_lba).waitdone()
 
 
