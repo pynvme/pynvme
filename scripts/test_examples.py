@@ -57,11 +57,11 @@ def test_sanitize(nvme0: d.Controller, buf):
 
 
 # simple ioworker, complicated io_size, python function call, CI
-def test_ioworker_simplified(nvme0, nvme0n1: d.Namespace):
+def test_ioworker_simplified(nvme0, nvme0n1: d.Namespace, qpair):
     nvme0n1.ioworker(time=1).start().close()
     nvme0n1.ioworker(io_size=[1, 2, 3, 7, 8, 16], time=1).start().close()
     nvme0n1.ioworker(op_percentage={2:10, 1:20, 0:30, 9:40}, time=1).start().close()
-    test_hello_world(nvme0, nvme0n1)
+    test_hello_world(nvme0, nvme0n1, qpair)
 
 
 # ioworker with admin commands, multiprocessing, log, cmdlog, pythonic
@@ -295,6 +295,8 @@ def test_sanitize_operations_basic(nvme0, nvme0n1):  #L8
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
+        # one more waitdone for AER
+        nvme0.waitdone()
 
 
 def test_buffer_read_write(nvme0, nvme0n1):
