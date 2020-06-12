@@ -32,7 +32,7 @@
 
 
 #find the first NVMe device as the DUT
-pciaddr=$(shell lspci -D | grep 'Non-Volatile memory' | grep -o '....:..:..\..' | tail -1)
+pciaddr := $(shell lspci -D | grep 'Non-Volatile memory' | grep -o '....:..:..\..' | tail -1)
 
 #reserve memory for driver
 memsize := 2430   # minimal RAM: 4GB. 2.5GB for pynvme, 1.5GB for system
@@ -102,8 +102,8 @@ pytest: info
 	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -v -r Efsx
 
 test: setup
-	- rm test.log
-	make pytest 2>test.log | tee -a test.log
+	- rm test_${pciaddr}.log
+	make pytest 2>test_${pciaddr}.log | tee -a test_${pciaddr}.log
 	- sudo rm -rf .pytest_cache
 
 

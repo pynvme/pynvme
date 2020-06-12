@@ -51,7 +51,7 @@ We no longer need to repeat nvme0n1 creation in every test case as usual way:
 Execution
 ---------
 
-With pytest, we can execute tests in many flexible ways, like these: 
+With pytest and pre-defined makefile, we can execute tests in many flexible ways, like these: 
 
 .. code-block:: shell
 
@@ -67,16 +67,10 @@ With pytest, we can execute tests in many flexible ways, like these:
    # a test function with a specified parameter
    make test TESTS="driver_test.py::test_ioworker_iops_multiple_queue[1]"
 
-*make test* automatically uses the last PCIe NVMe device in the lspci list. We can also specify PCIe address of the NVMe device in command line:
-
-.. code-block:: shell
-
-   sudo python3 -B -m pytest driver_test.py::test_ioworker_simplified_context --pciaddr=03:00.0
-
-We can start multiple test sessions with different NVMe devices specified in the command line. We can even specify the IP address of NVMe over TCP target to run the same test case:
-
-.. code-block:: shell
-
-   sudo python3 -B -m pytest driver_test.py::test_ioworker_simplified_context --pciaddr=10.24.48.17
-
-You can find that pynvme supports both PCIe and TCP NVMe devices seemlessly! 
+   # start tests on multiple drives with 1GB reserved memory space each
+   make test TESTS=scripts/stress/endurance_test.py::test_replay_jedec_client_trace memsize=1000 pciaddr=01:00.0   
+   make test TESTS=scripts/stress/endurance_test.py::test_replay_jedec_client_trace memsize=1000 pciaddr=02:00.0   
+   make test TESTS=scripts/stress/endurance_test.py::test_replay_jedec_client_trace memsize=1000 pciaddr=172.168.5.44
+   
+   
+Without specified pciaddr commandline parameter, *make test* automatically uses the last PCIe NVMe device in the lspci list. Pynvme supports multiple test sessions with different NVMe devices, or even NVMe over TCP targets, specified in the command line.
