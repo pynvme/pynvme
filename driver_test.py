@@ -52,6 +52,8 @@ def test_init_nvme_back_compatibility(repeat):
     nvme0 = d.Controller(pcie)
     logging.info(hex(pcie.register(0, 4)))
     nvme0n1 = d.Namespace(nvme0, 1)
+    nvme0n1.format(512)
+    
     with nvme0n1.ioworker(time=1), \
          nvme0n1.ioworker(time=1):
         pass

@@ -294,11 +294,12 @@ static void crc32_clear(struct spdk_nvme_ns *ns,
   crc_table_t* crc_table = (crc_table_t*)ns->crc_table;
 
   assert(ns != NULL);
-  assert(ns->table_size != 0); // namespace may not initialized in scripts
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "lba %ld, len %ld, uncorr %d\n", lba, len, uncorr);
 
   if (crc_table != NULL && lba*sizeof(uint32_t) < ns->table_size)
   {
+    assert(ns->table_size != 0);
+    
     // clear crc table if it exists and cover the lba range
     if (lba*sizeof(uint32_t)+len > ns->table_size)
     {
@@ -1361,21 +1362,26 @@ int ns_refresh(struct spdk_nvme_ns *ns, uint32_t id,
                struct spdk_nvme_ctrlr *ctrlr)
 {
   crc_table_t* crc_table = (crc_table_t*)ns->crc_table;
-  uint32_t enabled = crc_table->enabled;
-
-  ns_table_fini(ns);
-  nvme_ns_construct(ns, id, ctrlr);
-
-  uint64_t nsze = spdk_nvme_ns_get_num_sectors(ns);
-  if (0 != ns_table_init(ns, sizeof(uint32_t)*nsze))
+  
+  if (crc_table != NULL)
   {
-    return -1;
-  }
+    assert(ns->table_size != 0);
+    uint32_t enabled = crc_table->enabled;
 
-  // keep the same enabled flag
-  crc_table_t* crc_table2 = (crc_table_t*)ns->crc_table;
-  crc_table2->enabled = enabled;
-  crc32_clear(ns, 0, sizeof(uint32_t)*nsze, false);
+    ns_table_fini(ns);
+    nvme_ns_construct(ns, id, ctrlr);
+
+    uint64_t nsze = spdk_nvme_ns_get_num_sectors(ns);
+    if (0 != ns_table_init(ns, sizeof(uint32_t)*nsze))
+    {
+      return -1;
+    }
+
+    // keep the same enabled flag
+    crc_table_t* crc_table2 = (crc_table_t*)ns->crc_table;
+    crc_table2->enabled = enabled;
+    crc32_clear(ns, 0, sizeof(uint32_t)*nsze, false);
+  }
 
   return 0;
 }
