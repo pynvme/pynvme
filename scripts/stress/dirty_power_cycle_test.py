@@ -87,17 +87,17 @@ class quarch_power:
         
 # test multiple devices one by one in multiple loops with quarch power module
 device_list = {
-    "3d:00.0": (None, None),  # pynvme's software-defined power cycle
-    "08:00.0":
+    "0000:3d:00.0": (None, None),  # pynvme's software-defined power cycle
+    "0000:08:00.0":
     (quarch_power("SERIAL:/dev/ttyUSB0", "up", None),
      quarch_power("SERIAL:/dev/ttyUSB0", "down", None)),
-    "01:00.0":
+    "0000:01:00.0":
     (quarch_power("REST:192.168.1.11", "up", 4),
      quarch_power("REST:192.168.1.11", "down", 4)),
-    "55:00.0":
+    "0000:55:00.0":
     (quarch_power("REST:192.168.1.11", "up", 1),
      quarch_power("REST:192.168.1.11", "down", 1)),
-    "51:00.0":
+    "0000:51:00.0":
     (quarch_power("REST:192.168.1.11", "up", 3),
      quarch_power("REST:192.168.1.11", "down", 3)),
 }

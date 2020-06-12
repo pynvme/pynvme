@@ -48,7 +48,7 @@ all: clean
 
 clean:
 	cd src; make clean
-	- sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* a.out nvme.so nvme.*.so dist pynvme.egg-info build
+	- sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* a.out nvme.so nvme.*.so dist pynvme.egg-info build *.log
 	- sudo sh -c 'find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf'
 
 spdk:
