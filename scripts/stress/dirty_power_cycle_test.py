@@ -5,6 +5,10 @@ import logging
 import nvme as d
 
 
+def test_precondition_format(nvme0n1):
+    nvme0n1.format(512)
+    
+
 def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     region_end = 256*1000*1000  # 1GB
 
