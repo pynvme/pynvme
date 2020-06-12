@@ -5,12 +5,21 @@ import logging
 import nvme as d
 
 
-def test_quarch_dirty_power_cycle_single(nvme0, nvme0n1, subsystem, buf, verify):
-    # get the unsafe shutdown count before test
-    nvme0.getlogpage(2, buf, 512).waitdone()
-    orig_unsafe_count = buf.data(159, 144)
+def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
+    region_end = 256*1000*1000  # 1GB
+
+    # get the unsafe shutdown count
+    def unsafe_cycle_count():
+        buf = d.Buffer(4096)
+        nvme0.getlogpage(2, buf, 512).waitdone()
+        return buf.data(159, 144)
+    
+    # run the test one by one
+    subsystem = d.Subsystem(nvme0, poweron, poweroff)
+    nvme0n1 = d.Namespace(nvme0, 1, region_end)
+    assert True == nvme0n1.verify_enable(True)
+    orig_unsafe_count = unsafe_cycle_count()
     logging.info("unsafe shutdowns: %d" % orig_unsafe_count)
-    assert verify == True
 
     # 128K random write
     cmdlog_list = [None]*1000
@@ -22,7 +31,7 @@ def test_quarch_dirty_power_cycle_single(nvme0, nvme0n1, subsystem, buf, verify)
                           qdepth=1024, 
                           output_cmdlog_list=cmdlog_list):
         # sudden power loss before the ioworker end
-        time.sleep(10)
+        time.sleep(5)
         subsystem.poweroff()
 
     # power on and reset controller
@@ -31,21 +40,15 @@ def test_quarch_dirty_power_cycle_single(nvme0, nvme0n1, subsystem, buf, verify)
     time.sleep(0)
     nvme0.reset()
 
-    # verify unsafe shutdown count
-    logging.info(cmdlog_list[-10:])
-    nvme0.getlogpage(2, buf, 512).waitdone()
-    unsafe_count = buf.data(159, 144)
-    logging.info("unsafe shutdowns: %d" % unsafe_count)
-    assert unsafe_count == orig_unsafe_count+1
-
     # verify data in cmdlog_list
+    logging.info(cmdlog_list[-10:])
     read_buf = d.Buffer(256*512)
     qpair = d.Qpair(nvme0, 1024)
     for cmd in cmdlog_list:
         slba = cmd[0]
         nlba = cmd[1]
         op = cmd[2]
-        if nlba:
+        if nlba and op==1:
             def read_cb(cdw0, status1):
                 nonlocal slba
                 if status1>>1:
@@ -55,8 +58,14 @@ def test_quarch_dirty_power_cycle_single(nvme0, nvme0n1, subsystem, buf, verify)
             # re-write to clear CRC mismatch
             nvme0n1.write(qpair, read_buf, slba, nlba, cb=read_cb).waitdone()
     qpair.delete()
+    nvme0n1.close()
+
+    # verify unsafe shutdown count
+    unsafe_count = unsafe_cycle_count()
+    logging.info("unsafe shutdowns: %d" % unsafe_count)
+    assert unsafe_count == orig_unsafe_count+1
+
     
-        
 # define the power on/off funciton
 class quarch_power:
     def __init__(self, url: str, event: str, port: int):
@@ -85,38 +94,27 @@ class quarch_power:
             
         pwr.closeConnection()
         
-# test multiple devices one by one in multiple loops with quarch power module
-device_list = {
-    "0000:3d:00.0": (None, None),  # pynvme's software-defined power cycle
-    "0000:08:00.0":
-    (quarch_power("SERIAL:/dev/ttyUSB0", "up", None),
-     quarch_power("SERIAL:/dev/ttyUSB0", "down", None)),
-    "0000:01:00.0":
-    (quarch_power("REST:192.168.1.11", "up", 4),
-     quarch_power("REST:192.168.1.11", "down", 4)),
-    "0000:55:00.0":
-    (quarch_power("REST:192.168.1.11", "up", 1),
-     quarch_power("REST:192.168.1.11", "down", 1)),
-    "0000:51:00.0":
-    (quarch_power("REST:192.168.1.11", "up", 3),
-     quarch_power("REST:192.168.1.11", "down", 3)),
-}
 
 @pytest.mark.parametrize("repeat", range(10))
 def test_quarch_dirty_power_cycle_multiple(pciaddr, nvme0, repeat):
+    device_list = {
+        "0000:3d:00.0": # pynvme's software-defined power cycle
+        (None,
+         None),  
+        "0000:08:00.0":
+        (quarch_power("SERIAL:/dev/ttyUSB0", "up", None),
+         quarch_power("SERIAL:/dev/ttyUSB0", "down", None)),
+        "0000:01:00.0":
+        (quarch_power("REST:192.168.1.11", "up", 4),
+         quarch_power("REST:192.168.1.11", "down", 4)),
+        "0000:55:00.0":
+        (quarch_power("REST:192.168.1.11", "up", 1),
+         quarch_power("REST:192.168.1.11", "down", 1)),
+        "0000:51:00.0":
+        (quarch_power("REST:192.168.1.11", "up", 3),
+         quarch_power("REST:192.168.1.11", "down", 3)),
+    }
+
     poweron, poweroff = device_list[pciaddr]
-    
-    # run the test one by one
-    buf = d.Buffer(4096)
-    nvme0n1 = d.Namespace(nvme0, 1, 256*1000*1000)
-    subsystem = d.Subsystem(nvme0, poweron, poweroff)
-    assert True == nvme0n1.verify_enable(True)
-
-    # enable inline data verify in the test
-    logging.info("testing device %s" % pciaddr)
-    test_quarch_dirty_power_cycle_single(nvme0, nvme0n1, subsystem, buf, True)
-    nvme0n1.close()
-    
-
-#TODO: set CC.SHN and dirty shutdown
+    test_quarch_dirty_power_cycle_single(nvme0, poweron, poweroff)
 

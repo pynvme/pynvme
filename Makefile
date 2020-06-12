@@ -101,7 +101,7 @@ tags:
 pytest: info
 	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -v -r Efsx
 
-test: setup
+test:
 	- rm test_${pciaddr}.log
 	make pytest 2>test_${pciaddr}.log | tee -a test_${pciaddr}.log
 	- sudo rm -rf .pytest_cache
