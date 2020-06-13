@@ -32,19 +32,17 @@ We did not build pynvme from scratch. We build it based on the `SPDK <https://sp
 We then wrap all these SPDK and pynvme functions in a Python module. Users can use Python classes (e.g. Controller, Namespace, ...) to test NVMe devices. Here is an identical script as SPDK's 400-line example: https://github.com/spdk/spdk/blob/master/examples/nvme/hello_world/hello_world.c
 
 .. code-block:: python
-   :linenos:
-                
+      
    import pytest
    import nvme as d
 
-   def test_hello_world(nvme0, nvme0n1):
-       # buffer holding read/write data
+   def test_hello_world(nvme0, nvme0n1, qpair):
+       # prepare data buffer and IO queue
        read_buf = d.Buffer(512)
        write_buf = d.Buffer(512)
        write_buf[10:21] = b'hello world'
-       
+   
        # send write and read command
-       qpair = d.Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
        def write_cb(cdw0, status1):  # command callback function
            nvme0n1.read(qpair, read_buf, 0, 1)
        nvme0n1.write(qpair, write_buf, 0, 1, cb=write_cb)
@@ -54,5 +52,4 @@ We then wrap all these SPDK and pynvme functions in a Python module. Users can u
        qpair.waitdone(2)
        assert read_buf[10:21] == b'hello world'
 
-
-Now, let's install pynvme.
+Now, let's install pynvme to execute test scripts.
