@@ -614,12 +614,21 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   // sending the first batch of IOs, all remaining IOs are sending
   // in callbacks till end
   STAILQ_INIT(&gctx.pending_io_list);
+  uint32_t buffer_size = args->lba_size_max * sector_size;
+  uint32_t pool_size = buffer_size * args->qdepth * 2;
+  void* buffer_pool = buffer_init(pool_size, NULL, 0, 0);
+  if (buffer_pool == NULL)
+  {
+    SPDK_WARNLOG("memory alloc fail, buffer pool size: %d\n", pool_size);
+    free(io_ctx);
+    return -5;
+  }
+
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "prepare buffer %d\n", pool_size);
   for (unsigned int i=0; i<args->qdepth; i++)
   {
-    io_ctx[i].data_buf = buffer_init(args->lba_size_max * sector_size,
-                                     NULL, 0, 0);
-    io_ctx[i].write_buf = buffer_init(args->lba_size_max * sector_size,
-                                      NULL, args->ptype, args->pvalue);
+    io_ctx[i].data_buf = buffer_pool+buffer_size*2*i;
+    io_ctx[i].write_buf = buffer_pool+buffer_size*2*i+buffer_size;
     io_ctx[i].gctx = &gctx;
 
     // set time to send it for the first time
@@ -660,7 +669,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   struct ioworker_io_ctx* head_io = STAILQ_FIRST(&gctx.pending_io_list);
   struct timeval now = {0, 0};
   struct timeval cpu_time = {0, 0};
-
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "start sending IO ... \n");
   while (gctx.io_count_sent != gctx.io_count_cplt ||
          gctx.flag_finish != true ||
          head_io != NULL)
@@ -723,19 +732,8 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
   rets->cpu_usage = timeval_to_us(&cpu_time)/1000;
   rets->latency_average_us = gctx.total_latency_us/(rets->io_count_read+rets->io_count_nonread);
 
-  //release io ctx
-  for (unsigned int i=0; i<args->qdepth; i++)
-  {
-    if (io_ctx[i].data_buf)
-    {
-      buffer_fini(io_ctx[i].data_buf);
-    }
-
-    if (io_ctx[i].write_buf)
-    {
-      buffer_fini(io_ctx[i].write_buf);
-    }
-  }
+  //release buffer pool
+  buffer_fini(buffer_pool);
 
   // handle cmdlog_list
   if (args->cmdlog_list_len != 0)

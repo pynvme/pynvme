@@ -2456,9 +2456,24 @@ def test_ioworker_fill_driver(nvme0, nvme0n1):
 
 
 def test_ioworker_deepest_qdepth(nvme0n1):
-    nvme0n1.ioworker(io_size=8, lba_align=64,
+    nvme0n1.ioworker(io_size=256, lba_align=64,
                      lba_random=False, qdepth=1024,
                      read_percentage=100, time=2).start().close()
+
+
+def test_ioworker_memory_fail(nvme0n1):
+    ioworkers = []
+    for i in range(16):
+        w = nvme0n1.ioworker(io_size=256,
+                             lba_random=False,
+                             qdepth=1024,
+                             read_percentage=100,
+                             time=10).start()
+        ioworkers.append(w)
+
+    with pytest.warns(UserWarning, match="ioworker host ERROR -5: buffer pool alloc fail"):
+        for w in ioworkers:
+            w.close()
 
 
 @pytest.mark.parametrize("qcount", [1, 2, 4, 8, 16])
@@ -2478,6 +2493,7 @@ def test_ioworker_iops_multiple_queue(nvme0, qcount):
 
     for a in l:
         r = a.close()
+        logging.debug(r)
         io_total += (r.io_count_read+r.io_count_nonread)
 
     logging.info("Q %d IOPS: %.3fK" % (qcount, io_total/10000))
@@ -2485,44 +2501,40 @@ def test_ioworker_iops_multiple_queue(nvme0, qcount):
 
 
 @pytest.mark.parametrize("qcount", [1, 2, 4, 8, 16])
-def test_ioworker_bandwidth_multiple_queue(nvme0n1, qcount):
+def test_ioworker_bandwidth_multiple_queue(nvme0, qcount):
+    region_end=256*1024*8 # 1GB space
+    nvme0n1 = d.Namespace(nvme0, 1, region_end)
+    
     l = []
     io_total = 0
+    io_size = 128
     for i in range(qcount):
-        a = nvme0n1.ioworker(io_size=256, lba_align=256,
-                             region_start=0, region_end=256*1024*8, # 1GB space
-                             lba_random=False, qdepth=16,
-                             read_percentage=100, time=10).start()
-        l.append(a)
-
-    for a in l:
-        r = a.close()
-        io_total += (r.io_count_read+r.io_count_nonread)
-
-    logging.info("Q %d: %dMB/s" % (qcount, (128*io_total)/10000))
-
-
-@pytest.mark.parametrize("qcount", [1, 2, 4, 8, 16])
-def test_ioworker_iops_multiple_queue_fob(nvme0, nvme0n1, qcount):
-    nvme0.format(nvme0n1.get_lba_format(512, 0)).waitdone()
-
-    l = []
-    io_total = 0
-    for i in range(qcount):
-        a = nvme0n1.ioworker(io_size=8,
-                             region_end=256*1024*8, # 1GB space
+        a = nvme0n1.ioworker(io_size=io_size, 
+                             region_start=0,
+                             region_end=region_end,
                              lba_random=False,
+                             qdepth=64,
                              read_percentage=100,
                              time=10).start()
         l.append(a)
 
     for a in l:
         r = a.close()
+        logging.debug(r)
         io_total += (r.io_count_read+r.io_count_nonread)
 
-    logging.info("Q %d IOPS: %.3fK" % (qcount, io_total/10000))
+    logging.info("Q %d: %dMB/s" % (qcount, (io_size*512*io_total/1000)/10000))
+    nvme0n1.close()
 
 
+@pytest.mark.parametrize("qcount", [1, 1, 1, 1])
+def test_ioworker_iops_multiple_queue_fob(nvme0, qcount):
+    nvme0n1 = d.Namespace(nvme0)
+    nvme0n1.format(512)
+    nvme0n1.close()
+    test_ioworker_iops_multiple_queue(nvme0, qcount)
+
+    
 @pytest.mark.parametrize("repeat", range(2))
 def test_namespace_init_after_reset(nvme0, nvme0n1, repeat):
     nvme0.reset()

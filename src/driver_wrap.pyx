@@ -2422,10 +2422,11 @@ class _IOWorker(object):
 
         _error_strings = (
             "no error",  #0
-            "generic error",  #-1
+            "init fail in pyx",  #-1
             "io_size is larger than MDTS",  #-2
             "io timeout",  #-3
             "ioworker timeout", #-4
+            "buffer pool alloc fail", #-5
             "illegal error code"
         )
         error_str = _error_strings[min(len(_error_strings)-1, -error)]
