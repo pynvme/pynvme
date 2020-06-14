@@ -332,7 +332,7 @@ def test_create_qpairs(nvme0, nvme0n1, buf):
     with pytest.raises(d.QpairCreationError):
         ql.append(d.Qpair(nvme0, 8))
 
-    with pytest.warns(UserWarning, match="ioworker host ERROR -1: generic error"):
+    with pytest.warns(UserWarning, match="ioworker host ERROR -1: "):
         nvme0n1.ioworker(io_size=8, time=1000).start().close()
 
     qpair.delete()
