@@ -3360,7 +3360,7 @@ def test_ioworker_stress_multiple_small_too_many(nvme0n1):
                              read_percentage=100, time=30).start()
         l.append(a)
 
-    with pytest.warns(UserWarning, match="ioworker host ERROR -1: generic error"):
+    with pytest.warns(UserWarning, match="ioworker host ERROR -1: init fail in pyx"):
         for a in l:
             r = a.close()
 
