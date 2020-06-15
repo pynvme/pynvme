@@ -656,12 +656,12 @@ cdef class Pcie(object):
         else:
             raise TypeError()
 
-    def register(self, offset, byte_count):
+    def register(self, offset, byte_count=4):
         """access registers in pcie config space, and get its integer value.
 
         # Parameters
             offset (int): the offset (in bytes) of the register in the config space
-            byte_count (int): the size (in bytes) of the register
+            byte_count (int): the size (in bytes) of the register. Default: 4, dword
 
         Returns
             (int): the value of the register
