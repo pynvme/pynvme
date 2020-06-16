@@ -53,7 +53,7 @@ def test_init_nvme_back_compatibility(repeat):
     logging.info(hex(pcie.register(0, 4)))
     nvme0n1 = d.Namespace(nvme0, 1)
     nvme0n1.format(512)
-    
+
     with nvme0n1.ioworker(time=1), \
          nvme0n1.ioworker(time=1):
         pass
@@ -108,7 +108,7 @@ def test_init_nvme_customerized(pciaddr, repeat):
     # ABORTED - BY REQUEST (00/07)
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
-            nvme0.abort(i).waitdone()
+            nvme0.abort(127-i).waitdone()
         nvme0.waitdone(aerl)
 
     for i in range(aerl):
@@ -116,8 +116,8 @@ def test_init_nvme_customerized(pciaddr, repeat):
 
     # ABORTED - BY REQUEST (00/07)
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
-        for i in range(100):
-            nvme0.abort(i).waitdone()
+        for i in range(10):
+            nvme0.abort(127-i).waitdone()
         nvme0.waitdone(aerl)
 
     for i in range(aerl):
@@ -125,8 +125,8 @@ def test_init_nvme_customerized(pciaddr, repeat):
 
     # ABORTED - BY REQUEST (00/07)
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
-        for i in range(100):
-            nvme0.abort(i).waitdone()
+        for i in range(10):
+            nvme0.abort(127-i).waitdone()
         nvme0.waitdone(aerl)
 
     nvme0n1.close()
@@ -293,7 +293,7 @@ def test_hello_world(nvme0, nvme0n1, verify):
     write_buf = d.Buffer(512)
     write_buf[10:21] = b'hello world'
     qpair = d.Qpair(nvme0, 10)
-    
+
     # send write and read command
     def write_cb(cdw0, status1):  # command callback function
         nvme0n1.read(qpair, read_buf, 0, 1)
@@ -305,7 +305,7 @@ def test_hello_world(nvme0, nvme0n1, verify):
     assert read_buf[10:21] == b'hello world'
     nvme0n1.compare(qpair, read_buf, 0).waitdone()
     qpair.delete()
-    
+
 
 @pytest.mark.skip("tcp")
 @pytest.mark.parametrize("repeat", range(2))
@@ -1408,6 +1408,40 @@ def test_different_io_size_and_count(nvme0, nvme0n1,
     io_qpair.delete()
 
 
+def test_send_cmd_exceed_queue(nvme0, nvme0n1, buf):
+    nvme0n1.format(512)
+
+    with pytest.raises(AssertionError):
+        qpair = d.Qpair(nvme0, 1025)
+
+    logging.info("create queue")
+    qpair = d.Qpair(nvme0, 128)
+    count = 128 # queue full
+    for i in range(count-1):
+        nvme0n1.read(qpair, buf, i, 1)
+    with pytest.raises(AssertionError):
+        nvme0n1.read(qpair, buf, 128, 1)
+    qpair.waitdone(127)
+    qpair.delete()
+
+
+@pytest.mark.parametrize("qdepth", [128, 512, 1024])
+def test_send_all_slots(nvme0, nvme0n1, buf, qdepth):
+    qpair = d.Qpair(nvme0, qdepth)
+    for i in range(qdepth-1):
+        nvme0n1.read(qpair, buf, i, 1)
+    qpair.waitdone(qdepth-1)
+    qpair.delete()
+
+
+def test_send_many_admin(nvme0):
+    # 1 more is used by AER
+    count = 126
+    for i in range(count):
+        nvme0.setfeatures(7, cdw11=0xf000f)
+    nvme0.waitdone(count)
+
+
 def test_create_invalid_qpair(nvme0):
     with pytest.raises(d.QpairCreationError):
         q = d.Qpair(nvme0, 20, prio=1)
@@ -1948,7 +1982,7 @@ def test_aer_cb_mixed_with_admin_commands(nvme0, buf):
     # ABORTED - BY REQUEST (00/07)
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
-            nvme0.abort(i).waitdone()
+            nvme0.abort(127-i).waitdone()
         nvme0.waitdone(2)
 
     # no more aer
@@ -1970,7 +2004,7 @@ def test_aer_mixed_with_admin_commands(nvme0, buf):
     # ABORTED - BY REQUEST (00/07)
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
-            nvme0.abort(i).waitdone()
+            nvme0.abort(127-i).waitdone()
         nvme0.waitdone(1)
 
     # no more aer
@@ -1996,7 +2030,7 @@ def test_abort_aer_commands(nvme0):
     # ABORTED - BY REQUEST (00/07)
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
-            nvme0.abort(i).waitdone()
+            nvme0.abort(127-i).waitdone()
         nvme0.waitdone(aerl)
 
 
@@ -2493,7 +2527,7 @@ def test_ioworker_iops_multiple_queue(nvme0, qcount):
 
     for a in l:
         r = a.close()
-        logging.debug(r)
+        logging.info(r)
         io_total += (r.io_count_read+r.io_count_nonread)
 
     logging.info("Q %d IOPS: %.3fK" % (qcount, io_total/10000))
@@ -2504,12 +2538,12 @@ def test_ioworker_iops_multiple_queue(nvme0, qcount):
 def test_ioworker_bandwidth_multiple_queue(nvme0, qcount):
     region_end=256*1024*8 # 1GB space
     nvme0n1 = d.Namespace(nvme0, 1, region_end)
-    
+
     l = []
     io_total = 0
     io_size = 128
     for i in range(qcount):
-        a = nvme0n1.ioworker(io_size=io_size, 
+        a = nvme0n1.ioworker(io_size=io_size,
                              region_start=0,
                              region_end=region_end,
                              lba_random=False,
@@ -2534,7 +2568,7 @@ def test_ioworker_iops_multiple_queue_fob(nvme0, qcount):
     nvme0n1.close()
     test_ioworker_iops_multiple_queue(nvme0, qcount)
 
-    
+
 @pytest.mark.parametrize("repeat", range(2))
 def test_namespace_init_after_reset(nvme0, nvme0n1, repeat):
     nvme0.reset()

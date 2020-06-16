@@ -401,7 +401,7 @@ cdef class Subsystem(object):
         vdid = '%04x %04x' % (pcie.register(0, 2), pcie.register(2, 2))
         nvme = 'nvme'
         spdk = 'uio_pci_generic'
-        bdf = self._nvme.pcie._bdf.decode('utf-8')
+        bdf = pcie._bdf.decode('utf-8')
 
         # bind to UIO
         subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
@@ -412,7 +412,7 @@ cdef class Subsystem(object):
 
         # reset driver: namespace is init by every test, so no need reinit
         time.sleep(3)  # delay before re-enumerate pcie device
-        self._nvme.pcie._ctrlr_reinit()
+        pcie._ctrlr_reinit()
         logging.info("reset controller to use it after power on")
 
     def poweroff(self):
@@ -436,7 +436,7 @@ cdef class Subsystem(object):
         vdid = '%04x %04x' % (pcie.register(0, 2), pcie.register(2, 2))
         nvme = 'nvme'
         spdk = 'uio_pci_generic'
-        bdf = self._nvme.pcie._bdf.decode('utf-8')
+        bdf = pcie._bdf.decode('utf-8')
 
         # reset to inbox driver
         subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
@@ -444,9 +444,6 @@ cdef class Subsystem(object):
         subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, nvme), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, nvme), shell=True)
-
-        # remove device
-        bdf = self._nvme.pcie._bdf.decode('utf-8')
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
     def power_cycle(self, sec=10):
@@ -533,6 +530,7 @@ cdef class Subsystem(object):
         # nssr.nssrc: nvme subsystem reset
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
         self._nvme[0x20] = 0x4e564d65  # "NVMe"
+        time.sleep(1)
 
         # config spdk driver
         subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
@@ -546,7 +544,6 @@ cdef class Subsystem(object):
 
         # reset driver: namespace is init by every test, so no need reinit
         pcie._ctrlr_reinit()
-
         logging.info("reset controller to use it after subsystem reset")
         return True
 
@@ -731,6 +728,7 @@ cdef class Pcie(object):
         # reset driver: namespace is init by every test, so no need reinit
         self._ctrlr_reinit()
         logging.info("reset controller to use it after pcie reset")
+        return True
 
     @property
     def aspm(self):
@@ -792,7 +790,7 @@ cdef class Tcg(object):
 
     def close(self):
         """close to explictly release its resources instead of del"""
-        
+
         d.tcg_dev_close(self._dev)
 
     def take_ownership(self, passwd=b'cranechu@gmail.com'):
@@ -1624,18 +1622,18 @@ cdef class Controller(object):
                             cb_arg=<void*>cb)
         return self
 
-    cdef int send_admin_raw(self,
-                            Buffer buf,
-                            unsigned int opcode,
-                            unsigned int nsid,
-                            unsigned int cdw10,
-                            unsigned int cdw11,
-                            unsigned int cdw12,
-                            unsigned int cdw13,
-                            unsigned int cdw14,
-                            unsigned int cdw15,
-                            d.cmd_cb_func cb_func,
-                            void* cb_arg):
+    cdef send_admin_raw(self,
+                        Buffer buf,
+                        unsigned int opcode,
+                        unsigned int nsid,
+                        unsigned int cdw10,
+                        unsigned int cdw11,
+                        unsigned int cdw12,
+                        unsigned int cdw13,
+                        unsigned int cdw14,
+                        unsigned int cdw15,
+                        d.cmd_cb_func cb_func,
+                        void* cb_arg):
         cdef void* ptr
         cdef size_t size
 
@@ -1650,7 +1648,7 @@ cdef class Controller(object):
         ret = d.nvme_send_cmd_raw(self.pcie._ctrlr, NULL, opcode, nsid, ptr, size,
                                   cdw10, cdw11, cdw12, cdw13, cdw14, cdw15,
                                   cb_func, cb_arg)
-        assert ret == 0, "error in submitting admin commands, 0x%x" % ret
+        assert ret == 0, "error in submitting admin commands, %d" % ret
         return ret
 
 
@@ -1678,8 +1676,8 @@ cdef class Qpair(object):
                   unsigned int depth,
                   unsigned int prio=0):
         # create CQ and SQ
-        if depth < 2:
-            raise QpairCreationError("depth should >= 2")
+        assert depth>=2 and depth<=1024, "qdepth should be in [2, 1024]"
+        assert depth <= (nvme.cap & 0xffff) + 1, "qdepth is larger than specification"
 
         self._qpair = d.qpair_create(nvme.pcie._ctrlr, prio, depth)
         if self._qpair is NULL:
@@ -1692,7 +1690,7 @@ cdef class Qpair(object):
 
     def delete(self):
         """delete qpair's SQ and CQ"""
-        
+
         #print("dealloc qpair: %x %x" % (<unsigned long>self._qpair, <unsigned long>self._nvme.pcie._ctrlr)); sys.stdout.flush()
         if self._nvme.pcie._magic == 0x1243568790bacdfe:
             if self._nvme.pcie._ctrlr is not NULL:
@@ -1754,8 +1752,7 @@ cdef class Qpair(object):
 
         while reaped < expected:
             # wait IO Q pair done, max 8 cpl in one time
-            max_to_reap = (expected-reaped) % 8
-            reaped += d.qpair_wait_completion(self._qpair, max_to_reap)
+            reaped += d.qpair_wait_completion(self._qpair, 1)
             PyErr_CheckSignals()
         signal.alarm(0)
 
@@ -2058,16 +2055,13 @@ cdef class Namespace(object):
 
         Returns
             qpair (Qpair): the qpair used to send this command, for ease of chained call
-
-        # Raises
-            SystemError: the read command fails
         """
 
         assert buf is not None, "no buffer allocated"
-        if 0 != self.send_read_write(2, qpair, buf, lba, lba_count,
-                                     io_flags, cmd_cb, <void*>cb,
-                                     dword13, dword14, dword15):
-            raise SystemError()
+
+        self.send_read_write(2, qpair, buf, lba, lba_count,
+                             io_flags, cmd_cb, <void*>cb,
+                             dword13, dword14, dword15)
         return qpair
 
     def write(self, qpair, buf, lba, lba_count=1, io_flags=0,
@@ -2090,18 +2084,13 @@ cdef class Namespace(object):
 
         Returns
             qpair (Qpair): the qpair used to send this command, for ease of chained call
-
-        # Raises
-            SystemError: the write command fails
         """
 
         assert buf is not None, "no buffer allocated"
 
-        if 0 != self.send_read_write(1, qpair, buf, lba, lba_count,
-                                     io_flags, cmd_cb, <void*>cb,
-                                     dword13, dword14, dword15):
-            raise SystemError()
-
+        self.send_read_write(1, qpair, buf, lba, lba_count,
+                             io_flags, cmd_cb, <void*>cb,
+                             dword13, dword14, dword15)
         return qpair
 
     def dsm(self, qpair, buf, range_count, attribute=0x4, cb=None):
@@ -2254,18 +2243,18 @@ cdef class Namespace(object):
                          cmd_cb, <void*>cb)
         return qpair
 
-    cdef int send_read_write(self,
-                             unsigned char opcode,
-                             Qpair qpair,
-                             Buffer buf,
-                             unsigned long lba,
-                             unsigned int lba_count,
-                             unsigned int io_flags,
-                             d.cmd_cb_func cb_func,
-                             void* cb_arg,
-                             unsigned int dword13,
-                             unsigned int dword14,
-                             unsigned int dword15):
+    cdef send_read_write(self,
+                         unsigned char opcode,
+                         Qpair qpair,
+                         Buffer buf,
+                         unsigned long lba,
+                         unsigned int lba_count,
+                         unsigned int io_flags,
+                         d.cmd_cb_func cb_func,
+                         void* cb_arg,
+                         unsigned int dword13,
+                         unsigned int dword14,
+                         unsigned int dword15):
         assert lba_count <= 64*1024, "exceed lba count limit"
         self._ns = d.nvme_get_ns(self._nvme.pcie._ctrlr, self._nsid)
         ret = d.ns_cmd_io(opcode, self._ns, qpair._qpair,
@@ -2273,7 +2262,7 @@ cdef class Namespace(object):
                           lba, lba_count, io_flags<<16,
                           cb_func, cb_arg,
                           dword13, dword14, dword15)
-        assert ret == 0, "error in submitting read write commands: 0x%x" % ret
+        assert ret == 0, "error in submitting read write commands: %d" % ret
         return ret
 
     def send_cmd(self, opcode, qpair, buf=None, nsid=1,
@@ -2308,19 +2297,19 @@ cdef class Namespace(object):
                          cb_arg=<void*>cb)
         return qpair
 
-    cdef int send_io_raw(self,
-                         Qpair qpair,
-                         Buffer buf,
-                         unsigned int opcode,
-                         unsigned int nsid,
-                         unsigned int cdw10,
-                         unsigned int cdw11,
-                         unsigned int cdw12,
-                         unsigned int cdw13,
-                         unsigned int cdw14,
-                         unsigned int cdw15,
-                         d.cmd_cb_func cb_func,
-                         void* cb_arg):
+    cdef send_io_raw(self,
+                     Qpair qpair,
+                     Buffer buf,
+                     unsigned int opcode,
+                     unsigned int nsid,
+                     unsigned int cdw10,
+                     unsigned int cdw11,
+                     unsigned int cdw12,
+                     unsigned int cdw13,
+                     unsigned int cdw14,
+                     unsigned int cdw15,
+                     d.cmd_cb_func cb_func,
+                     void* cb_arg):
         if buf is None:
             ptr = NULL
             size = 0
@@ -2331,7 +2320,7 @@ cdef class Namespace(object):
         ret = d.nvme_send_cmd_raw(self._nvme.pcie._ctrlr, qpair._qpair, opcode,
                                   nsid, ptr, size, cdw10, cdw11, cdw12,
                                   cdw13, cdw14, cdw15, cb_func, cb_arg)
-        assert ret == 0, "error in submitting io commands, 0x%x" % ret
+        assert ret == 0, "error in submitting io commands, %d" % ret
         return ret
 
 
