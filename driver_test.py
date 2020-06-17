@@ -1489,6 +1489,40 @@ def test_buffer_data_pattern():
     b = d.Buffer(512, "pattern", 100, 0xbeef)
 
 
+def test_ioworker_data_pattern(nvme0, nvme0n1, qpair):
+    nvme0n1.format(512)
+    
+    buf = d.Buffer(512)
+    
+    nvme0n1.ioworker(io_size=8,
+                     lba_random=False,
+                     read_percentage=0,
+                     lba_start=0,
+                     io_count=1,
+                     pvalue=0x55555555,
+                     ptype=32).start().close()
+    nvme0n1.read(qpair, buf, 0).waitdone()
+    assert buf[8] == 0x55
+    #print(buf.dump(128))
+
+    nvme0n1.ioworker(io_size=8,
+                     lba_random=False,
+                     read_percentage=0,
+                     lba_start=0,
+                     io_count=32,
+                     qdepth=16,
+                     pvalue=0x55555555,
+                     ptype=32).start().close()
+    for i in range(32*8):
+        nvme0n1.read(qpair, buf, i).waitdone()
+        assert buf[8] == 0x55
+        assert buf[0] == i
+
+    nvme0n1.read(qpair, buf, 32*8).waitdone()
+    assert buf[8] == 0
+    assert buf[0] == 0
+
+    
 def test_buffer_access_overflow():
     b = d.Buffer(1000)
 
