@@ -2456,7 +2456,7 @@ def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
                          output_percentile_latency=output_percentile_latency).start().close()
     assert len(output_io_per_second) == 10
     logging.debug(output_percentile_latency)
-    assert output_percentile_latency[99.999] < output_percentile_latency[99.99999]
+    assert output_percentile_latency[99.999] <= output_percentile_latency[99.99999]
 
 
 def test_ioworker_iops_deep_queue(nvme0n1):
