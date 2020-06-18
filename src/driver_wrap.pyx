@@ -689,6 +689,36 @@ cdef class Pcie(object):
 
         logging.info("cannot find the capability %d" % cap_id)
 
+    def _reset(self, pciaddr):
+        if not pciaddr.startswith('0000:'):
+            pciaddr = '0000:'+pciaddr
+        logging.debug(pciaddr)
+
+        dev_link = os.readlink("/sys/bus/pci/devices/"+pciaddr)
+        port = dev_link.split('/')[-2]
+        if 'pci' in port:
+            port = port[3:]+":00.0"
+        logging.debug(port)
+
+        if not os.path.exists("/sys/bus/pci/devices/"+port):
+            return
+
+        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % pciaddr, shell=True)
+
+        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL 2> /dev/null || true' % port, shell=True)
+        bc = int(ret.strip(), 16)
+        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL=0x%x 2> /dev/null || true' % (port, bc|0x40), shell=True)
+        time.sleep(0.01)
+        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL=0x%x 2> /dev/null || true' % (port, bc), shell=True)
+        time.sleep(0.5)
+
+        logging.debug("pci rescan")
+        if os.path.exists("/sys/bus/pci/devices/"+port+"/rescan"):
+            subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/rescan" 2> /dev/null || true' % port, shell=True)
+        if os.path.exists("/sys/bus/pci/devices/"+port+"/dev_rescan"):
+            subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/dev_rescan" 2> /dev/null || true' % port, shell=True)
+        time.sleep(1)
+
     def reset(self):  # pcie
         """reset this pcie device with hot reset
 
@@ -710,10 +740,10 @@ cdef class Pcie(object):
         subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, nvme), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, nvme), shell=True)
-        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
+        #subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
         # hot reset by TS1 TS2
-        subprocess.call('./src/pcie_hot_reset.sh %s 2> /dev/null || true' % bdf, shell=True)
+        self._reset(bdf)
 
         # config spdk driver
         subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
@@ -890,7 +920,7 @@ cdef class Controller(object):
         t = time.time()
         while not (nvme0[0x1c]&0x1) == 0:
             if time.time()-t > timeout:
-                logging.error("csts.rdy timeout after cc.en=0")
+                logging.error("csts.rdy timeout after cc.en=0, timeout: %ds" % timeout)
                 raise NvmeEnumerateError("fail to init namespaces")
 
         # 3. set admin queue registers
@@ -907,7 +937,7 @@ cdef class Controller(object):
         t = time.time()
         while not (nvme0[0x1c]&0x1) == 1:
             if time.time()-t > timeout:
-                logging.error("csts.rdy timeout after cc.en=1")
+                logging.error("csts.rdy timeout after cc.en=1, timeout: %ds" % timeout)
                 raise NvmeEnumerateError("fail to init namespaces")
 
         # 7. identify controller and all namespaces
