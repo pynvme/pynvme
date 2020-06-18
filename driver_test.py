@@ -3367,6 +3367,42 @@ def test_fused_operations(nvme0, nvme0n1):
     q.delete()
 
 
+def test_raw_write_read(nvme0, nvme0n1, qpair, verify):
+    buf = d.Buffer(512, ptype=32, pvalue=0x5aa5a55a)
+
+    # use generic cmd to write without pynvme's injected data
+    nvme0n1.send_cmd(1, qpair, buf).waitdone()  # write LBA 0
+    
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+        nvme0n1.send_cmd(2, qpair, buf).waitdone()  # write LBA 0
+    assert buf[0] == 0x5a
+    assert buf[1] == 0xa5
+    
+    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+        nvme0n1.read(qpair, buf, 0).waitdone()
+    assert buf[0] == 0x5a
+    assert buf[1] == 0xa5
+
+    buf = d.Buffer(512, ptype=32, pvalue=0)
+    nvme0n1.send_cmd(1, qpair, buf).waitdone()  # write LBA 0
+    nvme0n1.read(qpair, buf, 0).waitdone()
+    assert buf[0] == 0
+    assert buf[1] == 0
+    
+    
+def test_raw_write_read_without_verify(nvme0, nvme0n1, qpair):
+    buf = d.Buffer(512, ptype=32, pvalue=0x5aa5a55a)
+    nvme0n1.send_cmd(1, qpair, buf).waitdone()  # write LBA 0
+    
+    nvme0n1.send_cmd(2, qpair, buf).waitdone()  # write LBA 0
+    assert buf[0] == 0x5a
+    assert buf[1] == 0xa5
+    
+    nvme0n1.read(qpair, buf, 0).waitdone()
+    assert buf[0] == 0x5a
+    assert buf[1] == 0xa5
+    
+
 @pytest.mark.parametrize("lba_size", [512])
 @pytest.mark.parametrize("repeat", range(2))
 def test_write_4k_lba(nvme0, nvme0n1, lba_size, repeat):

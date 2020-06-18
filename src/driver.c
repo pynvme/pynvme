@@ -684,6 +684,7 @@ static void cmdlog_update_crc(struct cmd_log_entry_t* log_entry)
 
 static int cmdlog_verify_crc(struct cmd_log_entry_t* log_entry)
 {
+  int ret = 0;
   struct spdk_nvme_cmd* cmd = &log_entry->cmd;
   struct spdk_nvme_ctrlr* ctrlr = log_entry->req->qpair->ctrlr;
 
@@ -695,27 +696,24 @@ static int cmdlog_verify_crc(struct cmd_log_entry_t* log_entry)
     uint16_t lba_count = (cmd->cdw12 & 0xffff) + 1;
     uint32_t lba_size = spdk_nvme_ns_get_sector_size(ns);
     crc_table_t* crc_table = (crc_table_t*)ns->crc_table;
-    int ret;
 
     assert(ns != NULL);
     assert(log_entry->buf != NULL);
 
-    // verify lba
-    ret = buffer_verify_lba(log_entry->buf, lba, lba_count, lba_size);
-    if (ret < 0)
-    {
-      return ret;
-    }
-
     // data verify is enabled
     if (crc_table && crc_table->enabled)
     {
-      //verify data pattern and crc
-      return buffer_verify_data(ns, log_entry->buf, lba, lba_count, lba_size);
+      // verify lba
+      ret = buffer_verify_lba(log_entry->buf, lba, lba_count, lba_size);
+      if (ret == 0)
+      {
+        //verify data pattern and crc
+        ret = buffer_verify_data(ns, log_entry->buf, lba, lba_count, lba_size);
+      }
     }
   }
 
-  return 0;
+  return ret;
 }
 
 
