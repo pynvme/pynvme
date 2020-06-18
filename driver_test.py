@@ -347,6 +347,23 @@ def test_qpair_different_size(nvme0n1, nvme0, shift):
     q.delete()
 
 
+def test_latest_cid(nvme0, nvme0n1, qpair, buf):
+    def aer_aborted(cpl):
+        logging.info("aer aborted")
+    nvme0.aer(cb=aer_aborted)
+    
+    with pytest.warns(UserWarning, match="ERROR status: 00/07"):
+        nvme0.abort(nvme0.latest_cid).waitdone()
+    nvme0.waitdone()
+    
+    nvme0n1.read(qpair, buf, 0, 8)
+    nvme0.abort(qpair.latest_cid).waitdone()
+    qpair.waitdone()
+
+    nvme0n1.read(qpair, buf, 0, 8).waitdone()
+    nvme0.abort(qpair.latest_cid).waitdone()
+    
+    
 @pytest.mark.skip("two controllers")
 def test_two_controllers(nvme0):
     pcie = d.Pcie('03:00.0')

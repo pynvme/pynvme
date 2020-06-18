@@ -159,6 +159,8 @@ cdef extern from "driver.h":
 
     qpair * qpair_create(ctrlr * c, int prio, int depth)
     int qpair_wait_completion(qpair * q, unsigned int max_completions)
+    unsigned short qpair_get_latest_cid(qpair * q, ctrlr* c)
+    
     int qpair_get_id(qpair * q)
     int qpair_free(qpair * q)
 

@@ -558,7 +558,8 @@ struct cmd_log_table_t {
   //uint32_t msg_data;
   uint16_t intr_vec;
   uint16_t intr_enabled;
-  uint32_t dummy[28];
+  uint16_t latest_cid;
+  uint16_t dummy[55];
 };
 static_assert(sizeof(struct cmd_log_table_t)%64 == 0, "cacheline aligned");
 
@@ -795,6 +796,9 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmdlog: add cmd %s\n",
                 cmd_name(req->cmd.opc, qpair->id==0?0:1));
 
+  // keep the latest cid for inqury by scripts later
+  log_table->latest_cid = req->cmd.cid;
+  
   if (log_entry->req != NULL)
   {
     // this entry is overlapped before command complete
@@ -1239,6 +1243,22 @@ int qpair_get_id(struct spdk_nvme_qpair* q)
 {
   // q NULL is admin queue
   return q ? q->id : 0;
+}
+
+uint16_t qpair_get_latest_cid(struct spdk_nvme_qpair* q,
+                              struct spdk_nvme_ctrlr* c)
+{
+  struct cmd_log_table_t* log_table;
+  
+  if (q == NULL)
+  {
+    q = c->adminq;
+  }
+
+  assert(q != NULL);
+  assert(q->ctrlr == c);
+  log_table = q->pynvme_cmdlog;
+  return log_table->latest_cid;
 }
 
 int qpair_free(struct spdk_nvme_qpair* q)

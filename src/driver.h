@@ -219,6 +219,8 @@ extern void buffer_fini(void* buf);
 extern qpair* qpair_create(struct spdk_nvme_ctrlr *c,
                            int prio, int depth);
 extern int qpair_wait_completion(struct spdk_nvme_qpair *q, uint32_t max_completions);
+extern uint16_t qpair_get_latest_cid(struct spdk_nvme_qpair* q,
+                                     struct spdk_nvme_ctrlr* c);
 extern int qpair_get_id(struct spdk_nvme_qpair* q);
 extern int qpair_free(struct spdk_nvme_qpair* q);
 

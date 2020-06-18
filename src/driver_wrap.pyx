@@ -981,6 +981,10 @@ cdef class Controller(object):
         self.setfeatures(0x0d, cdw11=0).waitdone()
 
     @property
+    def latest_cid(self):
+        return d.qpair_get_latest_cid(NULL, self.pcie._ctrlr)
+
+    @property
     def addr(self):
         return self.pcie._bdf.decode('utf-8')
 
@@ -1735,6 +1739,10 @@ cdef class Qpair(object):
     @property
     def sqid(self):
         return d.qpair_get_id(self._qpair)
+    
+    @property
+    def latest_cid(self):
+        return d.qpair_get_latest_cid(self._qpair, self._nvme.pcie._ctrlr)
 
     def cmdlog(self, count=0):
         """print recent IO commands and their completions in this qpair.
