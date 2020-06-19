@@ -43,12 +43,12 @@ from nvme import *
 class PRP(Buffer):
     pass
 
-    
+
 class PRPList(PRP):
     def __init__(self):
         self.prp_per_list = 4096//8
         self.buf_list = [None]*self.prp_per_list
-    
+
     def __setitem__(self, index, buf: PRP):
         """insert buffer PRP to PRP List"""
         addr = buf.phys_addr
@@ -58,7 +58,7 @@ class PRPList(PRP):
 
         # fill PRP into PRP List
         for i, b in enumerate(addr.to_bytes(8, byteorder='little')):
-            super(PRPList, self).__setitem__(index*8 + i, b) 
+            super(PRPList, self).__setitem__(index*8 + i, b)
 
     def __getitem__(self, index):
         assert index < self.prp_per_list, "4K PRP List contains 512 PRP entries only"
@@ -66,7 +66,7 @@ class PRPList(PRP):
 
     def find_buffer_by_offset(self, offset, start):
         """find the buffer of the non-contiguous queue contains the offset"""
-        
+
         first_index = self.offset//8
         for buf in self.buf_list[first_index : self.prp_per_list]:
             assert buf is not None
@@ -80,10 +80,10 @@ class PRPList(PRP):
                 if start > offset:
                     return buf, buf.offset+offset-orig_start
 
-                
+
 class SQE(list):
     _buf_list = []
-    
+
     def __init__(self, *arg):
         assert len(arg) <= 16
         list.extend(self, [0]*16)
@@ -93,7 +93,7 @@ class SQE(list):
     @property
     def opc(self):
         return self[0]&0xff
-            
+
     @opc.setter
     def opc(self, opc):
         self[0] = (self[0]&0xffffff00) | opc
@@ -136,7 +136,7 @@ class SQE(list):
         self[9] = (prp>>32)&0xffffffff
         self._buf_list.append(buf)
 
-        
+
 class CQE(list):
     def __init__(self, arg):
         assert len(arg) == 4
@@ -158,11 +158,11 @@ class CQE(list):
     @property
     def cid(self):
         return self[3]&0xffff
-    
+
     @property
     def p(self):
         return (self[3]>>16)&0x1
-    
+
     @property
     def status(self):
         return (self[3]>>17)&0x8fff
@@ -186,68 +186,68 @@ class CQE(list):
     @property
     def dnr(self):
         return (self[3]>>31)&0x1
-            
-            
+
+
 class IOSQ(object):
     """I/O Submission Queue"""
-    
+
     id = 0
     ctrlr = None
     queue = None
     sqe_list = None
-    
+
     def __init__(self, ctrlr, qid, qsize, prp1, pc=True, cqid=None, qprio=0, nvmsetid=0):
         """create IO submission queue
-        
+
         # Parameters
             ctrlr (Controller):
             qid (int):
             qsize (int): 1based value
             prp1 (PRP, PRPList): the location of the queue
-            cqid (int): 
-            qprio (int): 
-            nvmsetid (int): 
+            cqid (int):
+            qprio (int):
+            nvmsetid (int):
 
         """
 
         # some id cq
+        status = 0
         if cqid is None:
             cqid = qid
 
         assert qid < 64*1024 and qid >= 0
         assert cqid < 64*1024 and cqid >= 0
-        assert qsize < 64*1024 and qsize > 0
+        assert qsize <= 64*1024 and qsize > 0
         assert qprio < 4 and qprio >= 0
 
         def create_io_sq_cpl(cdw0, status1):
-            if status1>>1:
-                logging.debug("create io sq fail: %d" % qid)
-            else:
-                self.id = qid
-                self.queue = prp1
-                self.sqe_list = [None]*qsize
-                
+            nonlocal status; status = status1>>1
+
         self.ctrlr = ctrlr
         ctrlr.send_cmd(0x01, prp1,
                        cdw10 = (qid|((qsize-1)<<16)),
                        cdw11 = (pc|(qprio<<1)|(cqid<<16)),
-                       cdw12 = nvmsetid, 
+                       cdw12 = nvmsetid,
                        cb = create_io_sq_cpl).waitdone()
+        if not status:
+            self.id = qid
+            self.queue = prp1
+            self.sqe_list = [None]*qsize
 
     def __setitem__(self, index, cmd: SQE):
         """insert 16-dword SQE to the queue"""
-        
+
         assert len(cmd) == 16
         assert index < len(self.sqe_list)
 
         # track the cmd in the queue
         self.sqe_list[index] = cmd
-        
+
         # locate the queue buffer
         if isinstance(self.queue, PRPList):
             # find the PRP entry in non-contig queue
             buf, offset = self.queue.find_buffer_by_offset(index*64, 0)
-            index = offset/64 
+            index = offset/64
         else:
             buf = self.queue
 
@@ -255,7 +255,7 @@ class IOSQ(object):
         for i, dword in enumerate(cmd):
             for j, b in enumerate(dword.to_bytes(4, byteorder='little')):
                 buf[index*64 + i*4 + j] = b
-        
+
     @property
     def tail(self):
         return self.ctrlr[0x1000+2*self.id*4]
@@ -264,7 +264,7 @@ class IOSQ(object):
     def tail(self, tail):
         logging.debug(tail)
         self.ctrlr[0x1000+2*self.id*4] = tail
-    
+
     def delete(self, qid=None):
         def delete_io_sq_cpl(cdw0, status1):
             if status1>>1:
@@ -281,18 +281,18 @@ class IOSQ(object):
                                 cdw10 = qid,
                                 cb = delete_io_sq_cpl).waitdone()
 
-            
+
 class IOCQ(object):
     """I/O Completion Queue"""
-    
+
     id = 0
     ctrlr = None
     queue = None
     qsize = 0
-    
+
     def __init__(self, ctrlr, qid, qsize, prp1, pc=True, iv=0, ien=False):
         """create IO completion queue
-        
+
         # Parameters
             ctrlr (Controller):
             qid (int):
@@ -301,18 +301,15 @@ class IOCQ(object):
             iv (int, None): interrupt vector
 
         """
-        
+
+        status = 0
+
         assert qid < 64*1024 and qid >= 0
         assert qsize < 64*1024 and qsize > 0
         assert iv < 2048, "a maximum of 2048 vectors are used"
-        
+
         def create_io_cq_cpl(cdw0, status1):
-            if status1>>1:
-                logging.debug("create io cq fail: %d" % qid)
-            else:
-                self.id = qid
-                self.queue = prp1
-                self.qsize = qsize
+            nonlocal status; status = status1>>1
 
         self.ctrlr = ctrlr
         ctrlr.send_cmd(0x05, prp1,
@@ -320,11 +317,16 @@ class IOCQ(object):
                        cdw11 = (pc|(ien<<1)|(iv<<16)),
                        cb = create_io_cq_cpl).waitdone()
 
+        if not status:
+            self.id = qid
+            self.queue = prp1
+            self.qsize = qsize
+
     def __getitem__(self, index):
         """get 4-dword CQE from the queue"""
 
         assert index < self.qsize
-        
+
         cpl = [0]*4
         buf = self.queue
         if isinstance(buf, PRPList):
@@ -344,11 +346,11 @@ class IOCQ(object):
     @property
     def head(self):
         return self.ctrlr[0x1000+(2*self.id+1)*4]
-    
+
     @head.setter
     def head(self, head):
         self.ctrlr[0x1000+(2*self.id+1)*4] = head
-        
+
     def delete(self, qid=None):
         def delete_io_cq_cpl(cdw0, status1):
             if status1>>1:
@@ -358,14 +360,14 @@ class IOCQ(object):
 
         if qid is None:
             qid = self.id
-            
+
         logging.debug("delete cqid %d" % qid)
         if qid != 0:
             self.ctrlr.send_cmd(0x04,
                                 cdw10 = qid,
                                 cb = delete_io_cq_cpl).waitdone()
 
-    
+
 def test_create_delete_iocq(nvme0):
     buf = Buffer(4096)
 
@@ -393,7 +395,7 @@ def test_create_delete_iocq(nvme0):
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         cq.delete(4)
     cq.delete()
-    
+
     cq = IOCQ(nvme0, 5, 5, buf, iv=5, ien=True)
     cq.delete()
 
@@ -419,7 +421,7 @@ def test_create_delete_iocq_non_contig(nvme0):
 
     cq = IOCQ(nvme0, 4, 5, prp_list, pc=False)
     cq.delete()
-    
+
 
 def test_create_delete_iosq(nvme0):
     buf_cq = PRP(4096)
@@ -433,10 +435,10 @@ def test_create_delete_iosq(nvme0):
 
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         sq = IOSQ(nvme0, 400, 10, buf_sq, cqid=4)
-        
+
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
         sq = IOSQ(nvme0, 4, 1, buf_sq, cqid=4)
-        
+
     sq = IOSQ(nvme0, 5, 10, buf_sq, cqid=4)
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         sq.delete(4)
@@ -444,10 +446,10 @@ def test_create_delete_iosq(nvme0):
     # Invalid Queue Deletion
     with pytest.warns(UserWarning, match="ERROR status: 01/0c"):
         cq.delete()
-        
+
     sq.delete()
     cq.delete()
-    
+
 
 def test_send_single_cmd(nvme0):
     cq = IOCQ(nvme0, 1, 10, PRP())
@@ -463,7 +465,7 @@ def test_send_single_cmd(nvme0):
     sq.delete()
     cq.delete()
 
-    
+
 def test_send_cmd_2sq_1cq(nvme0):
     cq = IOCQ(nvme0, 1, 10, PRP())
     sq1 = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
@@ -482,7 +484,7 @@ def test_send_cmd_2sq_1cq(nvme0):
     time.sleep(0.1)
     sq1.tail = 1
     time.sleep(0.1)
-    
+
     cqe = CQE(cq[0])
     assert cqe.sct == 0
     assert cqe.sc == 0
@@ -490,7 +492,7 @@ def test_send_cmd_2sq_1cq(nvme0):
     assert cqe.sqhd == 1
     assert cqe.p == 1
     assert cqe.cid == 111
-    
+
     cqe = CQE(cq[1])
     assert cqe.sct == 0
     assert cqe.sc == 0
@@ -505,7 +507,7 @@ def test_send_cmd_2sq_1cq(nvme0):
     sq2.delete()
     cq.delete()
 
-    
+
 @pytest.mark.parametrize("qdepth", [7, 2, 3, 4, 5, 10, 16, 17, 31])
 def test_send_cmd_different_qdepth(nvme0, qdepth):
     cq = IOCQ(nvme0, 3, qdepth, PRP())
@@ -531,7 +533,7 @@ def test_prp_and_prp_list(count):
     for i in range(count):
         l[i] = Buffer()
 
-        
+
 def test_prp_and_prp_list_with_offset():
     p = PRP()
     p.offset = 0x20
@@ -539,7 +541,7 @@ def test_prp_and_prp_list_with_offset():
     l = PRPList()
     l.offset = 0x40
     l[8] = p
-    
+
     p = PRP()
     p.offset = 0x30
     l[9] = p
@@ -549,13 +551,13 @@ def test_prp_and_prp_list_with_offset():
     assert l[8].phys_addr&0xfff == 0x20
     assert l[9].phys_addr&0xfff == 0x30
 
-    
+
 def test_prp_and_prp_list_invalid():
     l = PRPList()
     with pytest.raises(AssertionError):
         l[512] = Buffer()
 
-        
+
 def test_psd_write_2sq_1cq_prp_list(nvme0):
     # cqid: 1, PC, depth: 120
     cq = IOCQ(nvme0, 1, 120, PRP(4096))
@@ -564,12 +566,17 @@ def test_psd_write_2sq_1cq_prp_list(nvme0):
     # sqid: 3, depth: 16
     sq3 = IOSQ(nvme0, 3, 16, PRP(), cqid=1)
     # sqid: 5, depth: 100, so need 2 pages of memory
-    sq5 = IOSQ(nvme0, 5, 100, PRP(4096*2), cqid=1)
+    sq5 = IOSQ(nvme0, 5, 64*64, PRP(4096*64), cqid=1)
+
+    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+        sq_invalid = IOSQ(nvme0, 5, 64*1024, PRP(4096*1024), cqid=1)
+    with pytest.warns(UserWarning, match="ERROR status: 01/02"):
+        sq_invalid = IOSQ(nvme0, 6, 64*1024, PRP(4096*1024), cqid=1)
 
     # IO command templates: opcode and namespace
     write_cmd = SQE(1, 1)
     read_cmd = SQE(2, 1)
-    
+
     # write in sq3, lba1-lba2, 1 page, aligned
     w1 = SQE(*write_cmd)
     write_buf = PRP(ptype=32, pvalue=0xaaaaaaaa)
@@ -581,7 +588,7 @@ def test_psd_write_2sq_1cq_prp_list(nvme0):
     sq3.tail = 1
 
     # add some delay, so ssd should finish w1 before w2
-    time.sleep(0.1) 
+    time.sleep(0.1)
 
     # write in sq5, lba5-lba16, 2 page, non aligned
     w2 = SQE(*write_cmd)
@@ -594,7 +601,7 @@ def test_psd_write_2sq_1cq_prp_list(nvme0):
     w2.cid = 0x567
     sq5[0] = w2
     sq5.tail = 1
-    
+
     # cqe for w1
     while CQE(cq[0]).p == 0: pass
     cqe = CQE(cq[0])
@@ -630,7 +637,7 @@ def test_psd_write_2sq_1cq_prp_list(nvme0):
     assert read_buf[0].data(0xfff, 0xffc) == 0xbbbbbbbb
     assert read_buf[2].data(3, 0) == 0xcccccccc
     assert read_buf[2].data(0x1ff, 0x1fc) == 0xcccccccc
-    
+
     # delete all sq/cq
     sq3.delete()
     sq5.delete()
@@ -664,7 +671,7 @@ def test_iocq_prplist():
     assert buffer == prp_list2[3]
     assert offset == 3648
 
-    
+
 def test_psd_with_qpair(nvme0):
     # do not mix psd IO queues with SPDK qpairs in the same test script
     qpair = Qpair(nvme0, 16)
@@ -683,10 +690,10 @@ def test_psd_with_qpair(nvme0):
     cq.delete()
 
 
-def test_write_before_power_cycle(nvme0, subsystem):    
+def test_write_before_power_cycle(nvme0, subsystem):
     cq = IOCQ(nvme0, 1, 128, PRP(2*1024))
     sq = IOSQ(nvme0, 1, 128, PRP(8*1024), cqid=1)
-    
+
     #burst write
     for i in range(127):
         cmd = SQE(1, 1)
@@ -694,25 +701,25 @@ def test_write_before_power_cycle(nvme0, subsystem):
         cmd.prp1 = buf
         cmd[10] = i
         sq[i] = cmd
-        
+
     # write 127 512byte at one shot
     sq.tail = 127
 
     #not to wait commands completion
     # while CQE(cq[126]).p == 0: pass
     # cq.head = 0
-    
+
     # sq.delete()
     # cq.delete()
-    
+
     # power off immediately without completion of the sub process
     subsystem.power_cycle(10)
     nvme0.reset()
-    
+
     # read and check
     cq = IOCQ(nvme0, 2, 16, PRP())
     sq = IOSQ(nvme0, 2, 16, PRP(), cqid=2)
-    
+
     cmd = SQE(2, 1)
     buf_read = PRP()
     cmd.prp1 = buf_read
@@ -722,6 +729,6 @@ def test_write_before_power_cycle(nvme0, subsystem):
     while CQE(cq[0]).p == 0: pass
     cq.head = 1
     print(buf_read.dump(32))
-    
+
     sq.delete()
     cq.delete()
