@@ -159,7 +159,7 @@ cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
 
     logging.warning("AER triggered, dword0: 0x%x, status1: 0x%x" %
                     (arg.cdw0, arg.status1))
-    warnings.warn("AER notification is triggered")
+    warnings.warn("AER notification is triggered: 0x%x" % arg.cdw0)
     cmd_cb(f, cpl)
 
 

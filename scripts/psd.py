@@ -90,6 +90,16 @@ class SQE(list):
         for i, e in enumerate(arg):
             list.__setitem__(self, i, e)
 
+    def __repr__(self):
+        return "\n0x%08x, 0x%08x, 0x%08x, 0x%08x" \
+               "\n0x%08x, 0x%08x, 0x%08x, 0x%08x" \
+               "\n0x%08x, 0x%08x, 0x%08x, 0x%08x" \
+               "\n0x%08x, 0x%08x, 0x%08x, 0x%08x" % \
+               (self[0], self[1], self[2], self[3], \
+                self[4], self[5], self[6], self[7], \
+                self[8], self[9], self[10], self[11], \
+                self[12], self[13], self[14], self[15])
+        
     @property
     def opc(self):
         return self[0]&0xff
@@ -143,6 +153,10 @@ class CQE(list):
         for e in arg:
             list.append(self, e)
 
+    def __repr__(self):
+        return "0x%08x, 0x%08x, 0x%08x, 0x%08x" % \
+            (self[0], self[1], self[2], self[3])
+        
     @property
     def cdw0(self):
         return self[0]
@@ -234,6 +248,10 @@ class IOSQ(object):
             self.queue = prp1
             self.sqe_list = [None]*qsize
 
+    def __getitem__(self, index):
+        assert index < len(self.sqe_list)
+        return self.sqe_list[index]
+    
     def __setitem__(self, index, cmd: SQE):
         """insert 16-dword SQE to the queue"""
 

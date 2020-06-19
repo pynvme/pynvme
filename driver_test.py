@@ -1588,10 +1588,9 @@ def test_buffer_dump_large():
 
     b = d.Buffer(6*1024, pvalue=100, ptype=0xbeef)
     assert type(b.dump(1)) == str
-    assert len(b.dump())*2 == len(b.dump(4096))*3
 
-    b = d.Buffer(256*1024, pvalue=101, ptype=32)
-    assert len(b.dump()) == len(b.dump(4096))*64
+    b = d.Buffer(256*1024, "pattern buffer", pvalue=101, ptype=32)
+    logging.info(b.dump(64))
 
 
 @pytest.mark.parametrize("repeat", range(2))
