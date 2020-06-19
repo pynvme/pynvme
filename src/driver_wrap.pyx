@@ -997,6 +997,8 @@ cdef class Controller(object):
         mdts_shift = self.id_data(77)
         if mdts_shift:
             return min(page_size*(1UL<<mdts_shift), max_size)
+        else:
+            return max_size
 
     @property
     def cap(self):

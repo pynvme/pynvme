@@ -723,9 +723,12 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   struct timeval now;
   struct cmd_log_entry_t* log_entry = req->cmdlog_entry;
 
+  if (log_entry == NULL)
+  {
+    return;
+  }
+  
   assert(cpl != NULL);
-  assert(log_entry != NULL);
-
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
 
   //check if the log entry is still for this completed cmd
