@@ -496,42 +496,54 @@ def test_power_on_off(nvme0):
     nvme0.reset()
 
 
-def test_init_nvme_customerized(pciaddr):
-    pcie = d.Pcie(pciaddr)
-    nvme0 = d.Controller(pcie, skip_nvme_init=True)
+def test_init_nvme_customerized(pcie):
+    def nvme_init(nvme0):
+        logging.info("user defined nvme init")
+        
+        nvme0[0x14] = 0
+        while not (nvme0[0x1c]&0x1) == 0: pass
+
+        # 3. set admin queue registers
+        nvme0.init_adminq()
+
+        # 4. set register cc
+        nvme0[0x14] = 0x00460000
+
+        # 5. enable cc.en
+        nvme0[0x14] = 0x00460001
+
+        # 6. wait csts.rdy to 1
+        while not (nvme0[0x1c]&0x1) == 1: pass
+
+        # 7. identify controller
+        nvme0.identify(d.Buffer(4096)).waitdone()
+
+        # 8. create and identify all namespace
+        nvme0.init_ns()
+
+        # 9. set/get num of queues
+        nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
+        nvme0.getfeatures(0x7).waitdone()
+
+        # 10. send out all aer
+        aerl = nvme0.id_data(259)+1
+        for i in range(aerl):
+            nvme0.aer()
 
     # 1. set pcie registers
     pcie.aspm = 0
 
     # 2. disable cc.en and wait csts.rdy to 0
-    nvme0[0x14] = 0
-    while not (nvme0[0x1c]&0x1) == 0: pass
+    nvme0 = d.Controller(pcie, nvme_init_func=nvme_init)
+    
+    # test with ioworker
+    nvme0n1 = d.Namespace(nvme0)
+    qpair = d.Qpair(nvme0, 10)
+    nvme0n1.ioworker(time=1).start().close()
+    qpair.delete()
+    nvme0n1.close()
 
-    # 3. set admin queue registers
-    nvme0.init_adminq()
-
-    # 4. set register cc
-    nvme0[0x14] = 0x00460000
-
-    # 5. enable cc.en
-    nvme0[0x14] = 0x00460001
-
-    # 6. wait csts.rdy to 1
-    while not (nvme0[0x1c]&0x1) == 1: pass
-
-    # 7. identify controller
-    nvme0.identify(d.Buffer(4096)).waitdone()
-
-    # 8. create and identify all namespace
-    nvme0.init_ns()
-
-    # 9. set/get num of queues
-    nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
-    nvme0.getfeatures(0x7).waitdone()
-
-    pcie.close()
-
-
+    
 def test_ioworker_op_dict_trim(nvme0n1):
     cmdlog_list = [None]*10000
     op_percentage = {2: 40, 9: 30, 1: 30}

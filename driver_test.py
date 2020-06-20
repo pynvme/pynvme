@@ -1775,7 +1775,9 @@ def test_write_limited_retry(nvme0n1, nvme0):
 
 def test_write_huge_data(nvme0n1, qpair):
     buf = d.Buffer(2*1024*1024)
-    nvme0n1.write(qpair, buf, 0, 1*1024*1024//512).waitdone()
+    
+    with pytest.warns(UserWarning, match="ERROR status: 00/02"):
+        nvme0n1.write(qpair, buf, 0, 1*1024*1024//512).waitdone()
     
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
         with pytest.raises(AssertionError):
