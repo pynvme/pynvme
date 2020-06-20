@@ -1114,6 +1114,21 @@ def test_ioworker_controller_reset_async(nvme0n1, nvme0):
     nvme0.reset()
 
 
+def test_controller_reset_with_ioworkers(nvme0):    
+    nvme0n1 = d.Namespace(nvme0, 1, 1024*1024)
+    
+    for loop in range(10):
+        logging.info(loop)
+        with nvme0n1.ioworker(io_size=1, time=20), \
+             nvme0n1.ioworker(io_size=1, time=20), \
+             nvme0n1.ioworker(io_size=1, time=20), \
+             nvme0n1.ioworker(io_size=1, time=20):
+            time.sleep(5)
+            nvme0.reset()
+            
+    nvme0n1.close()
+    
+        
 def test_ioworker_power_cycle_async(nvme0, nvme0n1, subsystem):
     for i in range(2):
         start_time = time.time()

@@ -593,7 +593,9 @@ cdef class Pcie(object):
         self._ctrlr = NULL
 
     def _ctrlr_reinit(self):
+        time.sleep(1)
         assert self._ctrlr is not NULL and self._backup is not True
+        
         ret = d.nvme_fini(self._ctrlr)
         if ret != 0:
             raise NvmeDeletionError("fail to close the controller")
@@ -630,7 +632,7 @@ cdef class Pcie(object):
             self._config(ioworker_terminate=True)
             while d.driver_io_qpair_count(self._ctrlr):
                 pass
-            #time.sleep(2)
+            time.sleep(1)
             d.crc32_unlock_all(self._ctrlr)
             self._config(ioworker_terminate=False)
 
@@ -1089,9 +1091,10 @@ cdef class Controller(object):
         # notify ioworker to terminate, and wait all IO Qpair closed
         self.pcie._driver_cleanup()
 
-        # reset controller
+        # reset driver: namespace is init by every test, so no need reinit
+        self.pcie._ctrlr_reinit()
         self._nvme_init()
-
+        
     def cmdname(self, opcode):
         """get the name of the admin command
 
