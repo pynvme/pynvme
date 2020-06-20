@@ -93,42 +93,29 @@ It uses Bus:Device:Function address to specify a PCIe DUT. Then, We can access N
 NVMe Initialization
 ^^^^^^^^^^^^^^^^^^^
 
-When creating controller object, pynvme implements a initialization process defined in NVMe specification 7.6.1 (v1.4). However, scripts can skip pynvme's initialization flow, and replace with its own flow. Here is an example:
+When creating controller object, pynvme implements a default initialization process defined in NVMe specification 7.6.1 (v1.4). However, scripts can define its own initialization function, which has one parameter `Controller`. Here is an example:
 
 .. code-block:: python
-   :emphasize-lines: 6
+   :emphasize-lines: 17
 
-   # 1. set pcie registers
-   pcie = d.Pcie(pciaddr)
-   pcie.aspm = 0
-
-   # 2. disable cc.en and wait csts.rdy to 0
-   nvme0 = d.Controller(pcie, skip_nvme_init=True)
-   nvme0[0x14] = 0
-   while not (nvme0[0x1c]&0x1) == 0: pass
-
-   # 3. set admin queue registers
-   nvme0.init_adminq()
-
-   # 4. set register cc
-   nvme0[0x14] = 0x00460000
-
-   # 5. enable cc.en
-   nvme0[0x14] = 0x00460001
-
-   # 6. wait csts.rdy to 1
-   while not (nvme0[0x1c]&0x1) == 1: pass
-
-   # 7. identify controller
-   nvme0.identify(d.Buffer(4096)).waitdone()
-
-   # 8. create and identify all namespace
-   nvme0.init_ns()
-
-   # 9. set/get num of queues
-   nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
-   nvme0.getfeatures(0x7).waitdone()
-
+   def test_init_nvme_customerized(pcie):
+       def nvme_init(nvme0):
+           nvme0[0x14] = 0
+           while not (nvme0[0x1c]&0x1) == 0: pass
+           nvme0.init_adminq()
+           nvme0[0x14] = 0x00460000
+           nvme0[0x14] = 0x00460001
+           while not (nvme0[0x1c]&0x1) == 1: pass
+           nvme0.identify(d.Buffer(4096)).waitdone()
+           nvme0.init_ns()
+           nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
+           nvme0.getfeatures(0x7).waitdone()
+           aerl = nvme0.id_data(259)+1
+           for i in range(aerl):
+               nvme0.aer()
+   
+       nvme0 = d.Controller(pcie, nvme_init_func=nvme_init)
+    
                 
 Admin Commands
 ^^^^^^^^^^^^^^
