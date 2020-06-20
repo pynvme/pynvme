@@ -593,7 +593,6 @@ cdef class Pcie(object):
         self._ctrlr = NULL
 
     def _ctrlr_reinit(self):
-        time.sleep(1)
         assert self._ctrlr is not NULL and self._backup is not True
         
         ret = d.nvme_fini(self._ctrlr)
@@ -630,6 +629,7 @@ cdef class Pcie(object):
         # notify ioworker to terminate, and wait all IO Qpair closed
         if d.driver_io_qpair_count(self._ctrlr):
             self._config(ioworker_terminate=True)
+            logging.info("wait all qpair to be deleted")
             while d.driver_io_qpair_count(self._ctrlr):
                 pass
             time.sleep(1)
@@ -859,10 +859,11 @@ cdef class Controller(object):
         addr (bytes): the bus/device/function address of the DUT, for example: \
                       b'01:00.0' (PCIe BDF address),  \
                       b'127.0.0.1' (TCP IP address).
+        nvme_init_func (callable, bool, None): True: no nvme init process, None: default process, callable: user defined process function
 
     # Example
 ```python
-        >>> n = Controller(b'01:00.0')
+        >>> n = Controller(Pcie('01:00.0'))
         >>> hex(n[0])     # CAP register
         '0x28030fff'
         >>> hex(n[0x1c])  # CSTS register
@@ -897,22 +898,34 @@ cdef class Controller(object):
     cdef Pcie pcie
     cdef Buffer hmb_buf
     cdef unsigned int _timeout
-
-    def __cinit__(self, pcie, skip_nvme_init=False):
+    cdef object nvme_init_func
+    
+    def __cinit__(self, pcie, nvme_init_func=None):
+        assert nvme_init_func is True or \
+               nvme_init_func is None or \
+               callable(nvme_init_func)
+        
         if type(pcie) is not Pcie:
             pcie = Pcie(pcie.decode('utf-8'))
         self.pcie = pcie
+        
         self._timeout = _cTIMEOUT*1000
-
-        # nvme init process
-        if not skip_nvme_init:
-            self._nvme_init()
+        self.nvme_init_func = nvme_init_func
+        self._nvme_init()
 
         # post init, register callbacks
         d.nvme_register_timeout_cb(self.pcie._ctrlr, timeout_driver_cb, self._timeout)
         logging.debug("nvme initialized: %s", self.pcie._bdf)
 
     def _nvme_init(self):
+        if self.nvme_init_func is True:
+            # skip the nvme init process
+            return
+        elif self.nvme_init_func:
+            # user defined nvme init process
+            return self.nvme_init_func(self)
+
+        # pynvme defined default nvme init process
         logging.debug("start nvme init process in pynvme")
         nvme0 = self
         timeout = ((nvme0.cap>>24) & 0xff)/2
@@ -1092,6 +1105,7 @@ cdef class Controller(object):
         self.pcie._driver_cleanup()
 
         # reset driver: namespace is init by every test, so no need reinit
+        time.sleep(1)
         self.pcie._ctrlr_reinit()
         self._nvme_init()
         

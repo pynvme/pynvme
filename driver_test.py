@@ -62,46 +62,51 @@ def test_init_nvme_back_compatibility(repeat):
 
 
 @pytest.mark.parametrize("repeat", range(2))
-def test_init_nvme_customerized(pciaddr, repeat):
+def test_init_nvme_customerized(pcie, repeat):
+    def nvme_init(nvme0):
+        logging.info("user defined nvme init")
+        
+        nvme0[0x14] = 0
+        while not (nvme0[0x1c]&0x1) == 0: pass
+
+        # 3. set admin queue registers
+        nvme0.init_adminq()
+
+        # 4. set register cc
+        nvme0[0x14] = 0x00460000
+
+        # 5. enable cc.en
+        nvme0[0x14] = 0x00460001
+
+        # 6. wait csts.rdy to 1
+        while not (nvme0[0x1c]&0x1) == 1: pass
+
+        # 7. identify controller
+        nvme0.identify(d.Buffer(4096)).waitdone()
+
+        # 8. create and identify all namespace
+        nvme0.init_ns()
+
+        # 9. set/get num of queues
+        nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
+        nvme0.getfeatures(0x7).waitdone()
+
+        # 10. send out all aer
+        aerl = nvme0.id_data(259)+1
+        for i in range(aerl):
+            nvme0.aer()
+
     # 1. set pcie registers
-    pcie = d.Pcie(pciaddr)
     pcie.aspm = 0
 
     # 2. disable cc.en and wait csts.rdy to 0
-    nvme0 = d.Controller(pcie, skip_nvme_init=True)
-    nvme0[0x14] = 0
-    while not (nvme0[0x1c]&0x1) == 0: pass
-
-    # 3. set admin queue registers
-    nvme0.init_adminq()
-
-    # 4. set register cc
-    nvme0[0x14] = 0x00460000
-
-    # 5. enable cc.en
-    nvme0[0x14] = 0x00460001
-
-    # 6. wait csts.rdy to 1
-    while not (nvme0[0x1c]&0x1) == 1: pass
-
-    # 7. identify controller
-    nvme0.identify(d.Buffer(4096)).waitdone()
-
-    # 8. create and identify all namespace
-    nvme0.init_ns()
-
-    # 9. set/get num of queues
-    nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
-    nvme0.getfeatures(0x7).waitdone()
-
-    # 10. send out all aer
+    nvme0 = d.Controller(pcie, nvme_init_func=nvme_init)
     aerl = nvme0.id_data(259)+1
-    for i in range(aerl):
-        nvme0.aer()
-
+    
     # test with ioworker
     nvme0n1 = d.Namespace(nvme0, 1)
     qpair = d.Qpair(nvme0, 10)
+    subsystem = d.Subsystem(nvme0)
     with nvme0n1.ioworker(time=1):
         pass
 
@@ -129,10 +134,31 @@ def test_init_nvme_customerized(pciaddr, repeat):
             nvme0.abort(127-i).waitdone()
         nvme0.waitdone(aerl)
 
-    nvme0n1.close()
     qpair.delete()
-    pcie.close()
+    nvme0.reset()
+    nvme0n1.ioworker(time=1).start().close()
+    nvme0n1.close()
 
+    nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
+
+    pcie.reset()               # PCIe reset: hot reset, TS1, TS2
+    nvme0.reset()              # reset controller after pcie reset
+    nvme0.getfeatures(7).waitdone()
+
+    subsystem.reset()          # NVMe subsystem reset: NSSR
+    nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
+
+    subsystem.power_cycle(10)  # power cycle NVMe device: cold reset
+    nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
+
+    subsystem.poweroff()
+    subsystem.poweron()
+    nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
+    
 
 def test_jsonrpc_list_qpairs(pciaddr):
     import json
