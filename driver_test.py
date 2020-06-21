@@ -1594,6 +1594,19 @@ def test_buffer_access_overflow():
         assert b[1000] == 0
 
 
+@pytest.mark.parametrize("offset", [0, 4, 16, 32, 512, 800, 1024, 3000])
+def test_page_offset(nvme0, nvme0n1, qpair, buf, offset):
+    # fill the data
+    write_buf = d.Buffer(512)
+    nvme0n1.write(qpair, write_buf, 0x5aa5).waitdone()
+
+    # read the data to different offset and check lba
+    buf.offset = offset
+    nvme0n1.read(qpair, buf, 0x5aa5).waitdone()
+    assert buf[offset] == 0xa5
+    assert buf[offset+1] == 0x5a
+
+    
 def test_buffer_set_get():
     b = d.Buffer()
     b[0] = 0xa5

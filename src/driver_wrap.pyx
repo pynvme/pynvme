@@ -157,9 +157,15 @@ cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
     if (arg.status1>>1) == 8:
         return
 
-    logging.warning("AER triggered, dword0: 0x%x, status1: 0x%x" %
-                    (arg.cdw0, arg.status1))
-    warnings.warn("AER notification is triggered: 0x%x" % arg.cdw0)
+    if (arg.status1>>1) != 7:
+        # not raise warning when aborted
+        logging.warning("AER triggered, dword0: 0x%x, status1: 0x%x" %
+                        (arg.cdw0, arg.status1))
+        warnings.warn("AER notification is triggered: 0x%x" % arg.cdw0)
+    else:
+        assert arg.cdw0 == 0
+
+    # call the callback function of aer command
     cmd_cb(f, cpl)
 
 
@@ -594,7 +600,7 @@ cdef class Pcie(object):
 
     def _ctrlr_reinit(self):
         assert self._ctrlr is not NULL and self._backup is not True
-        
+
         ret = d.nvme_fini(self._ctrlr)
         if ret != 0:
             raise NvmeDeletionError("fail to close the controller")
@@ -899,16 +905,16 @@ cdef class Controller(object):
     cdef Buffer hmb_buf
     cdef unsigned int _timeout
     cdef object nvme_init_func
-    
+
     def __cinit__(self, pcie, nvme_init_func=None):
         assert nvme_init_func is True or \
                nvme_init_func is None or \
                callable(nvme_init_func)
-        
+
         if type(pcie) is not Pcie:
             pcie = Pcie(pcie.decode('utf-8'))
         self.pcie = pcie
-        
+
         self._timeout = _cTIMEOUT*1000
         self.nvme_init_func = nvme_init_func
         self._nvme_init()
@@ -1108,7 +1114,7 @@ cdef class Controller(object):
         time.sleep(1)
         self.pcie._ctrlr_reinit()
         self._nvme_init()
-        
+
     def cmdname(self, opcode):
         """get the name of the admin command
 
@@ -1758,7 +1764,7 @@ cdef class Qpair(object):
     @property
     def sqid(self):
         return d.qpair_get_id(self._qpair)
-    
+
     @property
     def latest_cid(self):
         return d.qpair_get_latest_cid(self._qpair, self._nvme.pcie._ctrlr)
@@ -2314,8 +2320,16 @@ cdef class Namespace(object):
                          unsigned int dword15):
         assert lba_count <= 64*1024, "exceed lba count limit"
         self._ns = d.nvme_get_ns(self._nvme.pcie._ctrlr, self._nsid)
+
+        if buf is None:
+            ptr = NULL
+            size = 0
+        else:
+            ptr = buf.ptr + buf.offset
+            size = buf.size
+
         ret = d.ns_cmd_io(opcode, self._ns, qpair._qpair,
-                          buf.ptr, buf.size,
+                          ptr, size,
                           lba, lba_count, io_flags<<16,
                           cb_func, cb_arg,
                           dword13, dword14, dword15)
