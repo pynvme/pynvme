@@ -634,6 +634,7 @@ def test_verify_partial_namespace(nvme0):
                      region_end=region_end,
                      read_percentage=50,
                      time=30).start().close()
+    nvme0n1.close()
 
 
 def test_jsonrpc_list_qpairs(pciaddr):
