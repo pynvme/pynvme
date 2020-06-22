@@ -703,26 +703,9 @@ def test_jsonrpc_list_qpairs(pciaddr):
     assert len(result) == 0
 
     
-def test_powercycle_with_qpair(nvme0, nvme0n1):
-    write_buf = d.Buffer(4096*16, ptype=32, pvalue=0xa55aa55a)
-    read_buf = d.Buffer(4096*16)
-    subsystem = d.Subsystem(nvme0)
+def test_powercycle_with_qpair(nvme0, nvme0n1, buf, subsystem):
     qpair = d.Qpair(nvme0, 16)
-
-    nvme0n1.read(qpair, read_buf, 0, 2).waitdone()
-    logging.info(read_buf.dump(16))
-
-    # setting cache write
-    nvme0.setfeatures(6, cdw11=1).waitdone()
-    cdw0 = nvme0.getfeatures(6).waitdone()
-    assert cdw0 == 1
-
-    # cache write data
-    nvme0n1.write(qpair, write_buf, 0, 16).waitdone()
-    nvme0n1.read(qpair, read_buf, 0, 16).waitdone()
-    logging.info(read_buf.dump(16))
-
-    nvme0.setfeatures(2, cdw11=4).waitdone()
+    nvme0n1.read(qpair, buf, 0).waitdone()
 
     # delete qpair before power cycle, and then reset controller, recreate qpair
     qpair.delete()
@@ -730,12 +713,5 @@ def test_powercycle_with_qpair(nvme0, nvme0n1):
     nvme0.reset()
     qpair = d.Qpair(nvme0, 16)
 
-    nvme0n1.read(qpair, read_buf, 0, 8).waitdone()
-    logging.info(read_buf.dump(16))
-
-    # setting cache write
-    nvme0.setfeatures(6, cdw11=0).waitdone()
-    cdw0 = nvme0.getfeatures(6).waitdone()
-    assert cdw0 == 0
-    
+    nvme0n1.read(qpair, buf, 0).waitdone()
     qpair.delete()
