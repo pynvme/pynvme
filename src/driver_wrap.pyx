@@ -388,6 +388,31 @@ cdef class Subsystem(object):
         vdid = vdid.encode('utf-8')
         strncpy(self._vdid, vdid, strlen(vdid)+1)
 
+    def poweroff(self):
+        """power off the device by the poweroff function provided in Subsystem initialization
+        """
+
+        if self._poweroff:
+            logging.info("power off callback")
+            self._poweroff()
+
+        pcie = self._nvme.pcie
+        bdf = pcie._bdf.decode('utf-8')
+        
+        # wait power on stable
+        time.sleep(3)
+        # cleanup host driver after power off, so IO is active at power off
+        pcie._driver_cleanup()
+
+        # reset to inbox driver
+        pcie._bind_driver('nvme')
+        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
+
+        if not self._poweroff:
+            self.power_cycle(15)
+            
+        return True
+
     def poweron(self):
         """power on the device by the poweron function provided in Subsystem initialization
 
@@ -398,57 +423,15 @@ cdef class Subsystem(object):
         if self._poweron:
             logging.info("power on callback")
             self._poweron()
-        
-        # wait power on stable
-        time.sleep(1)
+
+        pcie = self._nvme.pcie
+            
         # remove kernel driver
         subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
         subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
-        self._nvme.pcie._rescan()
-
-        nvme = 'nvme'
-        spdk = 'uio_pci_generic'
-        bdf = self._nvme.pcie._bdf.decode('utf-8')
-        vdid = self._vdid.decode('utf-8')
-        
-        # bind to UIO
-        subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, spdk), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, spdk), shell=True)
-
-        # reset driver: namespace is init by every test, so no need reinit
+        pcie._rescan()
+        pcie._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after power on")
-        return True
-
-    def poweroff(self):
-        """power off the device by the poweroff function provided in Subsystem initialization
-        """
-
-        if self._poweroff:
-            logging.info("power off callback")
-            self._poweroff()
-        
-        # wait power on stable
-        time.sleep(1)
-        # cleanup host driver after power off, so IO is active at power off
-        self._nvme.pcie._driver_cleanup()
-
-        nvme = 'nvme'
-        spdk = 'uio_pci_generic'
-        bdf = self._nvme.pcie._bdf.decode('utf-8')
-        vdid = self._vdid.decode('utf-8')
-        
-        # reset to inbox driver
-        subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, nvme), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, nvme), shell=True)
-        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
-
-        if not self._poweroff:
-            self.power_cycle(15)
-            
         return True
 
     def power_cycle(self, sec=10):
@@ -515,18 +498,13 @@ cdef class Subsystem(object):
             return False
 
         pcie = self._nvme.pcie
-        vdid = '%04x %04x' % (pcie.register(0, 2), pcie.register(2, 2))
-        nvme = 'nvme'
-        spdk = 'uio_pci_generic'
         bdf = pcie._bdf.decode('utf-8')
 
+        # notify ioworker to terminate, and wait all IO Qpair closed
         pcie._driver_cleanup()
 
         # reset to inbox driver
-        subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, nvme), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, nvme), shell=True)
+        pcie._bind_driver('nvme')
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
         # nssr.nssrc: nvme subsystem reset
@@ -537,13 +515,8 @@ cdef class Subsystem(object):
         # config spdk driver
         subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
         subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
-        self._nvme.pcie._rescan()
-
-        subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, spdk), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, spdk), shell=True)
-
+        pcie._rescan()
+        pcie._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after subsystem reset")
         return True
 
@@ -713,10 +686,12 @@ cdef class Pcie(object):
         bdf = self._bdf.decode('utf-8')
         vdid = self._vdid.decode('utf-8')
         if os.path.exists("/sys/bus/pci/devices/%s/driver" % bdf):
+            logging.debug("unbind %s on %s" % (vdid, bdf))
             subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
             subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, driver), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, driver), shell=True)
+        logging.debug("bind %s on %s" % (driver, bdf))
 
     def reset(self):  # pcie
         """reset this pcie device with hot reset
