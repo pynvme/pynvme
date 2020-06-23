@@ -65,7 +65,7 @@ def test_init_nvme_back_compatibility(repeat):
 def test_init_nvme_customerized(pcie, repeat):
     def nvme_init(nvme0):
         logging.info("user defined nvme init")
-        
+
         nvme0[0x14] = 0
         while not (nvme0[0x1c]&0x1) == 0: pass
 
@@ -102,7 +102,7 @@ def test_init_nvme_customerized(pcie, repeat):
     # 2. disable cc.en and wait csts.rdy to 0
     nvme0 = d.Controller(pcie, nvme_init_func=nvme_init)
     aerl = nvme0.id_data(259)+1
-    
+
     # test with ioworker
     nvme0n1 = d.Namespace(nvme0, 1)
     qpair = d.Qpair(nvme0, 10)
@@ -158,7 +158,7 @@ def test_init_nvme_customerized(pcie, repeat):
     subsystem.poweron()
     nvme0.reset()              # controller reset: CC.EN
     nvme0.getfeatures(7).waitdone()
-    
+
 
 def test_jsonrpc_list_qpairs(pciaddr):
     import json
@@ -377,19 +377,19 @@ def test_latest_cid(nvme0, nvme0n1, qpair, buf):
     def aer_aborted(cpl):
         logging.info("aer aborted")
     nvme0.aer(cb=aer_aborted)
-    
+
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         nvme0.abort(nvme0.latest_cid).waitdone()
     nvme0.waitdone()
-    
+
     nvme0n1.read(qpair, buf, 0, 8)
     nvme0.abort(qpair.latest_cid).waitdone()
     qpair.waitdone()
 
     nvme0n1.read(qpair, buf, 0, 8).waitdone()
     nvme0.abort(qpair.latest_cid).waitdone()
-    
-    
+
+
 @pytest.mark.skip("two controllers")
 def test_two_controllers(nvme0):
     pcie = d.Pcie('03:00.0')
@@ -1140,9 +1140,9 @@ def test_ioworker_controller_reset_async(nvme0n1, nvme0):
     nvme0.reset()
 
 
-def test_controller_reset_with_ioworkers(nvme0):    
+def test_controller_reset_with_ioworkers(nvme0):
     nvme0n1 = d.Namespace(nvme0, 1, 1024*1024)
-    
+
     for loop in range(10):
         logging.info(loop)
         with nvme0n1.ioworker(io_size=1, time=20), \
@@ -1151,10 +1151,10 @@ def test_controller_reset_with_ioworkers(nvme0):
              nvme0n1.ioworker(io_size=1, time=20):
             time.sleep(5)
             nvme0.reset()
-            
+
     nvme0n1.close()
-    
-        
+
+
 def test_ioworker_power_cycle_async(nvme0, nvme0n1, subsystem):
     for i in range(2):
         start_time = time.time()
@@ -1549,9 +1549,9 @@ def test_buffer_data_pattern():
 
 def test_ioworker_data_pattern(nvme0, nvme0n1, qpair):
     nvme0n1.format(512)
-    
+
     buf = d.Buffer(512)
-    
+
     nvme0n1.ioworker(io_size=8,
                      lba_random=False,
                      read_percentage=0,
@@ -1580,7 +1580,7 @@ def test_ioworker_data_pattern(nvme0, nvme0n1, qpair):
     assert buf[8] == 0
     assert buf[0] == 0
 
-    
+
 def test_buffer_access_overflow():
     b = d.Buffer(1000)
 
@@ -1606,7 +1606,7 @@ def test_page_offset(nvme0, nvme0n1, qpair, buf, offset):
     assert buf[offset] == 0xa5
     assert buf[offset+1] == 0x5a
 
-    
+
 def test_buffer_set_get():
     b = d.Buffer()
     b[0] = 0xa5
@@ -1788,15 +1788,15 @@ def test_write_limited_retry(nvme0n1, nvme0):
 
 def test_write_huge_data(nvme0n1, qpair):
     buf = d.Buffer(2*1024*1024)
-    
+
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
         nvme0n1.write(qpair, buf, 0, 1*1024*1024//512).waitdone()
-    
+
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
         with pytest.raises(AssertionError):
             nvme0n1.write(qpair, buf, 0, 2*1024*1024//512).waitdone()
 
-            
+
 def test_read_limited_retry(nvme0n1, nvme0):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
@@ -3436,12 +3436,12 @@ def test_raw_write_read(nvme0, nvme0n1, qpair, verify):
 
     # use generic cmd to write without pynvme's injected data
     nvme0n1.send_cmd(1, qpair, buf).waitdone()  # write LBA 0
-    
+
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
         nvme0n1.send_cmd(2, qpair, buf).waitdone()  # write LBA 0
     assert buf[0] == 0x5a
     assert buf[1] == 0xa5
-    
+
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
         nvme0n1.read(qpair, buf, 0).waitdone()
     assert buf[0] == 0x5a
@@ -3452,20 +3452,20 @@ def test_raw_write_read(nvme0, nvme0n1, qpair, verify):
     nvme0n1.read(qpair, buf, 0).waitdone()
     assert buf[0] == 0
     assert buf[1] == 0
-    
-    
+
+
 def test_raw_write_read_without_verify(nvme0, nvme0n1, qpair):
     buf = d.Buffer(512, ptype=32, pvalue=0x5aa5a55a)
     nvme0n1.send_cmd(1, qpair, buf).waitdone()  # write LBA 0
-    
+
     nvme0n1.send_cmd(2, qpair, buf).waitdone()  # write LBA 0
     assert buf[0] == 0x5a
     assert buf[1] == 0xa5
-    
+
     nvme0n1.read(qpair, buf, 0).waitdone()
     assert buf[0] == 0x5a
     assert buf[1] == 0xa5
-    
+
 
 @pytest.mark.parametrize("lba_size", [512])
 @pytest.mark.parametrize("repeat", range(2))
