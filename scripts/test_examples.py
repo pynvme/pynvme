@@ -150,19 +150,6 @@ def test_multiple_controllers_and_namespaces():
         p.close()
 
 
-# GUI, productivity
-def test_get_log_page(nvme0):
-    import PySimpleGUI as sg
-
-    lid = int(sg.PopupGetText("Which Log ID to read?", "pynvme"))
-    buf = d.Buffer(512, "%s, Log ID: %d" % (nvme0.id_data(63, 24, str), lid))
-    nvme0.getlogpage(lid, buf).waitdone()
-
-    layout = [ [sg.OK(), sg.Cancel()],
-               [sg.Multiline(buf.dump(), enter_submits=True, disabled=True, size=(80, 25))] ]
-    sg.Window(str(buf), layout, font=('monospace', 12)).Read()
-
-
 # PCIe, different of power states and resets
 def test_power_and_reset(pcie, nvme0, subsystem):
     pcie.aspm = 2              # ASPM L1
