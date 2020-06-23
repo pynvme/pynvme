@@ -5,7 +5,11 @@ import logging
 import nvme as d
 
 
-def test_precondition_format(nvme0n1):
+def test_precondition_format(pcie, nvme0, nvme0n1, subsystem):
+    pcie.reset()
+    nvme0.reset()
+    subsystem.power_cycle()
+    nvme0.reset()
     nvme0n1.format(512)
     
 
@@ -41,7 +45,6 @@ def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     # power on and reset controller
     time.sleep(5)
     subsystem.poweron()
-    time.sleep(0)
     nvme0.reset()
 
     # verify data in cmdlog_list

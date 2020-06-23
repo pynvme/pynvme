@@ -692,6 +692,7 @@ cdef class Pcie(object):
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, driver), shell=True)
         subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, driver), shell=True)
         logging.debug("bind %s on %s" % (driver, bdf))
+        self._rescan()
 
     def reset(self):  # pcie
         """reset this pcie device with hot reset

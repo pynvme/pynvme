@@ -1092,23 +1092,6 @@ def test_wrong_warns(pcie, nvme0, nvme0n1, subsystem, qpair):
         nvme0.getfeatures(7).waitdone()
 
 
-def test_ioworker_subsystem_reset_async(nvme0, nvme0n1, subsystem):
-    for i in range(3):
-        logging.info(i)
-        start_time = time.time()
-        with nvme0n1.ioworker(io_size=8, time=100):
-            time.sleep(5)
-            subsystem.reset()
-            nvme0.reset()
-        # terminated by power cycle
-        assert time.time()-start_time < 25
-
-    subsystem.reset()
-    nvme0.reset()
-    with nvme0n1.ioworker(io_size=8, time=10):
-        pass
-
-
 def test_ioworker_pcie_reset_async(nvme0, nvme0n1, pcie):
     for i in range(3):
         logging.info(i)
@@ -1126,11 +1109,28 @@ def test_ioworker_pcie_reset_async(nvme0, nvme0n1, pcie):
     nvme0.reset()
 
 
+def test_ioworker_subsystem_reset_async(nvme0, nvme0n1, subsystem):
+    for i in range(3):
+        logging.info(i)
+        start_time = time.time()
+        with nvme0n1.ioworker(io_size=8, time=100):
+            time.sleep(5)
+            subsystem.reset()
+            nvme0.reset()
+        # terminated by power cycle
+        assert time.time()-start_time < 25
+
+    subsystem.reset()
+    nvme0.reset()
+    with nvme0n1.ioworker(io_size=8, time=10):
+        pass
+
+
 def test_ioworker_controller_reset_async(nvme0n1, nvme0):
     for i in range(10):
         start_time = time.time()
         with nvme0n1.ioworker(io_size=8, time=100):
-            time.sleep(5)
+            time.sleep(3)
             nvme0.reset()
         # terminated by power cycle
         assert time.time()-start_time < 10
