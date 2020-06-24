@@ -450,9 +450,9 @@ cdef class Subsystem(object):
 
         # use S3/suspend to power off nvme device, and use rtc to power on again
         self._nvme.pcie._driver_cleanup()
-        logging.info("power off nvme device for %d seconds" % sec)
+        logging.info("power off nvme device for %d seconds by S3" % sec)
         subprocess.call("sudo rtcwake -m mem -s %d 1>/dev/null 2>/dev/null" % sec, shell=True)
-        logging.info("power is back")
+        logging.info("power is back by RTC")
         logging.info("reset controller to use it after power cycle")
         return True
 
@@ -670,16 +670,18 @@ cdef class Pcie(object):
 
     def _rescan(self, retry=5):
         # rescan device
-        pciaddr = self._bdf.decode('utf-8')
+        bdf = self._bdf.decode('utf-8')
         subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
-        while not os.path.exists("/sys/bus/pci/devices/"+pciaddr):
+        while not os.path.exists("/sys/bus/pci/devices/"+bdf):
             retry -= 1
             if retry == 0:
-                logging.error("device lost: %s, retry %d" % (pciaddr, retry))
+                logging.error("device lost: %s, retry %d" % (bdf, retry))
                 return False
             time.sleep(1)
-            logging.info("rescan the device: %s, retry %d" % (pciaddr, retry))
+            logging.info("rescan the device: %s, retry %d" % (bdf, retry))
             subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
+        time.sleep(1)
+        logging.debug("find device on %s" % bdf)
         return True
 
     def _bind_driver(self, driver):
