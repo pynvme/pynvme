@@ -398,19 +398,19 @@ cdef class Subsystem(object):
 
         pcie = self._nvme.pcie
         bdf = pcie._bdf.decode('utf-8')
-        
+
         # wait power on stable
         time.sleep(3)
         # cleanup host driver after power off, so IO is active at power off
         pcie._driver_cleanup()
 
         # reset to inbox driver
-        pcie._bind_driver('nvme')
+        pcie._bind_driver(None)
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
         if not self._poweroff:
             self.power_cycle(15)
-            
+
         return True
 
     def poweron(self):
@@ -425,7 +425,7 @@ cdef class Subsystem(object):
             self._poweron()
 
         pcie = self._nvme.pcie
-            
+
         # remove kernel driver
         subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
         subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
@@ -504,7 +504,7 @@ cdef class Subsystem(object):
         pcie._driver_cleanup()
 
         # reset to inbox driver
-        pcie._bind_driver('nvme')
+        pcie._bind_driver(None)
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
         # nssr.nssrc: nvme subsystem reset
@@ -687,13 +687,17 @@ cdef class Pcie(object):
     def _bind_driver(self, driver):
         bdf = self._bdf.decode('utf-8')
         vdid = self._vdid.decode('utf-8')
+
         if os.path.exists("/sys/bus/pci/devices/%s/driver" % bdf):
             logging.debug("unbind %s on %s" % (vdid, bdf))
             subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
             subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, driver), shell=True)
-        subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, driver), shell=True)
-        logging.debug("bind %s on %s" % (driver, bdf))
+
+        if driver:
+            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, driver), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, driver), shell=True)
+            logging.debug("bind %s on %s" % (driver, bdf))
+
         self._rescan()
 
     def reset(self):  # pcie
@@ -709,12 +713,12 @@ cdef class Pcie(object):
         if 'pci' in port:
             port = port[3:]+":00.0"
         assert os.path.exists("/sys/bus/pci/devices/"+port)
-        
+
         # notify ioworker to terminate, and wait all IO Qpair closed
         self._driver_cleanup()
 
         # reset to inbox driver
-        self._bind_driver("nvme")
+        self._bind_driver(None)
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
         # hot reset by TS1 TS2
