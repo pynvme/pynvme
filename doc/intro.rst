@@ -23,7 +23,7 @@ We did not build pynvme from scratch. We build it based on the `SPDK <https://sp
 1. Interrupts. SPDK is a polling mode driver, so it does not support interrupts, like MSIx and MSI. We implemented a software interrupt host controller to enable and check interrupt signals.
 2. Checksum. Storage cares data integrity. Pynvme verifies each LBA block with CRC32 checksum, without any penalty on performance.
 3. Cmdlog. Pynvme traces every command and completion dwords. When any problem happens, users can check the trace data to debug the issue.
-4. IOWorker. It is slow to send each IO in test scripts, so pynvme provides an agent to send IOes in separated processes. Users can create multiple IOWorkers with very low resource overhead. 
+4. IOWorker. It is slow to send IO one by one in test script, so pynvme provides an agent to send batch of IOes in multiple processes.
 
 .. image:: pic/pynvme.png
    :target: pic/pynvme.png
