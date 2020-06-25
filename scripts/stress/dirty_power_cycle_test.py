@@ -27,7 +27,7 @@ def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     nvme0n1 = d.Namespace(nvme0, 1, region_end)
     assert True == nvme0n1.verify_enable(True)
     orig_unsafe_count = power_cycle_count()
-    logging.info("unsafe shutdowns: %d" % orig_unsafe_count)
+    logging.info("power cycle count: %d" % orig_unsafe_count)
 
     # 128K random write
     cmdlog_list = [None]*1000
@@ -69,7 +69,7 @@ def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
 
     # verify unsafe shutdown count
     unsafe_count = power_cycle_count()
-    logging.info("unsafe shutdowns: %d" % unsafe_count)
+    logging.info("power cycle count: %d" % unsafe_count)
     assert unsafe_count == orig_unsafe_count+1
 
     
