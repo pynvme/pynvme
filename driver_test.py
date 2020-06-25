@@ -64,8 +64,7 @@ def test_init_nvme_back_compatibility(repeat):
 @pytest.mark.parametrize("repeat", range(2))
 def test_init_nvme_customerized(pcie, repeat):
     def nvme_init(nvme0):
-        logging.info("user defined nvme init")
-
+        # 2. disable cc.en and wait csts.rdy to 0
         nvme0[0x14] = 0
         while not (nvme0[0x1c]&0x1) == 0: pass
 
@@ -99,7 +98,7 @@ def test_init_nvme_customerized(pcie, repeat):
     # 1. set pcie registers
     pcie.aspm = 0
 
-    # 2. disable cc.en and wait csts.rdy to 0
+    # create controller with user defined init process
     nvme0 = d.Controller(pcie, nvme_init_func=nvme_init)
     aerl = nvme0.id_data(259)+1
 
@@ -157,6 +156,10 @@ def test_init_nvme_customerized(pcie, repeat):
     subsystem.poweroff()
     subsystem.poweron()
     nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
+
+    pcie.reset()               # PCIe reset: hot reset, TS1, TS2
+    nvme0.reset()              # reset controller after pcie reset
     nvme0.getfeatures(7).waitdone()
 
 
@@ -1146,6 +1149,10 @@ def test_controller_reset_with_ioworkers(nvme0):
     for loop in range(10):
         logging.info(loop)
         with nvme0n1.ioworker(io_size=1, time=20), \
+             nvme0n1.ioworker(io_size=1, time=20), \
+             nvme0n1.ioworker(io_size=1, time=20), \
+             nvme0n1.ioworker(io_size=1, time=20), \
+             nvme0n1.ioworker(io_size=1, time=20), \
              nvme0n1.ioworker(io_size=1, time=20), \
              nvme0n1.ioworker(io_size=1, time=20), \
              nvme0n1.ioworker(io_size=1, time=20):

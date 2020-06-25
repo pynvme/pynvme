@@ -399,7 +399,7 @@ cdef class Subsystem(object):
         pcie = self._nvme.pcie
         bdf = pcie._bdf.decode('utf-8')
 
-        # wait power on stable
+        # wait power stable
         time.sleep(3)
         # cleanup host driver after power off, so IO is active at power off
         pcie._driver_cleanup()
@@ -426,9 +426,7 @@ cdef class Subsystem(object):
 
         pcie = self._nvme.pcie
 
-        # remove kernel driver
-        subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
-        subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
+        # config spdk driver
         pcie._rescan()
         pcie._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after power on")
@@ -510,11 +508,8 @@ cdef class Subsystem(object):
         # nssr.nssrc: nvme subsystem reset
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
         self._nvme[0x20] = 0x4e564d65  # "NVMe"
-        time.sleep(1)
 
         # config spdk driver
-        subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
-        subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
         pcie._rescan()
         pcie._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after subsystem reset")
@@ -545,15 +540,17 @@ cdef class Pcie(object):
         if not os.path.exists("/sys/bus/pci/devices/%s" % addr) and \
            not addr.startswith("0000:"):
             addr = "0000:"+addr
-
         bdf = addr.encode('utf-8')
         strncpy(self._bdf, bdf, strlen(bdf)+1)
+
         self._magic = 0x1243568790bacdfe
         self._ctrlr = d.nvme_init(bdf, 0)
         if self._ctrlr is NULL:
             raise NvmeEnumerateError("fail to create the controller")
         #print("create pcie: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
         self._backup = False
+
+        #get vdid
         vdid = '%04x %04x' % (self.register(0, 2), self.register(2, 2))
         vdid = vdid.encode('utf-8')
         strncpy(self._vdid, vdid, strlen(vdid)+1)
@@ -669,9 +666,14 @@ cdef class Pcie(object):
         logging.info("cannot find the capability %d" % cap_id)
 
     def _rescan(self, retry=5):
-        # rescan device
         bdf = self._bdf.decode('utf-8')
+
+        # rescan device without kernel nvme driver
+        subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
+        subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
         subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
+
+        # check if the device is online
         while not os.path.exists("/sys/bus/pci/devices/"+bdf):
             retry -= 1
             if retry == 0:
@@ -680,7 +682,7 @@ cdef class Pcie(object):
             time.sleep(1)
             logging.info("rescan the device: %s, retry %d" % (bdf, retry))
             subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
-        time.sleep(1)
+
         logging.debug("find device on %s" % bdf)
         return True
 
@@ -730,8 +732,6 @@ cdef class Pcie(object):
         time.sleep(0.5)
 
         # config spdk driver
-        subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
-        subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
         self._rescan()
         self._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after pcie reset")
@@ -876,28 +876,28 @@ cdef class Controller(object):
     cdef object nvme_init_func
 
     def __cinit__(self, pcie, nvme_init_func=None):
+        assert type(pcie) is Pcie
         assert nvme_init_func is True or \
                nvme_init_func is None or \
                callable(nvme_init_func)
 
-        if type(pcie) is not Pcie:
-            pcie = Pcie(pcie.decode('utf-8'))
         self.pcie = pcie
-
         self._timeout = _cTIMEOUT*1000
         self.nvme_init_func = nvme_init_func
-        self._nvme_init()
 
-        # post init, register callbacks
+        # register timeout callback
         d.nvme_register_timeout_cb(self.pcie._ctrlr, timeout_driver_cb, self._timeout)
         logging.debug("nvme initialized: %s", self.pcie._bdf)
 
+        # reset the device
+        if nvme_init_func is not True:
+            self._nvme_init()
+
     def _nvme_init(self):
-        if self.nvme_init_func is True:
-            # skip the nvme init process
-            return
-        elif self.nvme_init_func:
+        assert self.nvme_init_func is not True
+        if self.nvme_init_func:
             # user defined nvme init process
+            logging.info("run user defined nvme init")
             return self.nvme_init_func(self)
 
         # pynvme defined default nvme init process
