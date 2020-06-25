@@ -399,12 +399,8 @@ cdef class Subsystem(object):
         pcie = self._nvme.pcie
         bdf = pcie._bdf.decode('utf-8')
 
-        # wait power stable
-        time.sleep(3)
         # cleanup host driver after power off, so IO is active at power off
         pcie._driver_cleanup()
-
-        # reset to inbox driver
         pcie._bind_driver(None)
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
@@ -500,8 +496,6 @@ cdef class Subsystem(object):
 
         # notify ioworker to terminate, and wait all IO Qpair closed
         pcie._driver_cleanup()
-
-        # reset to inbox driver
         pcie._bind_driver(None)
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
@@ -718,8 +712,6 @@ cdef class Pcie(object):
 
         # notify ioworker to terminate, and wait all IO Qpair closed
         self._driver_cleanup()
-
-        # reset to inbox driver
         self._bind_driver(None)
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
