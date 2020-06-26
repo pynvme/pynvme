@@ -95,6 +95,10 @@ setup: reset
 	- sed -i 's/XXXX:BB:DD.F/${pciaddr}/g' .vscode/settings.json
 	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./src/setup.sh  	# UIO is recommended
 
+pypi:
+	python3 setup.py sdist
+	python3 -m twine upload dist/*
+
 tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=ioat --exclude=snippets --exclude=env --exclude=doc
 
