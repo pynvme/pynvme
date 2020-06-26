@@ -392,6 +392,7 @@ cdef class Subsystem(object):
         """power off the device by the poweroff function provided in Subsystem initialization
         """
 
+        # cut power supply immediately without any delay
         if self._poweroff:
             logging.info("power off callback")
             self._poweroff()
