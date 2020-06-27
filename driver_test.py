@@ -3596,8 +3596,6 @@ def test_ioworker_longtime(nvme0, nvme0n1, verify):
 
 @pytest.mark.parametrize("lba_size", [4096, 512, 4096, 512])
 def test_namespace_change_format(nvme0, lba_size):
-    region_end = 0x1000
-
     # format to another lba format
     nvme0n1 = d.Namespace(nvme0)
     nvme0n1.format(lba_size)
@@ -3610,7 +3608,6 @@ def test_namespace_change_format(nvme0, lba_size):
     l = []
     for i in range(2):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             region_end=region_end,
                              lba_random=True, qdepth=16,
                              read_percentage=100, time=10).start()
         l.append(a)

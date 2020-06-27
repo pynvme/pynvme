@@ -1901,7 +1901,7 @@ cdef class Namespace(object):
         """change the format of this namespace
 
         Notice
-            Namespace.format() not only sends the admin command, but also updates driver to activate new format immediately. Recommend to use this API to do format.
+            Namespace.format() not only sends the admin command, but also updates driver to activate new format immediately. Recommend to use this API to do format. Close and re-create namespace when lba format is changed. 
 
         # Parameters
             data_size (int): data size. Default: 512
