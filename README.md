@@ -16,7 +16,7 @@ The pynvme is a python extension module. Users can test NVMe devices intuitively
 5. support MSI/MSIx interrupt
 6. transparent checksum verification on every LBA data
 7. IOWorker generates IO workload of high performance, low latency and high consistency
-8. support multiple controllers and namespaces
+8. support multiple tests on different controllers and namespaces
 9. integrate with pytest
 10. integrate with VSCode
 11. support NVMe over TCP targets

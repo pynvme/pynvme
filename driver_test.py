@@ -158,15 +158,6 @@ def test_init_nvme_customerized(pcie, repeat):
     nvme0.reset()              # controller reset: CC.EN
     nvme0.getfeatures(7).waitdone()
 
-    # workaround
-    nvme0n1 = d.Namespace(nvme0)
-    nvme0n1.ioworker(io_count=1).start().close()
-    nvme0n1.close()
-    
-    pcie.reset()               # PCIe reset: hot reset, TS1, TS2
-    nvme0.reset()              # reset controller after pcie reset
-    nvme0.getfeatures(7).waitdone()
-
 
 def test_jsonrpc_list_qpairs(pciaddr):
     import json
