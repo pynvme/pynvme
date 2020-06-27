@@ -1,30 +1,8 @@
 # for pypi package information
-
-import os
 import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
-
-
-def get_all_subdirs(node):
-    exclude_prefixes = ('__', '.')  # exclusion prefixes
-    for dirpath, dirnames, filenames in os.walk(node):
-        # exclude all dirs starting with exclude_prefixes
-        dirnames[:] = [dirname
-                       for dirname in dirnames
-                       if not dirname.startswith(exclude_prefixes)]
-        yield dirpath, dirnames, filenames
-
-def get_test_files(node):
-    for pathname, _, filenames in get_all_subdirs(node):
-        if filenames:
-            yield pathname, [os.path.join(pathname, f) for f in filenames]
-
-test_files = []
-for root, filelist in get_test_files("scripts/conformance"):
-    test_files.append((root, filelist))
-
 
 setuptools.setup(
     name="pynvme",
@@ -63,6 +41,41 @@ setuptools.setup(
         ('pynvme/scripts/stress',
          ['scripts/stress/dirty_power_cycle_test.py']),
         ('pynvme/include/spdk',
-         ['include/spdk/pci_ids.h'])
-    ] + test_files,
+         ['include/spdk/pci_ids.h']),
+        ('pynvme/scripts/conformance/01_admin_cmd',
+         ['scripts/conformance/01_admin_cmd/abort_test.py',
+          'scripts/conformance/01_admin_cmd/identify_test.py',
+          'scripts/conformance/01_admin_cmd/queue_test.py',
+          'scripts/conformance/01_admin_cmd/firmware_test.py',
+          'scripts/conformance/01_admin_cmd/dst_test.py',
+          'scripts/conformance/01_admin_cmd/format_test.py',
+          'scripts/conformance/01_admin_cmd/aer_test.py',
+          'scripts/conformance/01_admin_cmd/sanitize_test.py',
+          'scripts/conformance/01_admin_cmd/mi_test.py',
+          'scripts/conformance/01_admin_cmd/features_test.py',
+          'scripts/conformance/01_admin_cmd/logpage_test.py']),
+        ('pynvme/scripts/conformance/02_nvm_cmd',
+         ['scripts/conformance/02_nvm_cmd/compare_test.py',
+          'scripts/conformance/02_nvm_cmd/flush_test.py',
+          'scripts/conformance/02_nvm_cmd/read_test.py',
+          'scripts/conformance/02_nvm_cmd/write_uncorrectable_test.py',
+          'scripts/conformance/02_nvm_cmd/deallocate_test.py',
+          'scripts/conformance/02_nvm_cmd/write_test.py',
+          'scripts/conformance/02_nvm_cmd/verify_test.py',
+          'scripts/conformance/02_nvm_cmd/write_zeroes_test.py']),
+        ('pynvme/scripts/conformance/03_features',
+         ['scripts/conformance/03_features/write_protect_test.py',
+          'scripts/conformance/03_features/power_management_test.py',
+          'scripts/conformance/03_features/reset_test.py']),
+        ('pynvme/scripts/conformance/04_registers',
+         ['scripts/conformance/04_registers/controller_test.py',
+          'scripts/conformance/04_registers/power_test.py',
+          'scripts/conformance/04_registers/pcie_test.py']), 
+        ('pynvme/scripts/conformance/05_controller',
+         ['scripts/conformance/05_controller/sq_cq_test.py',
+          'scripts/conformance/05_controller/sqe_cqe_test.py',
+          'scripts/conformance/05_controller/interrupt_test.py',
+          'scripts/conformance/05_controller/prp_test.py',
+          'scripts/conformance/05_controller/arbitration_test.py']),
+    ]
 )
