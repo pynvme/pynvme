@@ -1,9 +1,30 @@
 # for pypi package information
 
+import os
 import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
+
+
+def get_all_subdirs(node):
+    exclude_prefixes = ('__', '.')  # exclusion prefixes
+    for dirpath, dirnames, filenames in os.walk(node):
+        # exclude all dirs starting with exclude_prefixes
+        dirnames[:] = [dirname
+                       for dirname in dirnames
+                       if not dirname.startswith(exclude_prefixes)]
+        yield dirpath, dirnames, filenames
+
+def get_test_files(node):
+    for pathname, _, filenames in get_all_subdirs(node):
+        if filenames:
+            yield pathname, [os.path.join(pathname, f) for f in filenames]
+
+test_files = []
+for root, filelist in get_test_files("scripts/conformance"):
+    test_files.append((root, filelist))
+
 
 setuptools.setup(
     name="pynvme",
@@ -43,5 +64,5 @@ setuptools.setup(
          ['scripts/stress/dirty_power_cycle_test.py']),
         ('pynvme/include/spdk',
          ['include/spdk/pci_ids.h'])
-    ],
+    ] + test_files,
 )
