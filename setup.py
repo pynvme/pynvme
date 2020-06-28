@@ -9,7 +9,7 @@ setuptools.setup(
     version="1.9",
     author="Crane Chu",
     author_email="cranechu@gmail.com",
-    description="build your own tests.",
+    description="builds your own tests.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/pynvme/pynvme",
