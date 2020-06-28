@@ -159,7 +159,7 @@ Scripts can specify one callback function for every command call. After the comm
 
 Pynvme provides two forms of callback function.
 1. single parameters: *cpl*. Pynvme shall pass the whole 16-byte completion data structure to the single parameter callback funciton. This is recommended form. 
-2. two parameters: *cdw0* and *status1*. Pynvme shall pass the dword0 and higher 16-bit of dword2 of Completion Queue Entry to the two-parameter callback function. *status1* is a 16-bit integer, which includes both **Phase Tag** and Status Field. This is the obsoleted form for back-compatibility only. 
+2. two parameters: *cdw0* and *status1*. Pynvme shall pass the dword0 and higher 16-bit of dword3 of Completion Queue Entry to the two-parameter callback function. *status1* is a 16-bit integer, which includes both **Phase Tag** and Status Field. This is the obsoleted form for back-compatibility only. 
    
 Identify Data
 ^^^^^^^^^^^^^
