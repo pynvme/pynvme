@@ -34,7 +34,6 @@
 
 
 import time
-import yaml
 import pytest
 import random
 import logging
@@ -47,13 +46,6 @@ def pytest_addoption(parser):
     parser.addoption(
         "--pciaddr", action="store", default="", help="pci (BDF) address of the device under test, e.g.: 02:00.0"
     )
-
-
-@pytest.fixture(scope="session")
-def pciaddr(request):
-    ret = request.config.getoption("--pciaddr")
-    logging.info("running tests on DUT %s" % ret)
-    return ret
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -71,59 +63,68 @@ def script(request):
 
 
 @pytest.fixture(scope="session")
-def nvme0(pciaddr):
-    ret = d.Controller(pciaddr.encode('utf-8'))
+def pciaddr(request):
+    return request.config.getoption("--pciaddr")
+
+
+@pytest.fixture(scope="function")
+def pcie(pciaddr):
+    ret = d.Pcie(pciaddr)
     yield ret
-    del ret
+    ret.close()
+
+    
+@pytest.fixture(scope="function")
+def nvme0(pcie):
+    ret = d.Controller(pcie)
+    yield ret
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def subsystem(nvme0):
     ret = d.Subsystem(nvme0)
     yield ret
-    del ret
-
-
-@pytest.fixture(scope="session")
-def pcie(nvme0):
-    ret = d.Pcie(nvme0)
-    yield ret
-    del ret
 
 
 @pytest.fixture(scope="function")
 def nvme0n1(nvme0):
-    ret = d.Namespace(nvme0, 1)
+    ret = d.Namespace(nvme0)
     yield ret
     ret.close()
-    del ret
+
+
+@pytest.fixture(scope="function")
+def qpair(nvme0):
+    ret = d.Qpair(nvme0, 64)
+    yield ret
+    ret.delete()
 
     
+@pytest.fixture(scope="function")
+def tcg(nvme0):
+    ret = d.Tcg(nvme0)
+    yield ret
+    ret.close()
+
+
 @pytest.fixture(scope="session")
 def buf():
-    ret = d.Buffer(4096, "default buffer")
+    ret = d.Buffer(4096, "pynvme buffer")
     yield ret
     del ret
 
 
 @pytest.fixture(scope="function")
-def aer(nvme0):
-    def register_cb(func):
-        logging.debug("register aer callback function: %s" % func.__name__)
-        nvme0.register_aer_cb(func)
-    yield register_cb
-    logging.debug("unregister aer callback function")
-    nvme0.register_aer_cb(None)
+def verify(nvme0n1):
+    ret = nvme0n1.verify_enable(True)
+    yield ret
 
 
 @pytest.fixture(scope="function")
-def verify():
-    a = d.config(verify=False)
-    b = d.config(verify=True)
-    yield a!=b  # return True if config success
-    d.config(verify=False)
+def aer():
+    assert False, "aer fixture is replaced by admin command nvme0.aer()"
 
-
+    
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     # execute all other hooks to obtain the report object

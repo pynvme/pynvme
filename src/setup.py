@@ -43,7 +43,7 @@ setup(
 
             # include paths
             include_dirs = ['../spdk/include'],
-            
+
             # dpdk prebuilt static libraries
             libraries=['uuid', 'numa', 'pthread'],
 
@@ -59,7 +59,7 @@ setup(
                 '../spdk/build/lib/libspdk_log.a',
 
                 # force link symbols in these libraries
-                '-Wl,--whole-archive',  
+                '-Wl,--whole-archive',
                 '../spdk/build/lib/libspdk_json.a',
                 '../spdk/build/lib/libspdk_jsonrpc.a',
                 '../spdk/build/lib/libspdk_sock_posix.a',

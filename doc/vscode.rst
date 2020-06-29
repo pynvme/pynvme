@@ -1,7 +1,7 @@
 VSCode
 ======
 
-Pytest is supported by the excellent Python plugin of VSCode, so pynvme is! User can develop and run test scripts in this excellent IDE, with pynvme plugin. 
+VSCode is an excellent source code editor and IDE. It supports python and pytest with an offical extension: https://github.com/microsoft/vscode-python. We developed another extension for pynvme to make VSCode more friendly to SSD test. 
 
 Layout
 ------
@@ -12,7 +12,7 @@ Layout
 
 A. Activity Bar: you can select the last Test icon for pytest and pynvme extensions.
 #. pytest panel: collects all test files and cases in scripts directory.
-#. pynvme panel: displays all active qpairs in all controllers. Click qpair to open or refresh its cmdlog viewer.
+#. pynvme panel: displays all active qpairs in all controllers. Click qpair to open or refresh its cmdlog viewer. Click the icon in the upper right corner to open a performance gauge.
 #. editor: edit test scripts here.
 #. cmdlog viewer: displays the latest 128 commands and completion dwords in one qpair.
 #. log viewer: displays pytest log.
@@ -55,5 +55,5 @@ Setup
       import logging
       import nvme as d    # import pynvme's python package
 
-
-Now, we can edit, debug and run test scripts in VSCode! It time to learn more pynvme features and write our own scripts for NVMe testing in VSCode. 
+      
+Now, we can edit, debug and run test scripts in VSCode! It time to learn more pynvme features and build your own tests.

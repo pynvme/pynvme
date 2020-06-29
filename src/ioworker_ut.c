@@ -43,34 +43,40 @@
 // null stubs
 
 struct spdk_log_flag SPDK_LOG_NVME = {
-	.name = "nvme",
-	.enabled = false,
+  .name = "nvme",
+  .enabled = false,
 };
 
 void
 spdk_log(enum spdk_log_level level, const char *file, const int line, const char *func,
-	 const char *format, ...)
+         const char *format, ...)
 {
 }
 
 void* buffer_init(size_t bytes, uint64_t *phys_addr,
                   uint32_t ptype, uint32_t pvalue)
 {
-  
+
 }
 
 void buffer_fini(void* buf)
 {
-  
+
 }
 
 uint64_t driver_config_read(void)
 {
-  
+
 }
 
 int
 spdk_nvme_qpair_process_completions(struct spdk_nvme_qpair *qpair, uint32_t max_completions)
+{
+  return 0;
+}
+
+int
+nvme_qpair_submit_request(struct spdk_nvme_qpair *qpair, struct nvme_request *req)
 {
   return 0;
 }
@@ -87,19 +93,27 @@ uint32_t spdk_nvme_ns_get_sector_size(struct spdk_nvme_ns *ns)
 
 void timeval_gettimeofday(struct timeval *tv)
 {
-  
+
 }
 
-int ns_cmd_read_write(int is_read,
-                      struct spdk_nvme_ns* ns,
-                      struct spdk_nvme_qpair* qpair,
-                      void* buf,
-                      size_t len,
-                      uint64_t lba,
-                      uint16_t lba_count,
-                      uint32_t io_flags,
-                      spdk_nvme_cmd_cb cb_fn,
-                      void* cb_arg)
+uint32_t spdk_nvme_ns_get_max_io_xfer_size(struct spdk_nvme_ns *ns)
+{
+  return 128*1024;
+}
+
+int ns_cmd_io(uint8_t opcode,
+              struct spdk_nvme_ns* ns,
+              struct spdk_nvme_qpair* qpair,
+              void* buf,
+              size_t len,
+              uint64_t lba,
+              uint32_t lba_count,
+              uint32_t io_flags,
+              spdk_nvme_cmd_cb cb_fn,
+              void* cb_arg, 
+              unsigned int dword13, 
+              unsigned int dword14, 
+              unsigned int dword15)
 {
   return 0;
 }
@@ -151,7 +165,7 @@ static void test_ioworker_distribution_init_single_1000(void)
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 0);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba/100);
 
-  free(ctx.args);  
+  free(ctx.args);
 }
 
 static void test_ioworker_distribution_init_single_10000(void)
@@ -242,7 +256,7 @@ static void test_ioworker_distribution_init_dual_20000(void)
 static void test_ioworker_distribution_init_two_end_20000(void)
 {
   uint64_t max_lba = 20000;
-  
+
   ctx.args = malloc(sizeof(struct ioworker_args));
   memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
   memset(distribution, 0, sizeof(distribution));
@@ -265,14 +279,14 @@ static void test_ioworker_distribution_init_two_end_20000(void)
   CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_end, max_lba);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, max_lba-max_lba/100);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, max_lba);
-  
-  free(ctx.args);  
+
+  free(ctx.args);
 }
 
 static void test_ioworker_distribution_init_two_end_19999(void)
 {
   uint64_t max_lba = 19999;
-  
+
   ctx.args = malloc(sizeof(struct ioworker_args));
   memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
   memset(distribution, 0, sizeof(distribution));
@@ -295,14 +309,14 @@ static void test_ioworker_distribution_init_two_end_19999(void)
   CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_end, 19999);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 19701);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 19999);
-  
-  free(ctx.args);  
+
+  free(ctx.args);
 }
 
 static void test_ioworker_distribution_init_two_end_20001(void)
 {
   uint64_t max_lba = 20001;
-  
+
   ctx.args = malloc(sizeof(struct ioworker_args));
   memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
   memset(distribution, 0, sizeof(distribution));
@@ -325,15 +339,15 @@ static void test_ioworker_distribution_init_two_end_20001(void)
   CU_ASSERT_EQUAL(ctx.dl_table[5000].lba_end, 20001);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 19800);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 20001);
-  
-  free(ctx.args);  
+
+  free(ctx.args);
 }
 
 
 static void test_ioworker_distribution_init_even(void)
 {
   uint64_t max_lba = 20000;
-  
+
   ctx.args = malloc(sizeof(struct ioworker_args));
   memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
   memset(distribution, 0, sizeof(distribution));
@@ -362,15 +376,15 @@ static void test_ioworker_distribution_init_even(void)
   CU_ASSERT_EQUAL(ctx.dl_table[5001].lba_end, 10200);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 19800);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 20000);
-  
-  free(ctx.args);  
+
+  free(ctx.args);
 }
 
 
 static void test_ioworker_distribution_init_not_even(void)
 {
   uint64_t max_lba = 54099;
-  
+
   ctx.args = malloc(sizeof(struct ioworker_args));
   memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
   memset(distribution, 0, sizeof(distribution));
@@ -398,14 +412,14 @@ static void test_ioworker_distribution_init_not_even(void)
   CU_ASSERT_EQUAL(ctx.dl_table[5001].lba_end, 54092);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 53460);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 54092);
-  
-  free(ctx.args);  
+
+  free(ctx.args);
 }
 
 static void test_ioworker_distribution_init_jedec(void)
 {
   uint64_t max_lba = 5400000095ULL;
-  
+
   ctx.args = malloc(sizeof(struct ioworker_args));
   memset(ctx.dl_table, 0, sizeof(ctx.dl_table));
   memset(distribution, 0, sizeof(distribution));
@@ -469,18 +483,18 @@ static void test_ioworker_distribution_init_jedec(void)
   CU_ASSERT_EQUAL(ctx.dl_table[9995].lba_end, 5400000090ULL);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_start, 54000000ULL*99);
   CU_ASSERT_EQUAL(ctx.dl_table[9999].lba_end, 5400000090ULL);
-  
-  free(ctx.args);  
+
+  free(ctx.args);
 }
 
 
 static int suite_ioworker_distribution_init(void)
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
-	if (s == NULL) {
-		CU_cleanup_registry();
-		return CU_get_error();
-	}
+  if (s == NULL) {
+    CU_cleanup_registry();
+    return CU_get_error();
+  }
 
   CU_ADD_TEST(s, test_ioworker_pass);
   CU_ADD_TEST(s, test_ioworker_distribution_init_single_1000);
@@ -493,59 +507,70 @@ static int suite_ioworker_distribution_init(void)
   CU_ADD_TEST(s, test_ioworker_distribution_init_even);
   CU_ADD_TEST(s, test_ioworker_distribution_init_not_even);
   CU_ADD_TEST(s, test_ioworker_distribution_init_jedec);
-  
-	return 0;
+
+  return 0;
 }
 
 
 // test cases
-static void test_timeradd_second_add_0(void)
+static void test_timeradd_usecond_add_0(void)
 {
   struct timeval now = {10, 100};
   struct timeval due = {0, 0};
-  
-  timeradd_second(&now, 0, &due);
-  
+
+  timeradd_usecond(&now, 0, &due);
+
   CU_ASSERT_EQUAL(due.tv_sec, 10);
   CU_ASSERT_EQUAL(due.tv_usec, 100);
 }
 
-static void test_timeradd_second_add_1(void)
+static void test_timeradd_usecond_add_1(void)
 {
   struct timeval now = {10, 10};
   struct timeval due = {0, 0};
-  
-  timeradd_second(&now, 1, &due);
-  
-  CU_ASSERT_EQUAL(due.tv_sec, 11);
-  CU_ASSERT_EQUAL(due.tv_usec, 10);
+
+  timeradd_usecond(&now, 1, &due);
+
+  CU_ASSERT_EQUAL(due.tv_sec, 10);
+  CU_ASSERT_EQUAL(due.tv_usec, 11);
 }
 
-static void test_timeradd_second_add_10(void)
+static void test_timeradd_usecond_add_100(void)
 {
   struct timeval now = {10, 1000*1000ULL};
   struct timeval due = {0, 0};
-  
-  timeradd_second(&now, 100, &due);
-  
-  CU_ASSERT_EQUAL(due.tv_sec, 111);
-  CU_ASSERT_EQUAL(due.tv_usec, 0);
+
+  timeradd_usecond(&now, 100, &due);
+
+  CU_ASSERT_EQUAL(due.tv_sec, 11);
+  CU_ASSERT_EQUAL(due.tv_usec, 100);
 }
 
+static void test_timeradd_usecond_add_10000000(void)
+{
+  struct timeval now = {10, 1ULL};
+  struct timeval due = {0, 0};
 
-static int suite_timeradd_second()
+  timeradd_usecond(&now, 10000000, &due);
+
+  CU_ASSERT_EQUAL(due.tv_sec, 20);
+  CU_ASSERT_EQUAL(due.tv_usec, 1);
+}
+
+static int suite_timeradd_usecond()
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
-	if (s == NULL) {
-		CU_cleanup_registry();
-		return CU_get_error();
-	}
+  if (s == NULL) {
+    CU_cleanup_registry();
+    return CU_get_error();
+  }
 
-  CU_ADD_TEST(s, test_timeradd_second_add_0);
-  CU_ADD_TEST(s, test_timeradd_second_add_1);
-  CU_ADD_TEST(s, test_timeradd_second_add_10);
-  
-	return 0;
+  CU_ADD_TEST(s, test_timeradd_usecond_add_0);
+  CU_ADD_TEST(s, test_timeradd_usecond_add_1);
+  CU_ADD_TEST(s, test_timeradd_usecond_add_100);
+  CU_ADD_TEST(s, test_timeradd_usecond_add_10000000);
+
+  return 0;
 }
 
 
@@ -555,7 +580,7 @@ static void test_ioworker_send_one_is_finish_io_count_full()
   struct ioworker_global_ctx ctx;
   struct timeval now;
   bool ret;
-  
+
   args.io_count = 100;
   ctx.io_count_sent = 100;
 
@@ -563,7 +588,7 @@ static void test_ioworker_send_one_is_finish_io_count_full()
 
   CU_ASSERT_EQUAL(ret, true);
 }
-                                                      
+
 
 static void test_ioworker_send_one_is_finish_time_full()
 {
@@ -571,14 +596,14 @@ static void test_ioworker_send_one_is_finish_time_full()
   struct ioworker_global_ctx ctx;
   struct timeval now;
   bool ret;
-  
+
   args.io_count = 100;
   ctx.io_count_sent = 99;
   now.tv_sec = 100;
   now.tv_usec = 8800;
   ctx.due_time.tv_sec = 100;
   ctx.due_time.tv_usec = 8000;
-  
+
   ret = ioworker_send_one_is_finish(&args, &ctx, &now);
 
   CU_ASSERT_EQUAL(ret, true);
@@ -590,44 +615,44 @@ static void test_ioworker_send_one_is_finish_time_long_full()
   struct ioworker_global_ctx ctx;
   struct timeval now;
   bool ret;
-  
+
   args.io_count = 100;
   ctx.io_count_sent = 99;
   now.tv_sec = 10000000UL+500*3600UL;
   now.tv_usec = 8800;
   ctx.due_time.tv_sec = 10000000UL+500*3600UL;
   ctx.due_time.tv_usec = 8000;
-  
+
   ret = ioworker_send_one_is_finish(&args, &ctx, &now);
 
   CU_ASSERT_EQUAL(ret, true);
-  
+
   args.io_count = 100;
   ctx.io_count_sent = 99;
   now.tv_sec = 10000000UL+500*3600UL;
   now.tv_usec = 8800;
   ctx.due_time.tv_sec = 10000000UL+500*3600UL;
   ctx.due_time.tv_usec = 8801;
-  
+
   ret = ioworker_send_one_is_finish(&args, &ctx, &now);
 
   CU_ASSERT_EQUAL(ret, false);
 }
-                                                      
+
 static void test_ioworker_send_one_is_finish_both_full()
 {
   struct ioworker_args args;
   struct ioworker_global_ctx ctx;
   struct timeval now;
   bool ret;
-  
+
   args.io_count = 99;
   ctx.io_count_sent = 99;
   now.tv_sec = 100;
   now.tv_usec = 8800;
   ctx.due_time.tv_sec = 99;
   ctx.due_time.tv_usec = 8000;
-  
+
   ret = ioworker_send_one_is_finish(&args, &ctx, &now);
 
   CU_ASSERT_EQUAL(ret, true);
@@ -639,34 +664,34 @@ static void test_ioworker_send_one_is_finish_none_full()
   struct ioworker_global_ctx ctx;
   struct timeval now;
   bool ret;
-  
+
   args.io_count = 99;
   ctx.io_count_sent = 9;
   now.tv_sec = 100;
   now.tv_usec = 8800;
   ctx.due_time.tv_sec = 999;
   ctx.due_time.tv_usec = 8000;
-  
+
   ret = ioworker_send_one_is_finish(&args, &ctx, &now);
 
   CU_ASSERT_EQUAL(ret, false);
 }
-                                                      
+
 static int suite_ioworker_send_one_is_finish()
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
-	if (s == NULL) {
-		CU_cleanup_registry();
-		return CU_get_error();
-	}
+  if (s == NULL) {
+    CU_cleanup_registry();
+    return CU_get_error();
+  }
 
   CU_ADD_TEST(s, test_ioworker_send_one_is_finish_io_count_full);
   CU_ADD_TEST(s, test_ioworker_send_one_is_finish_time_full);
   CU_ADD_TEST(s, test_ioworker_send_one_is_finish_time_long_full);
   CU_ADD_TEST(s, test_ioworker_send_one_is_finish_both_full);
   CU_ADD_TEST(s, test_ioworker_send_one_is_finish_none_full);
-  
-	return 0;
+
+  return 0;
 }
 
 
@@ -675,12 +700,12 @@ static void test_ioworker_get_duration_small()
   struct timeval now;
   struct timeval start;
   uint32_t ret;
-  
+
   now.tv_sec = 100;
   now.tv_usec = 8801;
   start.tv_sec = 100;
   start.tv_usec = 8800;
-  
+
   ret = ioworker_get_duration(&start, &now);
 
   CU_ASSERT_EQUAL(ret, 0);
@@ -691,12 +716,12 @@ static void test_ioworker_get_duration_1ms()
   struct timeval now;
   struct timeval start;
   uint32_t ret;
-  
+
   now.tv_sec = 100;
   now.tv_usec = 9801;
   start.tv_sec = 100;
   start.tv_usec = 8800;
-  
+
   ret = ioworker_get_duration(&start, &now);
 
   CU_ASSERT_EQUAL(ret, 1);
@@ -707,12 +732,12 @@ static void test_ioworker_get_duration_1001ms()
   struct timeval now;
   struct timeval start;
   uint32_t ret;
-  
+
   now.tv_sec = 101;
   now.tv_usec = 9801;
   start.tv_sec = 100;
   start.tv_usec = 8800;
-  
+
   ret = ioworker_get_duration(&start, &now);
 
   CU_ASSERT_EQUAL(ret, 1001);
@@ -723,12 +748,12 @@ static void test_ioworker_get_duration_999ms()
   struct timeval now;
   struct timeval start;
   uint32_t ret;
-  
+
   now.tv_sec = 101;
   now.tv_usec = 0;
   start.tv_sec = 100;
   start.tv_usec = 1499;
-  
+
   ret = ioworker_get_duration(&start, &now);
 
   CU_ASSERT_EQUAL(ret, 999);
@@ -739,12 +764,12 @@ static void test_ioworker_get_duration_998ms()
   struct timeval now;
   struct timeval start;
   uint32_t ret;
-  
+
   now.tv_sec = 101;
   now.tv_usec = 0;
   start.tv_sec = 100;
   start.tv_usec = 1501;
-  
+
   ret = ioworker_get_duration(&start, &now);
 
   CU_ASSERT_EQUAL(ret, 998);
@@ -755,12 +780,12 @@ static void test_ioworker_get_duration_large()
   struct timeval now;
   struct timeval start;
   uint32_t ret;
-  
+
   now.tv_sec = 1000*3600UL;
   now.tv_usec = 0;
   start.tv_sec = 0;
   start.tv_usec = 0;
-  
+
   ret = ioworker_get_duration(&start, &now);
 
   CU_ASSERT_EQUAL(ret, 3600000000UL);
@@ -769,10 +794,10 @@ static void test_ioworker_get_duration_large()
 static int suite_ioworker_get_duration()
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
-	if (s == NULL) {
-		CU_cleanup_registry();
-		return CU_get_error();
-	}
+  if (s == NULL) {
+    CU_cleanup_registry();
+    return CU_get_error();
+  }
 
   CU_ADD_TEST(s, test_ioworker_get_duration_small);
   CU_ADD_TEST(s, test_ioworker_get_duration_1ms);
@@ -780,8 +805,8 @@ static int suite_ioworker_get_duration()
   CU_ADD_TEST(s, test_ioworker_get_duration_999ms);
   CU_ADD_TEST(s, test_ioworker_get_duration_998ms);
   CU_ADD_TEST(s, test_ioworker_get_duration_large);
-  
-	return 0;
+
+  return 0;
 }
 
 
@@ -795,18 +820,18 @@ static void test_ioworker_update_rets_latency_read()
   uint32_t ret;
 
   MOCK_SET(timeval_to_us, 200);
-  
+
   rets.latency_max_us = 100;
-  ctx.is_read = true;
+  ctx.opcode = 2;
   rets.io_count_read = 10;
-  rets.io_count_write = 11;
-  
+  rets.io_count_nonread = 11;
+
   ret = ioworker_update_rets(&ctx, &rets, &now);
 
   CU_ASSERT_EQUAL(rets.latency_max_us, 200);
   CU_ASSERT_EQUAL(ret, 200);
   CU_ASSERT_EQUAL(rets.io_count_read, 11);
-  CU_ASSERT_EQUAL(rets.io_count_write, 11);
+  CU_ASSERT_EQUAL(rets.io_count_nonread, 11);
 }
 
 static void test_ioworker_update_rets_latency_write()
@@ -817,18 +842,18 @@ static void test_ioworker_update_rets_latency_write()
   uint32_t ret;
 
   MOCK_SET(timeval_to_us, 2000);
-  
+
   rets.latency_max_us = 100;
-  ctx.is_read = false;
+  ctx.opcode = 1;
   rets.io_count_read = 10;
-  rets.io_count_write = 11;
-  
+  rets.io_count_nonread = 11;
+
   ret = ioworker_update_rets(&ctx, &rets, &now);
 
   CU_ASSERT_EQUAL(rets.latency_max_us, 2000);
   CU_ASSERT_EQUAL(ret, 2000);
   CU_ASSERT_EQUAL(rets.io_count_read, 10);
-  CU_ASSERT_EQUAL(rets.io_count_write, 12);
+  CU_ASSERT_EQUAL(rets.io_count_nonread, 12);
 }
 
 static void test_ioworker_update_rets_latency_large_write()
@@ -839,18 +864,18 @@ static void test_ioworker_update_rets_latency_large_write()
   uint32_t ret;
 
   MOCK_SET(timeval_to_us, 4000000000U);
-  
+
   rets.latency_max_us = 100;
-  ctx.is_read = false;
+  ctx.opcode = 1;
   rets.io_count_read = 10;
-  rets.io_count_write = 11;
-  
+  rets.io_count_nonread = 11;
+
   ret = ioworker_update_rets(&ctx, &rets, &now);
 
   CU_ASSERT_EQUAL(rets.latency_max_us, 4000000000U);
   CU_ASSERT_EQUAL(ret, 4000000000U);
   CU_ASSERT_EQUAL(rets.io_count_read, 10);
-  CU_ASSERT_EQUAL(rets.io_count_write, 12);
+  CU_ASSERT_EQUAL(rets.io_count_nonread, 12);
 }
 
 static void test_ioworker_update_rets_read()
@@ -861,18 +886,18 @@ static void test_ioworker_update_rets_read()
   uint32_t ret;
 
   MOCK_SET(timeval_to_us, 2000);
-  
+
   rets.latency_max_us = 10000;
-  ctx.is_read = true;
+  ctx.opcode = 2;
   rets.io_count_read = 10;
-  rets.io_count_write = 11;
-  
+  rets.io_count_nonread = 11;
+
   ret = ioworker_update_rets(&ctx, &rets, &now);
 
   CU_ASSERT_EQUAL(rets.latency_max_us, 10000);
   CU_ASSERT_EQUAL(ret, 2000);
   CU_ASSERT_EQUAL(rets.io_count_read, 11);
-  CU_ASSERT_EQUAL(rets.io_count_write, 11);
+  CU_ASSERT_EQUAL(rets.io_count_nonread, 11);
 }
 
 static void test_ioworker_update_rets_write()
@@ -883,35 +908,35 @@ static void test_ioworker_update_rets_write()
   uint32_t ret;
 
   MOCK_SET(timeval_to_us, 2000);
-  
+
   rets.latency_max_us = 10000;
-  ctx.is_read = false;
+  ctx.opcode = 1;
   rets.io_count_read = 10;
-  rets.io_count_write = 11;
-  
+  rets.io_count_nonread = 11;
+
   ret = ioworker_update_rets(&ctx, &rets, &now);
 
   CU_ASSERT_EQUAL(rets.latency_max_us, 10000);
   CU_ASSERT_EQUAL(ret, 2000);
   CU_ASSERT_EQUAL(rets.io_count_read, 10);
-  CU_ASSERT_EQUAL(rets.io_count_write, 12);
+  CU_ASSERT_EQUAL(rets.io_count_nonread, 12);
 }
 
 static int suite_ioworker_update_rets()
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
-	if (s == NULL) {
-		CU_cleanup_registry();
-		return CU_get_error();
-	}
+  if (s == NULL) {
+    CU_cleanup_registry();
+    return CU_get_error();
+  }
 
   CU_ADD_TEST(s, test_ioworker_update_rets_latency_read);
   CU_ADD_TEST(s, test_ioworker_update_rets_latency_write);
   CU_ADD_TEST(s, test_ioworker_update_rets_latency_large_write);
   CU_ADD_TEST(s, test_ioworker_update_rets_read);
   CU_ADD_TEST(s, test_ioworker_update_rets_write);
-  
-	return 0;
+
+  return 0;
 }
 
 static void test_ioworker_update_io_count_per_second_1()
@@ -921,14 +946,14 @@ static void test_ioworker_update_io_count_per_second_1()
   struct ioworker_rets rets;
 
   rets.io_count_read = 0;
-  rets.io_count_write = 1;
+  rets.io_count_nonread = 1;
   ctx.last_sec = 10;
   ctx.time_next_sec.tv_sec = 1;
   ctx.time_next_sec.tv_usec = 100;
   ctx.io_count_till_last_sec = 0;
   args.io_counter_per_second = malloc(sizeof(uint32_t)*20);
   args.io_counter_per_second[10] = 0;
-  
+
   ioworker_update_io_count_per_second(&ctx, &args, &rets);
 
   CU_ASSERT_EQUAL(ctx.last_sec, 11);
@@ -947,14 +972,14 @@ static void test_ioworker_update_io_count_per_second_100000_long()
   struct ioworker_rets rets;
 
   rets.io_count_read = 30000;
-  rets.io_count_write = 80000;
+  rets.io_count_nonread = 80000;
   ctx.last_sec = 500*3600;
   ctx.time_next_sec.tv_sec = 12345;
   ctx.time_next_sec.tv_usec = 0;
   ctx.io_count_till_last_sec = 10000;
   args.io_counter_per_second = malloc(sizeof(uint32_t)*1000*3600);
   args.io_counter_per_second[500*3600] = 0;
-  
+
   ioworker_update_io_count_per_second(&ctx, &args, &rets);
 
   CU_ASSERT_EQUAL(ctx.last_sec, 500*3600+1);
@@ -969,15 +994,15 @@ static void test_ioworker_update_io_count_per_second_100000_long()
 static int suite_ioworker_update_io_count_per_second()
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
-	if (s == NULL) {
-		CU_cleanup_registry();
-		return CU_get_error();
-	}
+  if (s == NULL) {
+    CU_cleanup_registry();
+    return CU_get_error();
+  }
 
   CU_ADD_TEST(s, test_ioworker_update_io_count_per_second_1);
   CU_ADD_TEST(s, test_ioworker_update_io_count_per_second_100000_long);
 
-	return 0;
+  return 0;
 }
 
 
@@ -986,12 +1011,12 @@ static int test_ioworker_iosize_init_single()
   struct ioworker_global_ctx ctx;
   struct ioworker_args args;
   uint32_t ratio = 10;
-  
+
   ctx.args = &args;
   args.lba_size_list_len = 1;
   args.lba_size_list_ratio = &ratio;
   args.lba_size_ratio_sum = 10;
-  
+
   ioworker_iosize_init(&ctx);
 
   CU_ASSERT_EQUAL(args.lba_size_ratio_sum, 10);
@@ -1005,12 +1030,12 @@ static int test_ioworker_iosize_init_dual()
   struct ioworker_global_ctx ctx;
   struct ioworker_args args;
   uint32_t ratio[] = {1, 2};
-  
+
   ctx.args = &args;
   args.lba_size_list_len = 2;
   args.lba_size_list_ratio = &ratio[0];
   args.lba_size_ratio_sum = 3;
-  
+
   ioworker_iosize_init(&ctx);
 
   CU_ASSERT_EQUAL(args.lba_size_ratio_sum, 3);
@@ -1024,12 +1049,12 @@ static int test_ioworker_iosize_init_jedec()
   struct ioworker_global_ctx ctx;
   struct ioworker_args args;
   uint32_t ratio[] = {4, 1, 1, 1, 1, 1, 1, 67, 10, 7, 3, 3};
-  
+
   ctx.args = &args;
   args.lba_size_list_len = 12;
   args.lba_size_list_ratio = &ratio[0];
   args.lba_size_ratio_sum = 100;
-  
+
   ioworker_iosize_init(&ctx);
 
   CU_ASSERT_EQUAL(args.lba_size_ratio_sum, 100);
@@ -1062,16 +1087,16 @@ static int test_ioworker_iosize_init_jedec()
 static int suite_ioworker_iosize_init()
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
-	if (s == NULL) {
-		CU_cleanup_registry();
-		return CU_get_error();
-	}
+  if (s == NULL) {
+    CU_cleanup_registry();
+    return CU_get_error();
+  }
 
   CU_ADD_TEST(s, test_ioworker_iosize_init_single);
   CU_ADD_TEST(s, test_ioworker_iosize_init_dual);
   CU_ADD_TEST(s, test_ioworker_iosize_init_jedec);
 
-	return 0;
+  return 0;
 }
 
 
@@ -1113,7 +1138,7 @@ static void test_ioworker_send_one_lba_seq_end()
 
   CU_ASSERT_EQUAL(ret, 0);
   CU_ASSERT_EQUAL(ctx.sequential_lba, 1);
-  
+
   ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
 
   CU_ASSERT_EQUAL(ret, 1);
@@ -1131,7 +1156,7 @@ static void test_ioworker_send_one_lba_seq_end()
 
   CU_ASSERT_EQUAL(ret, 100);
   CU_ASSERT_EQUAL(ctx.sequential_lba, 104);
-  
+
   ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
 
   CU_ASSERT_EQUAL(ret, 0);
@@ -1141,27 +1166,27 @@ static void test_ioworker_send_one_lba_seq_end()
 static int suite_ioworker_send_one_lba()
 {
   CU_Suite* s = CU_add_suite(__func__, NULL, NULL);
-	if (s == NULL) {
-		CU_cleanup_registry();
-		return CU_get_error();
-	}
+  if (s == NULL) {
+    CU_cleanup_registry();
+    return CU_get_error();
+  }
 
   CU_ADD_TEST(s, test_ioworker_send_one_lba_seq);
   CU_ADD_TEST(s, test_ioworker_send_one_lba_seq_end);
 
-	return 0;
+  return 0;
 }
 
 
 int main()
 {
-	unsigned int	num_failures;
+  unsigned int  num_failures;
 
-	if (CU_initialize_registry() != CUE_SUCCESS) {
-		return CU_get_error();
-	}
+  if (CU_initialize_registry() != CUE_SUCCESS) {
+    return CU_get_error();
+  }
 
-  suite_timeradd_second();
+  suite_timeradd_usecond();
   suite_ioworker_distribution_init();
   suite_ioworker_send_one_is_finish();
   suite_ioworker_get_duration();
@@ -1169,9 +1194,9 @@ int main()
   suite_ioworker_update_io_count_per_second();
   suite_ioworker_iosize_init();
   suite_ioworker_send_one_lba();
-  
+
   CU_basic_run_tests();
-	num_failures = CU_get_number_of_failures();
-	CU_cleanup_registry();
-	return num_failures;
+  num_failures = CU_get_number_of_failures();
+  CU_cleanup_registry();
+  return num_failures;
 }

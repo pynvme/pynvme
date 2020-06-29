@@ -1,10 +1,10 @@
 Install
 =======
 
-Quick Start
------------
+All-in-One
+----------
 
-Normally, users can build pynvme by simply running *install.sh*. It generates the pynvme Python package *nvme.so*. This is the recommended method to compile pynvme.
+Users can build pynvme by simply running *install.sh* after getting source code from github. This is the recommended method to compile pynvme.
 
 .. code-block:: shell
 
@@ -12,30 +12,30 @@ Normally, users can build pynvme by simply running *install.sh*. It generates th
    cd pynvme
    ./install.sh
    
-Users then can import the package for NVMe test scripts:
+Now, it generates binary python module *nvme.so*. Users can import it in Python scripts:
 
 .. code-block:: python
 
    import nvme as d
-   nvme0 = d.Controller(b"01:00.0")  
+   nvme0 = d.Controller(d.Pcie("01:00.0"))
    
-We will describe more details of installation below, in case *install.sh* cannot give you the expected package binary file. 
+We will describe more details of installation below. You can skip to the next chapter if you have already got the binary *nvme.so*.
 
 System Requirements
 -------------------
 
 Pynvme is a software-defined NVMe test solution, so users can install and use pynvme in most of the commodity computers with some requirements:
 
-#. CPU: Intel x86_64.
+#. CPU: Intel x86_64, 4-core or more.
 #. Memory: 4GB or larger.
 #. OS: Linux. Fedora is recommanded. 
 #. Python3: Python2 is not supported.
 #. sudo privilege is required.
 #. NVMe: NVMe SSD is the devices to be tested. Backup your data!
-#. RAID mode (Intel® RST): should be disabled in BIOS.
-#. Secure boot: should be disabled in BIOS.
-#. IOMMU: (a.k.a. VT for Direct I/O) should be disabled in BIOS.
-#. VMD: should be disabled in BIOS.
+#. RAID mode (Intel® RST): shall be disabled in BIOS.
+#. Secure boot: shall be disabled in BIOS.
+#. IOMMU: (a.k.a. VT for Direct I/O) shall be disabled in BIOS.
+#. VMD: shall be disabled in BIOS.
 #. NUMA: recommend to be disabled in BIOS.
 #. SATA: recommend to install OS and pynvme in a SATA drive.
 
@@ -49,9 +49,15 @@ We clone the pynvme source code from GitHub. We recommend to checkout the latest
 
    git clone https://github.com/pynvme/pynvme
    cd pynvme
-   git checkout tags/1.7
+   git checkout tags/1.9
 
-   
+Or you can clone the code from the mirror repository:
+
+.. code-block:: shell
+
+   git clone https://gitee.com/pynvme/pynvme
+
+                
 Prerequisites
 -------------
 
@@ -84,7 +90,7 @@ We need to compile and test SPDK first.
 
    # use the according pynvme-modified SPDK code
    cd spdk
-   git checkout pynvme_1.3
+   git checkout pynvme_1.9
 
    # configure SPDK
    ./configure --without-isal;
@@ -96,7 +102,7 @@ We need to compile and test SPDK first.
    # compile pynvme
    make
 
-Now, we can find a generated binary file like: *nvme.cpython-37m-x86_64-linux-gnu.so*.
+Now, we can find a generated binary file *nvme.so*.
 
 Test
 ----
@@ -108,12 +114,8 @@ After compilation, let's first verify if SPDK works in your platform with SPDK a
    # setup SPDK runtime environment             
    make setup
 
-   # compile the application
-   cd spdk/examples/nvme/identify
-   sudo make
-
-   # run the application
-   sudo ./identify
+   # run pre-built SPDK application
+   sudo ./identify_nvme
 
 This application lists identify data of your NVMe SSD. If it works, let's move ahead to run pynvme tests!
 
@@ -131,4 +133,16 @@ After the test, we can find the file *test.log* in pynvme directory, which keeps
 
    make reset
 
-OK! Pynvme is ready now. 
+pip
+---
+
+As an alternative way, we can also install pynvme with pip in the latest Fedora Linux. 
+
+.. code-block:: shell
+ 
+   pip install pynvme
+   cd /usr/local/pynvme
+   make setup
+   make test TESTS="driver_test.py::test_ioworker_iops_multiple_queue[1]"
+
+It installs a prebuilt pynvme binary module. But we still recommend to clone pynvme source code and compile it by *install.sh*.

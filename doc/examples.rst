@@ -1,12 +1,13 @@
 Examples
 ========
 
-In this chapter, we will review several typical NVMe test scripts. 
+In this chapter, we will review several typical NVMe test scripts. You can find more example scripts here: https://github.com/pynvme/pynvme/blob/master/scripts/test_examples.py
 
 Ex1: hello world
 ----------------
 
 .. code-block:: python
+   :linenos:
 
    # import packages
    import pytest
@@ -44,6 +45,7 @@ Ex2: sanitize
 -------------
 
 .. code-block:: python
+   :linenos:
 
    # import more package for GUI programming
    import PySimpleGUI as sg
@@ -73,6 +75,7 @@ Ex3: parameterized tests
 ------------------------
 
 .. code-block:: python
+   :linenos:
 
    # create a parameter with a argument list
    @pytest.mark.parametrize("qcount", [1, 2, 4, 8, 16])
@@ -91,7 +94,7 @@ Ex3: parameterized tests
        # after all ioworkers complete, calculate the IOPS performance result
        for a in l:
            r = a.close()
-           io_total += (r.io_count_read+r.io_count_write)
+           io_total += (r.io_count_read+r.io_count_nonread)
        logging.info("Q %d IOPS: %dK" % (qcount, io_total/10000))
 
        
@@ -99,6 +102,7 @@ Ex4: upgrade and reboot the drive
 ---------------------------------
 
 .. code-block:: python
+   :linenos:
 
    # this test function is actually a utility to upgrade SSD firmware
    def test_download_firmware(nvme0, subsystem):
@@ -112,12 +116,16 @@ Ex4: upgrade and reboot the drive
 
            # power cycle the SSD to activate the upgraded firmware
            subsystem.power_cycle()
+
+           # reset controller after power cycle
+           nvme0.reset()
                    
 
 Ex5: write drive and monitor temperature
 ----------------------------------------
 
 .. code-block:: python
+   :linenos:
 
    # a temperature calculation package
    from pytemperature import k2c
@@ -143,13 +151,14 @@ Ex6: multiple ioworkers on different namespaces and controllers
 ---------------------------------------------------------------
 
 .. code-block:: python
+   :linenos:
 
    def test_multiple_controllers_and_namespaces():
        # address list of the devices to test
-       addr_list = [b'3a:00.0', b'10.24.48.17']
+       addr_list = ['3a:00.0', '10.24.48.17']
 
        # create the list of controllers and namespaces
-       nvme_list = [d.Controller(a) for a in addr_list]
+       nvme_list = [d.Controller(d.Pcie(a)) for a in addr_list]
        ns_list = [d.Namespace(n) for n in nvme_list]
    
        # operations on multiple controllers
@@ -168,7 +177,7 @@ Ex6: multiple ioworkers on different namespaces and controllers
        # test results of different namespaces
        for ns in ioworkers:
            r = ioworkers[ns].close()
-           io_total = (r.io_count_read+r.io_count_write)
+           io_total = (r.io_count_read+r.io_count_nonread)
            logging.info("capacity: %u, IOPS: %.3fK" %
                         (ns.id_data(7, 0), io_total/10000))
    
@@ -177,6 +186,7 @@ Ex7: format and fused operations
 --------------------------------
 
 .. code-block:: python
+   :linenos:
 
    # fused operation is not directly supported by pynvme APIs
    def test_fused_operations(nvme0, nvme0n1):

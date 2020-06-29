@@ -1,7 +1,7 @@
-pynvme: test NVMe devices in Python
-===================================
+pynvme: builds your own tests.
+==============================
 
-The pynvme is a Python extension module. Users can test NVMe devices intuitively in Python scripts. It is designed for NVMe storage developers with performance considered. Integrated with third-party tools (e.g. vscode and pytest), pynvme provides a convenient and professional solution of NVMe testing.
+Pynvme is an user-space PCIe/NVMe test driver with Python API. It is an open, fast, and extensible solution for SSD developers and test engineers to build their own tests intuitively.
 
 **Quick Start in 3 Steps!**
 
@@ -18,18 +18,18 @@ The pynvme is a Python extension module. Users can test NVMe devices intuitively
    cd pynvme
    ./install.sh
 
-3. Run pynvme tests. It reports 4K read IOPS of your SSD in 10 seconds.
+3. Run pynvme tests. 
 
 .. code-block:: shell
 
    make setup
    make test TESTS="driver_test.py::test_ioworker_iops_multiple_queue[1]"
 
-In this document, we explain the design and usage of pynvme, and you can soon write your own Python scripts to test NVMe devices.
+In this document, we explain the design and usage of pynvme, and you can soon build your own tests of NVMe devices.
 
 
-.. image:: logo.jpg
-   :target: logo.jpg
+.. image:: slogen.png
+   :target: slogen.png
    :alt: pynvme logo
 
          

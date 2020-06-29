@@ -4,7 +4,8 @@ import logging
 import nvme as d
 
 
-def test_ioworker_jedec_enterprise_workload(nvme0n1):
+def test_ioworker_jedec_enterprise_workload_512(nvme0n1):
+    nvme0n1.format(512)
     distribution = [1000]*5 + [200]*15 + [25]*80
     iosz_distribution = {1: 4,
                          2: 1,
@@ -28,13 +29,36 @@ def test_ioworker_jedec_enterprise_workload(nvme0n1):
                      time=12*3600).start().close()
 
 
+def test_ioworker_jedec_enterprise_workload_4k(nvme0n1):
+    nvme0n1.format(4096)
+    distribution = [1000]*5 + [200]*15 + [25]*80
+    iosz_distribution = {1: 77,
+                         2: 10,
+                         4: 7,
+                         8: 3,
+                         16: 3}
+
+    nvme0n1.ioworker(io_size=iosz_distribution,
+                     lba_random=True,
+                     qdepth=128,
+                     distribution = distribution,
+                     read_percentage=0,
+                     ptype=0xbeef, pvalue=100, 
+                     time=12*3600).start().close()
+
+    # change back to 512B LBA format
+    nvme0n1.format(512)
+
+    
 def test_replay_jedec_client_trace(nvme0, nvme0n1):
     q = d.Qpair(nvme0, 1024)
     buf = d.Buffer(256*512, "write", 100, 0xbeef) # upto 128K
+    trim_buf = d.Buffer(4096)
     batch = 0
     counter = 0
 
     nvme0n1.format(512)
+    
     with zipfile.ZipFile("scripts/stress/MasterTrace_128GB-SSD.zip") as z:
         for s in z.open("Client_128_GB_Master_Trace.txt"):
             l = str(s)[7:-5]
@@ -58,8 +82,8 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
                         nlba -= n
                 elif op == 's':
                     # trims
-                    buf.set_dsm_range(0, slba, nlba)
-                    nvme0n1.dsm(q, buf, 1)
+                    trim_buf.set_dsm_range(0, slba, nlba)
+                    nvme0n1.dsm(q, trim_buf, 1)
                     counter += 1
                 else:
                     logging.info(l)
@@ -73,3 +97,5 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
                 counter = 0
 
     q.waitdone(counter)
+    q.delete()
+    

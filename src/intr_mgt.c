@@ -75,29 +75,31 @@ static bool msi_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt)
   uint64_t msg_addr = 0;
   char intc_name[64];
 
+  msi_cap_base = pcie_find_cap_base_addr(pci, 0x05);
+  if (msi_cap_base == 0)
+  {
+    SPDK_WARNLOG("no msi capability found!\n");
+    return false;
+  }
+
   // collect intc information of this controller
   snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
   intr_info = spdk_memzone_reserve(intc_name,
                                    (sizeof(uint32_t) * MAX_VECTOR_NUM),
                                    0,
                                    0);
-  SPDK_INFOLOG(SPDK_LOG_NVME, "intr info 0x%lx\n", (uint64_t)intr_info);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "intr info 0x%lx\n", (uint64_t)intr_info);
   assert(intr_info != NULL);
   msi_ctrl = &intr_info->msi_info;
-  msi_cap_base = pcie_find_cap_base_addr(pci, 0x05);
-  if (msi_cap_base == 0)
-  {
-    return false;
-  }
 
-  SPDK_INFOLOG(SPDK_LOG_NVME, "cap base value 0x%x\n", msi_cap_base);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "cap base value 0x%x\n", msi_cap_base);
   spdk_pci_device_cfg_read16(pci, &control, (msi_cap_base + 2));
-  SPDK_INFOLOG(SPDK_LOG_NVME, "mc reg value 0x%08x\n", control);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "mc reg value 0x%08x\n", control);
   msi_ctrl->pvm_support = (control & BIT(8));
 
   //config msg address & msg data
   msg_addr = spdk_vtophys(&intr_info->msg_data[0], NULL);
-  SPDK_INFOLOG(SPDK_LOG_NVME, "msg physical addr value 0x%lx\n", msg_addr);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "msg physical addr value 0x%lx\n", msg_addr);
   spdk_pci_device_cfg_write32(pci, (uint32_t)msg_addr, (msi_cap_base + 4));
   spdk_pci_device_cfg_write32(pci, (uint32_t)(msg_addr >> 32), (msi_cap_base + 8));
   //config msi intr msg data
@@ -133,6 +135,15 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
   uint64_t size;
   char intc_name[64];
 
+  // pynvme: enable msix interrupt
+  //SPDK_ERRLOG("msix intr int, intr mgt 0x%lx\n", (uint64_t)intr_mgt);
+  msix_base = pcie_find_cap_base_addr(pci, 0x11);
+  if (msix_base == 0)
+  {
+    SPDK_WARNLOG("no msix capability found!\n");
+    return false;
+  }
+
   // collect intc information of this controller
   snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
   intr_info = spdk_memzone_reserve(intc_name,
@@ -142,16 +153,7 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
   assert(intr_info != NULL);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "intr info 0x%lx\n", (uint64_t)intr_info);
   msix_ctrl = &intr_info->msix_info;
-  
-  // pynvme: enable msix interrupt
-  //SPDK_ERRLOG("msix intr int, intr mgt 0x%lx\n", (uint64_t)intr_mgt);
-  msix_base = pcie_find_cap_base_addr(pci, 0x11);
-  if (msix_base == 0)
-  {
-    SPDK_ERRLOG("MSIX BASE == 0\n");
-    return false;
-  }
-  
+
   //find address of MSIX table.
   spdk_pci_device_cfg_read32(pci, &bir_val, (msix_base + 4));
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix bir %x\n", bir_val);
@@ -160,7 +162,7 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
   if ((bir_val != 0x0) && (bir_val != 0x04))
   {
     ret = false;
-    SPDK_INFOLOG(SPDK_LOG_NVME, "mapping MSIX table to an invalid bar, msix init fail, switch the interrupt to msi\n");
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "mapping MSIX table to an invalid bar, msix init fail, switch the interrupt to msi\n");
     return ret;
   }
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix bir %x, bar offset %x\n", bir_val, bar_offset);
@@ -171,7 +173,7 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
 
   vector_num = (control & 0x7fff) + 1;
   vector_num = MIN(vector_num, MAX_VECTOR_NUM);
-  SPDK_INFOLOG(SPDK_LOG_NVME, "vector_num %d\n", vector_num);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "vector_num %d\n", vector_num);
   intr_info->max_vec_num = vector_num;
 
   //map bar phys_addr to virtual addr
@@ -210,7 +212,7 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
     msix_table[i].mask = 0;
     msix_table[i].rsvd = 0;
   }
-  
+
   // enable msix
   control |= 0x8000;
   spdk_pci_device_cfg_write16(pci, control, msix_base + 2);
@@ -222,29 +224,25 @@ static bool msix_intc_init(struct spdk_nvme_ctrlr *ctrlr, intr_ctrl_t** intr_mgt
 
 void intc_init(struct spdk_nvme_ctrlr *ctrlr)
 {
-  bool ret = true;
-
-  // interrupt is enabled on PCIe devices only
-  assert(ctrlr->trid.trtype == SPDK_NVME_TRANSPORT_PCIE);  
+  bool ret;
   
+  // interrupt is enabled on PCIe devices only
+  assert(ctrlr->trid.trtype == SPDK_NVME_TRANSPORT_PCIE);
+
   //search msix first, if the operation fail, will switch to msi intr
-  if (!msix_intc_init(ctrlr, &ctrlr->pynvme_intc_ctrl))
+  ret = msix_intc_init(ctrlr, &ctrlr->pynvme_intc_ctrl);
+  if (ret == false)
   {
     ret = msi_intc_init(ctrlr, &ctrlr->pynvme_intc_ctrl);
   }
 
-  //init intr ctrl fail
-  if (!ret)
-  {
-    //TODO. disable intr
-    assert(false);
-  }
+  assert(ret == true);  // controller must support at least one kind of interrupt
 }
 
 static void intc_info_release(struct spdk_nvme_ctrlr* ctrlr)
 {
   char intc_name[64];
-  
+
   snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
   spdk_memzone_free(intc_name);
   ctrlr->pynvme_intc_ctrl = NULL;
@@ -253,9 +251,9 @@ static void intc_info_release(struct spdk_nvme_ctrlr* ctrlr)
 void* intc_lookup_ctrl(struct spdk_nvme_ctrlr* ctrlr)
 {
   char intc_name[64];
-  
+
   snprintf(intc_name, 64, INTC_CTRL_NAME, ctrlr);
-  return spdk_memzone_lookup(intc_name);  
+  return spdk_memzone_lookup(intc_name);
 }
 
 void intc_fini(struct spdk_nvme_ctrlr *ctrlr)
@@ -266,9 +264,9 @@ void intc_fini(struct spdk_nvme_ctrlr *ctrlr)
   intr_ctrl_t *intr_ctrl = ctrlr->pynvme_intc_ctrl;
 
   // interrupt is enabled on PCIe devices only
-  assert(ctrlr->trid.trtype == SPDK_NVME_TRANSPORT_PCIE);  
+  assert(ctrlr->trid.trtype == SPDK_NVME_TRANSPORT_PCIE);
   assert(intr_ctrl != NULL);
-  
+
   if (intr_ctrl->msix_en == 1)
   {
     // find msix capability
@@ -299,7 +297,7 @@ static uint16_t intc_get_vec(struct spdk_nvme_qpair* q)
   // interrupt is enabled on PCIe devices only
   assert(q->trtype == SPDK_NVME_TRANSPORT_PCIE);
   assert(intr_ctrl != NULL);
-  
+
   return (q->id % intr_ctrl->max_vec_num);
 }
 
@@ -332,19 +330,19 @@ bool intc_isset(struct spdk_nvme_qpair *q)
 
   // interrupt is enabled on PCIe devices only
   assert(q->trtype == SPDK_NVME_TRANSPORT_PCIE);
-  
+
   vector_id = intc_get_vec(q);
-  SPDK_INFOLOG(SPDK_LOG_NVME, "vector id %d\n", vector_id);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "vector id %d\n", vector_id);
   if (intr_ctrl->msix_en == 1)
   {
     //vector_id = intc_get_vec(q);//intr_ctrl->qpair_vec[q->id];
-    SPDK_INFOLOG(SPDK_LOG_NVME, "msix enable\n");
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "msix enable\n");
     ret = (intr_ctrl->msg_data[vector_id] != 0);
   }
   else if (intr_ctrl->msi_en == 1)
   {
     //vector_id = intr_ctrl->qpair_vec[q->id];
-    SPDK_INFOLOG(SPDK_LOG_NVME, "msi vector id %d\n", vector_id);
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "msi vector id %d\n", vector_id);
     ret = (vector_id == (intr_ctrl->msg_data[0] & 0xff));
   }
   return ret;
@@ -366,7 +364,7 @@ void intc_mask(struct spdk_nvme_qpair *q)
     if (intr_ctrl->msix_en == 1)
     {
       msix_entry *msix_table = NULL;
-      
+
       msix_table = (msix_entry *)(intr_ctrl->msix_info.vir_addr + intr_ctrl->msix_info.bir_offset);
       msix_table[vector_id].mask = 1;
     }
@@ -419,4 +417,3 @@ uint32_t intc_get_cmd_vec_info(struct spdk_nvme_qpair *q)
 
   return vector_id;
 }
-

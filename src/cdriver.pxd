@@ -46,19 +46,24 @@ cdef extern from "driver.h":
     ctypedef struct ioworker_cmdlog:
         unsigned long lba;
         unsigned int count;
-        unsigned int is_read;
+        unsigned int opcode;
+    ctypedef struct ioworker_ioseq:
+        unsigned long slba;
+        unsigned int timestamp;
+        unsigned int op;
+        unsigned int nlba;
     ctypedef struct ioworker_args:
         unsigned long lba_start
-        unsigned short lba_size_max
-        unsigned short lba_align_max
+        unsigned int lba_size_max
+        unsigned int lba_align_max
         unsigned int lba_size_ratio_sum
         unsigned int* lba_size_list
         unsigned int lba_size_list_len
         unsigned int* lba_size_list_ratio
         unsigned int* lba_size_list_align
-        bint lba_random
         unsigned long region_start
         unsigned long region_end
+        unsigned short lba_random
         unsigned short read_percentage
         signed short lba_step
         unsigned int iops
@@ -67,20 +72,26 @@ cdef extern from "driver.h":
         unsigned int qdepth
         unsigned int pvalue
         unsigned int ptype
+        ioworker_ioseq* io_sequence
+        unsigned int io_sequence_len
         unsigned int* io_counter_per_second
-        unsigned int* io_counter_per_latency
+        unsigned long* io_counter_per_latency
         unsigned int* distribution
         ioworker_cmdlog* cmdlog_list
         unsigned int cmdlog_list_len
+        unsigned int* op_list
+        unsigned long* op_counter
+        unsigned int op_num
     ctypedef struct ioworker_rets:
         unsigned long io_count_read
-        unsigned long io_count_write
+        unsigned long io_count_nonread
         unsigned int mseconds
         unsigned int latency_max_us
         unsigned short error
+        unsigned int cpu_usage
+        unsigned int latency_average_us
 
     ctypedef void(*cmd_cb_func)(void * cmd_cb_arg, const cpl * cpl)
-    ctypedef void(*aer_cb_func)(void * are_cb_arg, const cpl * cpl)
     ctypedef void(*timeout_cb_func)(void * cb_arg, ctrlr * ctrlr,
                                     qpair * qpair, unsigned short cid)
 
@@ -99,6 +110,9 @@ cdef extern from "driver.h":
 
     ctrlr * nvme_init(char * traddr, unsigned int port)
     int nvme_fini(ctrlr * c)
+    void nvme_bar_recover(ctrlr* c)
+    void nvme_bar_remap(ctrlr* c)
+
     int nvme_set_reg32(ctrlr * c,
                        unsigned int offset,
                        unsigned int value)
@@ -111,9 +125,9 @@ cdef extern from "driver.h":
     int nvme_get_reg64(ctrlr * c,
                        unsigned int offset,
                        unsigned long * value)
+    int nvme_set_adminq(ctrlr * c)
+    int nvme_set_ns(ctrlr * c)
 
-    void nvme_deallocate_ranges(namespace *c,
-                                void * buf, unsigned int count)
     int nvme_wait_completion_admin(ctrlr * c)
     void nvme_cmd_cb_print_cpl(void * qpair, const cpl * cpl)
     int nvme_send_cmd_raw(ctrlr * c,
@@ -131,10 +145,8 @@ cdef extern from "driver.h":
                           void * cb_arg)
     bint nvme_cpl_is_error(const cpl * cpl)
     namespace * nvme_get_ns(ctrlr * c, unsigned int nsid)
+    void crc32_unlock_all(ctrlr * c)
 
-    void nvme_register_aer_cb(ctrlr * ctrlr,
-                              aer_cb_func aer_cb,
-                              void * aer_cb_arg)
     void nvme_register_timeout_cb(ctrlr * ctrlr,
                                   timeout_cb_func timeout_cb,
                                   unsigned int msec)
@@ -147,32 +159,37 @@ cdef extern from "driver.h":
 
     qpair * qpair_create(ctrlr * c, int prio, int depth)
     int qpair_wait_completion(qpair * q, unsigned int max_completions)
+    unsigned short qpair_get_latest_cid(qpair * q, ctrlr* c)
+    
     int qpair_get_id(qpair * q)
     int qpair_free(qpair * q)
 
-    namespace * ns_init(ctrlr * c, unsigned int nsid)
+    namespace * ns_init(ctrlr * c, unsigned int nsid, unsigned long nlba_verify)
     int ns_refresh(namespace * ns, unsigned int nsid, ctrlr * c)
-    int ns_cmd_read_write(bint is_read,
-                          namespace * ns,
-                          qpair * qpair,
-                          void * buf,
-                          size_t len,
-                          unsigned long lba,
-                          unsigned int lba_count,
-                          unsigned int io_flags,
-                          cmd_cb_func cb_fn,
-                          void * cb_arg)
+    bint ns_verify_enable(namespace * ns, bint enable)
+    int ns_cmd_io(unsigned char opcode,
+                  namespace * ns,
+                  qpair * qpair,
+                  void * buf,
+                  size_t len,
+                  unsigned long lba,
+                  unsigned int lba_count,
+                  unsigned int io_flags,
+                  cmd_cb_func cb_fn,
+                  void * cb_arg,
+                  unsigned int dword13,
+                  unsigned int dword14,
+                  unsigned int dword15)
     unsigned int ns_get_sector_size(namespace * ns)
     unsigned long ns_get_num_sectors(namespace * ns)
     int ns_fini(namespace * ns)
-    void ns_crc32_clear(namespace * ns, unsigned long lba, unsigned long lba_count, bint sanitize, bint uncorr)
 
     int ioworker_entry(namespace* ns,
                        qpair* qpair,
                        ioworker_args* args,
                        ioworker_rets* rets)
 
-    char* log_buf_dump(const char * header, const void * buf, size_t len)
+    char* log_buf_dump(const char * header, const void * buf, size_t len, size_t base)
     void log_cmd_dump(qpair * qpair, size_t count)
     void log_cmd_dump_admin(ctrlr * ctrlr, size_t count)
 
@@ -185,3 +202,10 @@ cdef extern from "driver.h":
 
     void driver_srand(unsigned int seed)
     unsigned int driver_io_qpair_count(ctrlr* c)
+
+    void* tcg_dev_init(ctrlr* c)
+    void tcg_dev_close(void* dev)
+    int tcg_take_ownership(void* dev, const char* passwd)
+    int tcg_revert_tper(void* dev, const char* passwd)
+    int tcg_set_passwd(void* dev, int user, const char* new_passwd, const char* old_passwd)
+    int tcg_lock_unlock(void* dev, int user, int state, int range, const char* passwd)

@@ -53,7 +53,7 @@ Our official repository is at: https://github.com/pynvme/pynvme. We built pynvme
 - SPDK: https://github.com/cranechu/spdk
 - DPDK: https://github.com/cranechu/dpdk
 
-The pynvme modified code is in the branch of pynvme_1.x. We will regularly (e.g. every 6 months) rebase pynvme modifications to latest SPDK/DPDK stable release. 
+The pynvme modified code is in the branch of pynvme_1.x. We will regularly rebase pynvme modifications to the latest SPDK/DPDK stable release. 
 
 CI
 --
@@ -92,4 +92,47 @@ Debug
                       
          sudo gdb --args python3 -m pytest --color=yes --pciaddr=01:00.0 "driver_test.py::test_create_device"
 
-If you meet any issue, or have any suggestions, please report them to `Issues <https://github.com/pynvme/pynvme/issues>`_! Please attach the *test.log* file. 
+If you meet any problem, please report it to `Issues <https://github.com/pynvme/pynvme/issues>`_ with the *test.log* file uploaded.
+
+
+Socket
+------
+
+Pynvme replaced Kernel's NVMe driver, so usual user space utilities (e.g. nvme-cli, iostat, etc) are not aware of pynvme and its tests. Pynvme provides an unix socket to solve these problems. Scripts and third-party tools can use this socket to get the current status of the testing device. Currently, we support 3 commands of jsonrpc call:
+
+1. list_all_qpair: get the status of all created qpair, like its qid and current outstanding IO count.
+2. get_iostat: get current IO performance of the testing device.
+3. get_cmdlog: get the recent commands and completions in the specified qpair.
+
+Here is an example of scripts access this socket in Python, but it can be accessed by any other tools (e.g. typescript which is used by pynvme's VSCode plugin).
+
+.. code-block:: shell
+
+   def test_jsonrpc_list_qpairs(pciaddr):  #L1
+       import json
+       import socket  #L3
+   
+       # create the jsonrpc client
+       sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+       sock.connect('/var/tmp/pynvme.sock')  #L7
+   
+       def jsonrpc_call(sock, method, params=[]):  #L9
+           # create and send the command
+           req = {}
+           req['id'] = 1234567890
+           req['jsonrpc'] = '2.0'
+           req['method'] = method
+           req['params'] = params
+           sock.sendall(json.dumps(req).encode('ascii'))
+   
+           # receive the result
+           resp = json.loads(sock.recv(4096).decode('ascii'))
+           assert resp['id'] == 1234567890
+           assert resp['jsonrpc'] == '2.0'
+           return resp['result']
+   
+       # create controller and admin queue
+       nvme0 = d.Controller(d.Pcie(pciaddr))  #L25
+       
+       result = jsonrpc_call(sock, 'list_all_qpair')  #L27
+       assert len(result) == 1  #L28
