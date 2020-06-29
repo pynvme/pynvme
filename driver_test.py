@@ -47,8 +47,8 @@ tcp_target = b'10.24.48.17'  #b'127.0.0.1'
 
 
 @pytest.mark.parametrize("repeat", range(2))
-def test_init_nvme_back_compatibility(repeat):
-    pcie = d.Pcie("3d:00.0")
+def test_init_nvme_back_compatibility(pciaddr, repeat):
+    pcie = d.Pcie(pciaddr)
     nvme0 = d.Controller(pcie)
     logging.info(hex(pcie.register(0, 4)))
     nvme0n1 = d.Namespace(nvme0, 1)
