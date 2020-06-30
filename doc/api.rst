@@ -1355,7 +1355,7 @@ shutdown_notify
 
    Subsystem.shutdown_notify(abrupt)
 
-notify nvme subsystem a shutdown event through register cc.chn
+notify nvme subsystem a shutdown event through register cc.shn
 
 **Parameters**
 

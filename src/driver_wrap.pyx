@@ -452,7 +452,7 @@ cdef class Subsystem(object):
         return True
 
     def shutdown_notify(self, abrupt=False):
-        """notify nvme subsystem a shutdown event through register cc.chn
+        """notify nvme subsystem a shutdown event through register cc.shn
 
         # Parameters
             abrupt (bool): it will be an abrupt shutdown (return immediately) or clean shutdown (wait shutdown completely)
@@ -463,7 +463,7 @@ cdef class Subsystem(object):
         if rtd3e == 0:
             rtd3e = 1000_000
 
-        # cc.chn
+        # cc.shn
         cc = self._nvme[0x14]
         if abrupt:
             cc = cc | 0x8000
