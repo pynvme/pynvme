@@ -1647,6 +1647,7 @@ char* log_buf_dump(const char* header, const void* buf, size_t len, size_t base)
 void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
 {
   struct cmd_log_table_t* cmdlog = qpair->pynvme_cmdlog;
+  struct cmd_log_entry_t* table = cmdlog->table;
   uint16_t qid = qpair->id;
   uint32_t dump_count = count;
   uint32_t seq = 0;
@@ -1654,6 +1655,7 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
 
   // print cmdlog from tail to head
   assert(cmdlog != NULL);
+  assert(table != NULL);
   index = cmdlog->tail_index;
 
   if (count == 0 || count > CMD_LOG_DEPTH)
@@ -1677,26 +1679,33 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
     index -= 1;
 
     // no timeval, empty slot, not print
-    struct timeval tv = cmdlog->table[index].time_cmd;
+    struct timeval tv = table[index].time_cmd;
     if (timercmp(&tv, &(struct timeval){0}, >))
     {
       struct tm* time;
       char tmbuf[128];
 
       //cmd part
-      tv = cmdlog->table[index].time_cmd;
+      tv = table[index].time_cmd;
       time = localtime(&tv.tv_sec);
       strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
       SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, tv.tv_usec);
-      spdk_nvme_qpair_print_command(qpair, &cmdlog->table[index].cmd);
+      spdk_nvme_qpair_print_command(qpair, &table[index].cmd);
 
       //cpl part
-      tv.tv_usec = cmdlog->table[index].cpl_latency_us;
-      timeradd(&cmdlog->table[index].time_cmd, &tv, &tv);
-      time = localtime(&tv.tv_sec);
-      strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
-      SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, tv.tv_usec);
-      spdk_nvme_qpair_print_completion(qpair, &cmdlog->table[index].cpl);
+      if (table[index].cpl_latency_us != 0)
+      {
+        // a completed command, display its cpl cdws
+        struct timeval time_cpl = (struct timeval){0};
+        time_cpl.tv_usec = table[index].cpl_latency_us;
+        timeradd(&tv, &time_cpl, &time_cpl);
+
+        //get the string of cpl date/time
+        time = localtime(&time_cpl.tv_sec);
+        strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
+        SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, time_cpl.tv_usec);
+        spdk_nvme_qpair_print_completion(qpair, &table[index].cpl);
+      }
     }
   }
 }
