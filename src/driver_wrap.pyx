@@ -318,7 +318,7 @@ cdef class Buffer(object):
                 "NABSPF":(45,44,"int"),"NOIOB":(47,46,"int"), "NVMCAP":(63,48,"int"),"NPWG":(65,64,"int"), \
                 "NPWA":(67,66,"int"), "NPDG":(69,68,"int"), "NPDA":(71,70,"int"),"NOWS":(73,72,"int"), \
                 "ANAGRPID":(95,92,"int"), "NSATTR":(99,99,"int"), "NVMSETID":(101,100,"int"), "ENDGID":(103,102,"int"), \
-                "NGUID":(119,104,"str"), "EUI64":(127,120,"str"), "LBAF0":(127,120,"int") }
+                "NGUID":(119,104,"str"), "EUI64":(127,120,"str"), "LBAF0":(131,128,"int"),"LBAF1":(135,132,"int") }
 
         id_ctrl = {"VID":(1,0,"int"), "SSVID":(3,2,"int"), "SN":(23,4,"str"),"MN":(63,24,"str"),"FR":(71,64,"str"), \
                 "RAB":(72,72,"int"), "IEEE":(75,73,"str"), "CMIC":(76,76,"int"), "MDTS":(77,77,"int"), \
