@@ -126,14 +126,16 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
     _latest_cqe_cdw0 = arg.cdw0
 
     if func is not None:
-        # call script callback function to check cpl
+        assert callable(func)
+        
         try:
-            # we support 2 types of callback (dword0, status1), and (cpl)
             argc = len(signature(func).parameters)
             assert argc == 1 or argc == 2, "command callback has illegal parameter list"
             if argc == 2:
+                # call script callback function to check cpl
                 func(arg.cdw0, status1)
             else:
+                # we support 2 types of callback (dword0, status1), and (cpl)
                 cdw2 = arg.sqid
                 cdw3 = arg.status1
                 func((arg.cdw0,

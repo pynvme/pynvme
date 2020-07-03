@@ -751,3 +751,30 @@ def test_write_before_power_cycle(nvme0, subsystem):
     sq.delete()
     cq.delete()
 
+
+def test_invalid_sq_doorbell(nvme0):
+    cq = IOCQ(nvme0, 4, 16, PRP())
+    sq1 = IOSQ(nvme0, 4, 16, PRP(), cqid=4)
+
+    write_cmd = SQE(1, 1)
+    write_cmd.prp1 = PRP()
+    prp_list = PRPList()
+    prp_list[0] = PRP()
+    prp_list[1] = PRP()
+    prp_list[2] = PRP()
+    write_cmd.prp2 = prp_list
+    write_cmd[10] = 0
+    write_cmd[12] = 31
+    write_cmd.cid = 123
+
+    sq1[0] = write_cmd
+    write_cmd.cid = 567
+    sq1.tail = 17
+
+    # wait for the controller to respond the error
+    time.sleep(0.1)
+    with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
+        nvme0.waitdone()
+    sq1.delete()
+    cq.delete()
+    
