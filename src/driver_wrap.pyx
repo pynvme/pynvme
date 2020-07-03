@@ -57,6 +57,7 @@ import datetime
 import statistics
 import subprocess
 import multiprocessing
+#import nvme_spec
 
 # c library
 import cython
@@ -308,15 +309,58 @@ cdef class Buffer(object):
         Returns
             (int or str): the data in the specified field
         """
+# TODO: Add support for different NVMe spec versions
+
+        id_ns = {"NSZE":(7,0,"int"), "NCAP":(15,8,"int"), "NUSE":(23,16,"int"),"NSFEAT":(24,24,"int"),"NLBAF":(25,25,"int"), \
+                "FLBAS":(26,26,"int"),"MC":(27,27,"int"), "DPC":(28,28,"int"),"DPS":(29,29,"int"), "NMIC":(30,30,"int"), \
+                "RESCAP":(31,31,"int"),"FPI":(32,32,"int"), "DLFEAT":(33,33,"int"),"NAWUN":(35,34,"int"), \
+                "NAWUPF":(37,36,"int"),"NACWU":(39,38,"int"),"NABSN":(41,40,"int"), "NABO":(43,42,"int"), \
+                "NABSPF":(45,44,"int"),"NOIOB":(47,46,"int"), "NVMCAP":(63,48,"int"),"NPWG":(65,64,"int"), \
+                "NPWA":(67,66,"int"), "NPDG":(69,68,"int"), "NPDA":(71,70,"int"),"NOWS":(73,72,"int"), \
+                "ANAGRPID":(95,92,"int"), "NSATTR":(99,99,"int"), "NVMSETID":(101,100,"int"), "ENDGID":(103,102,"int"), \
+                "NGUID":(119,104,"str"), "EUI64":(127,120,"str"), "LBAF0":(127,120,"int") }
+
+        id_ctrl = {"VID":(1,0,"int"), "SSVID":(3,2,"int"), "SN":(23,4,"str"),"MN":(63,24,"str"),"FR":(71,64,"str"), \
+                "RAB":(72,72,"int"), "IEEE":(75,73,"str"), "CMIC":(76,76,"int"), "MDTS":(77,77,"int"), \
+                "CNTLID":(79,78,"int"),"VER":(83,80,"str"), "RTD3R":(87,84,"int"), "RTD3E":(91,88,"int"), \
+                "OAES":(95,92,"int"), "CTRATT":(99,96,"int"), "RRLS":(101,100,"int"), "CNTRLTYPE":(111,111,"int"), \
+                "FGUID":(127,112,"str"), "CRDT1":(129,128,"int"), "CRDT2":(131,130,"int"), "CRDT3":(133,132,"int"), \
+                "OACS":(257,256,"int"), "ACL":(258,258,"int"), "AERL":(259,259,"int"), "FRMW":(260,260,"int"), \
+                "LPA":(261,261,"int"), "ELPE":(262,262,"int"), "NPSS":(263,263,"int"), "AVSCC":(264,264,"int"), \
+                "APSTA":(265,265,"int"), "WCTEMP":(267,266,"int"), "CCTEMP":(269,268,"int"), "MTFA":(271,270,"int"), \
+                "HMPRE":(275,272,"int"), "HMMIN":(279,276,"int"), "TNVMCAP":(295,280,"int"), "UNVMCAP":(311,296,"int"),  \
+                "RPMBS":(315,312,"int"), "EDSTT":(317,316,"int"), "DSTO":(318,318,"int"), "FWUG":(319,319,"int"), \
+                "KAS":(321,320,"int"), "HCTMA":(323,322,"int"), "MNTMT":(325,324,"int"),"MXTMT":(327,326,"int"), \
+                "SANICAP":(331,328,"int"), "HMMINDS":(335,332,"int"), "HMMAXD":(337,336,"int"), "NSETIDMAX":(339,338,"int"), \
+                "ENDGIDMAX":(341,340,"int"), "ANATT":(342,342,"int"), "ANACAP":(343,343,"int"), "ANAGRPMAX":(347,344,"int"), \
+                "NANAGRPID":(351,348,"int"), "PELS":(355,352,"int"),"SQES":(512,512,"int"),"CQES":(513,513,"int"), \
+                "MAXCMD":(515,514,"int"), "NN":(519,516,"int"), "ONCS":(521,520,"int"), "FUSES":(523,522,"int"), \
+                "FNA":(524,524,"int"), "VWC":(525,525,"int"), "AWUN":(527,526,"int"),"AWUPF":(529,528,"int"), \
+                "NVSCC":(530,530,"int"), "NWPC":(531,531,"int"), "ACWU":(533,532,"int"), "SGLS":(539,536,"int"), \
+                "MNAN":(543,540,"int"), "SUBNQN":(1023,768,"str"), "PSD0_APS":(2007,2006,"int"), "PSD0_APW":(2002,2000,"int"), \
+                "PSD0_ACTP":(1999,1994,"int"), "PSD0_IPS":(1985,1984,"int") }
 
         if byte_begin is None:
             byte_begin = byte_end
 
         if type is int:
             return int.from_bytes(self[byte_begin:byte_end+1], 'little')
-        else:
-            assert type is str, "identify data should be int or str"
+        elif type is str:
+            #assert type is str, "identify data should be int or str"
             return str(self[byte_begin:byte_end+1], "ascii").rstrip()
+        elif type in id_ctrl:
+            if id_ctrl[type][2] == "int":
+                return int.from_bytes(self[ id_ctrl[type][1]:id_ctrl[type][0]+1], 'little')
+            else:
+                return str(self[ id_ctrl[type][1]:id_ctrl[type][0]+1], "ascii").rstrip() 
+        elif type in id_ns:
+            if id_ns[type][2] == "int":
+                return int.from_bytes(self[ id_ns[type][1]:id_ns[type][0]+1], 'little')
+            else:
+                return str(self[ id_ns[type][1]:id_ns[type][0]+1], "ascii").rstrip()                
+        else:
+            assert "identify data type should be int,str or legal keyword!"
+            return 0
 
     def __len__(self):
         return self.size

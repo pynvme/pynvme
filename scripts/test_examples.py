@@ -30,6 +30,13 @@ def test_registers_and_identify_data(pcie, nvme0, nvme0n1):
     logging.info("model name: %s" % nvme0.id_data(63, 24, str))
     logging.info("vid: 0x%x" % nvme0.id_data(1, 0))
     logging.info("namespace size: %d" % nvme0n1.id_data(7, 0))
+    logging.info("NSZE: %d" % nvme0n1.id_data(None, None, "NSZE"))
+    logging.info("NLBAF: 0x%x" % nvme0n1.id_data(None, None, "NLBAF"))
+    logging.info("dict.vid: 0x%x" % nvme0.id_data(None, None, "VID"))
+    logging.info("dict.ssvid: 0x%x" % nvme0.id_data(None, None, "SSVID"))
+    logging.info("dict.sn: %s" % nvme0.id_data(None, None, "SN"))
+    logging.info("SANICAP: 0x%x" % nvme0.id_data(None, None, "SANICAP"))
+    logging.info("SUBNQN: %s" % nvme0.id_data(None, None, "SUBNQN"))
 
 
 # Controller, sanitize, default parameters, getlogpage
