@@ -411,6 +411,15 @@ def test_random_seed():
     assert a != b
 
 
+def test_controller_reset_redo(nvme0):
+    nvme0.reset()
+    nvme0.reset()
+    nvme0.reset()
+    nvme0.reset()
+    cdw0 = nvme0.getfeatures(7).waitdone()
+    assert cdw0 == 0xf000f
+
+    
 def test_ioworker_is_running(nvme0n1):
     a = nvme0n1.ioworker(io_size=8, time=1)
     b = nvme0n1.ioworker(io_size=8, time=5)
