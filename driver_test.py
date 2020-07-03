@@ -421,6 +421,12 @@ def test_controller_reset_redo(nvme0):
 
     
 def test_ioworker_is_running(nvme0n1):
+    with nvme0n1.ioworker(io_size=8, time=5) as a:
+        for i in range(5):
+            time.sleep(1)
+            assert a.running == True
+    assert a.running == False
+
     a = nvme0n1.ioworker(io_size=8, time=1)
     b = nvme0n1.ioworker(io_size=8, time=5)
     assert a.running == True
