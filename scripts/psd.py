@@ -284,20 +284,12 @@ class IOSQ(object):
         self.ctrlr[0x1000+2*self.id*4] = tail
 
     def delete(self, qid=None):
-        def delete_io_sq_cpl(cdw0, status1):
-            if status1>>1:
-                logging.info("delete io sq fail: %d" % qid)
-            else:
-                self.id = 0
-
         if qid == None:
             qid = self.id
 
         logging.debug("delete sqid %d" % qid)
         if qid != 0:
-            self.ctrlr.send_cmd(0x00,
-                                cdw10 = qid,
-                                cb = delete_io_sq_cpl).waitdone()
+            self.ctrlr.send_cmd(0x00, cdw10=qid).waitdone()
 
 
 class IOCQ(object):
@@ -370,20 +362,12 @@ class IOCQ(object):
         self.ctrlr[0x1000+(2*self.id+1)*4] = head
 
     def delete(self, qid=None):
-        def delete_io_cq_cpl(cdw0, status1):
-            if status1>>1:
-                logging.info("delete io cq fail: %d" % qid)
-            else:
-                self.id = 0
-
         if qid is None:
             qid = self.id
 
         logging.debug("delete cqid %d" % qid)
         if qid != 0:
-            self.ctrlr.send_cmd(0x04,
-                                cdw10 = qid,
-                                cb = delete_io_cq_cpl).waitdone()
+            self.ctrlr.send_cmd(0x04, cdw10=qid).waitdone()
 
 
 def test_create_delete_iocq(nvme0):
