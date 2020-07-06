@@ -1075,7 +1075,7 @@ cdef class Controller(object):
         self.pcie._driver_cleanup()
 
         # reset driver: namespace is init by every test, so no need reinit
-        time.sleep(1)
+        #time.sleep(1)  # TODO: check this delay
         self.pcie._ctrlr_reinit()
         self._nvme_init()
 
