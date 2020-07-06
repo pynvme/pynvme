@@ -762,3 +762,46 @@ def test_invalid_sq_doorbell(nvme0):
     sq1.delete()
     cq.delete()
     
+
+def test_write_read_verify(nvme0, nvme0n1):
+    cq = IOCQ(nvme0, 1, 1024, PRP(1024*64))
+    sq = IOSQ(nvme0, 1, 1024, PRP(1024*64), cqid=1)
+
+    write_cmd = SQE(1, 1)
+    write_cmd[12] = 7  # 4K write
+    buf_list = []
+    for i in range(10):
+        buf = PRP(ptype=32, pvalue=0x01010101*i)
+        buf_list.append(buf)
+        write_cmd.prp1 = buf
+        write_cmd.cid = i
+        write_cmd[10] = i
+        sq[i] = write_cmd
+    sq.tail = 10
+    
+    while cq[9].p == 0: pass
+    sq.delete()
+    cq.delete()
+    
+    # read after reset with outstanding writes
+    cq = IOCQ(nvme0, 1, 1024, PRP(1024*64))
+    sq = IOSQ(nvme0, 1, 1024, PRP(1024*64), cqid=1)
+
+    read_cmd = SQE(2, 1)
+    read_cmd[12] = 7  # 4K read
+    buf_list = []
+    for i in range(10):
+        buf = PRP()
+        buf_list.append(buf)
+        read_cmd.prp1 = buf
+        read_cmd.cid = i
+        read_cmd[10] = i
+        sq[i] = read_cmd
+    sq.tail = 10
+
+    while cq[9].p == 0: pass
+    for i in range(10):
+        logging.info(cq[i].cid)
+        assert buf_list[cq[i].cid][0] == cq[i].cid
+    sq.delete()
+    cq.delete()
