@@ -2240,3 +2240,9 @@ uint32_t driver_io_qpair_count(struct spdk_nvme_ctrlr* ctrlr)
 {
   return spdk_nvme_io_qpair_count(ctrlr);
 }
+
+bool driver_no_secondary(struct spdk_nvme_ctrlr* ctrlr)
+{
+  return spdk_nvme_secondary_process_nonexist(ctrlr);
+}
+

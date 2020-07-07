@@ -1,5 +1,5 @@
 m2r
-numpy==1.15.1
+numpy
 scipy
 libpci
 cython
@@ -16,3 +16,4 @@ pyserial==2.7
 quarchpy
 sphinx
 sphinx_rtd_theme
+matplotlib

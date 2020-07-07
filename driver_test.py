@@ -1159,14 +1159,14 @@ def test_controller_reset_with_ioworkers(nvme0):
 
     for loop in range(10):
         logging.info(loop)
-        with nvme0n1.ioworker(io_size=1, time=20), \
-             nvme0n1.ioworker(io_size=1, time=20), \
-             nvme0n1.ioworker(io_size=1, time=20), \
-             nvme0n1.ioworker(io_size=1, time=20), \
-             nvme0n1.ioworker(io_size=1, time=20), \
-             nvme0n1.ioworker(io_size=1, time=20), \
-             nvme0n1.ioworker(io_size=1, time=20), \
-             nvme0n1.ioworker(io_size=1, time=20):
+        with nvme0n1.ioworker(io_size=1, time=100), \
+             nvme0n1.ioworker(io_size=1, time=100), \
+             nvme0n1.ioworker(io_size=1, time=100), \
+             nvme0n1.ioworker(io_size=1, time=100), \
+             nvme0n1.ioworker(io_size=1, time=100), \
+             nvme0n1.ioworker(io_size=1, time=100), \
+             nvme0n1.ioworker(io_size=1, time=100), \
+             nvme0n1.ioworker(io_size=1, time=100):
             time.sleep(5)
             nvme0.reset()
 
@@ -2118,9 +2118,15 @@ def test_aer_cb_mixed_with_admin_commands(nvme0, buf):
             nvme0.abort(127-i).waitdone()
         nvme0.waitdone(2)
 
-    # no more aer
+    # no more aer: in pytest way
     with pytest.raises(TimeoutError):
         nvme0.waitdone()
+
+    # no more aer: in generic python 
+    try:
+        nvme0.waitdone()
+    except TimeoutError as e:
+        assert str(e) == "pynvme timeout in driver"
 
 
 def test_aer_mixed_with_admin_commands(nvme0, buf):

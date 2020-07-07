@@ -158,6 +158,7 @@ extern uint64_t driver_config(uint64_t cfg_word);
 extern uint64_t driver_config_read(void);
 extern void driver_srand(unsigned int seed);
 extern uint32_t driver_io_qpair_count(struct spdk_nvme_ctrlr* ctrlr);
+extern bool driver_no_secondary(struct spdk_nvme_ctrlr* ctrlr);
 
 extern pcie* pcie_init(struct spdk_nvme_ctrlr* ctrlr);
 extern int pcie_cfg_read8(struct spdk_pci_device* pci,

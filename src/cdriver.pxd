@@ -202,6 +202,7 @@ cdef extern from "driver.h":
 
     void driver_srand(unsigned int seed)
     unsigned int driver_io_qpair_count(ctrlr* c)
+    bint driver_no_secondary(ctrlr* c)
 
     void* tcg_dev_init(ctrlr* c)
     void tcg_dev_close(void* dev)

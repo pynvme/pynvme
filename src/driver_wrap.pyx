@@ -597,16 +597,18 @@ cdef class Pcie(object):
         return d.driver_config(c)
 
     def _driver_cleanup(self):
-        # notify ioworker to terminate, and wait all IO Qpair closed
-        if d.driver_io_qpair_count(self._ctrlr):
+        # notify and wait all secondary processes to terminate
+        if not d.driver_no_secondary(self._ctrlr):
             self._config(ioworker_terminate=True)
             logging.info("wait all qpair to be deleted")
-            while d.driver_io_qpair_count(self._ctrlr):
-                pass
-            time.sleep(1)
             d.crc32_unlock_all(self._ctrlr)
+            retry = 100
+            while not d.driver_no_secondary(self._ctrlr):
+                retry -= 1
+                if retry == 0:
+                    raise TimeoutError("secondary processes are not cleared")
+                time.sleep(0.01)
             self._config(ioworker_terminate=False)
-            time.sleep(1)
 
     def __getitem__(self, index):
         """access pcie config space by bytes."""
@@ -907,7 +909,7 @@ cdef class Controller(object):
         while not (nvme0[0x1c]&0x1) == 0:
             if time.time()-t > timeout:
                 logging.error("csts.rdy timeout after cc.en=0, timeout: %ds" % timeout)
-                raise NvmeEnumerateError("fail to init namespaces")
+                raise NvmeEnumerateError("csts.rdy timeout after clearing cc.en")
 
         # 3. set admin queue registers
         if 0 != nvme0.init_adminq():
@@ -924,7 +926,7 @@ cdef class Controller(object):
         while not (nvme0[0x1c]&0x1) == 1:
             if time.time()-t > timeout:
                 logging.error("csts.rdy timeout after cc.en=1, timeout: %ds" % timeout)
-                raise NvmeEnumerateError("fail to init namespaces")
+                raise NvmeEnumerateError("csts.rdy timeout after setting cc.en")
 
         # 7. identify controller and all namespaces
         nvme0.identify(Buffer(4096)).waitdone()
@@ -2715,7 +2717,7 @@ class _IOWorker(object):
                     # fail fast to delete queue after power loss
                     orig = nvme0.timeout
                     if d.driver_config_read() & 0x10:
-                        nvme0.timeout = 1000
+                        nvme0.timeout = 10
                         # backup BAR and remap to another memory
                         d.nvme_bar_remap(nvme0.pcie._ctrlr)
 
