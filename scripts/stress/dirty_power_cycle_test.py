@@ -33,13 +33,13 @@ def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     cmdlog_list = [None]*1000
     with nvme0n1.ioworker(io_size=256,
                           lba_random=True,
-                          read_percentage=30, 
+                          read_percentage=10,
                           region_end=256*1000*1000,
                           time=30,
                           qdepth=1024, 
                           output_cmdlog_list=cmdlog_list):
         # sudden power loss before the ioworker end
-        time.sleep(5)
+        time.sleep(10)
         subsystem.poweroff()
 
     # power on and reset controller
