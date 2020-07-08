@@ -48,6 +48,7 @@ fi
 git submodule update --init spdk
 cd spdk && git submodule update --init dpdk
 cd .. && sudo ./spdk/scripts/pkgdep.sh
+sudo python3 -m pip install --upgrade pip
 sudo python3 -m pip install -r requirements.txt
 
 # checkout pynvme code in SPDK and DPDK

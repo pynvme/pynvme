@@ -1432,7 +1432,7 @@ int nvme_set_ns(struct spdk_nvme_ctrlr *ctrlr)
 
   // pynvme: test device has no namespace, something wrong
   if (nn == 0) {
-    SPDK_ERRLOG("controller has 0 namespaces\n");
+    SPDK_ERRLOG("controller has no namespace\n");
     return -1;
   }
 
