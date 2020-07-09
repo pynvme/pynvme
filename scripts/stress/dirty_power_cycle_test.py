@@ -15,7 +15,8 @@ def test_precondition_format(pcie, nvme0, nvme0n1, subsystem):
 
 def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     region_end = 256*1000*1000  # 1GB
-
+    qdepth = min(1024, 1+(nvme0.cap&0xffff))
+    
     # get the unsafe shutdown count
     def power_cycle_count():
         buf = d.Buffer(4096)
@@ -36,7 +37,7 @@ def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
                           read_percentage=0,
                           region_end=256*1000*1000,
                           time=30,
-                          qdepth=1024, 
+                          qdepth=qdepth, 
                           output_cmdlog_list=cmdlog_list):
         # sudden power loss before the ioworker end
         time.sleep(10)
@@ -50,7 +51,7 @@ def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     # verify data in cmdlog_list
     logging.info(cmdlog_list[-10:])
     read_buf = d.Buffer(256*512)
-    qpair = d.Qpair(nvme0, 1024)
+    qpair = d.Qpair(nvme0, 10)
     for cmd in cmdlog_list:
         slba = cmd[0]
         nlba = cmd[1]

@@ -1702,7 +1702,7 @@ cdef class Qpair(object):
                   unsigned int prio=0):
         # create CQ and SQ
         assert depth>=2 and depth<=1024, "qdepth should be in [2, 1024]"
-        assert depth <= (nvme.cap & 0xffff) + 1, "qdepth is larger than specification"
+        assert depth <= (nvme.cap & 0xffff) + 1, "qpair depth is larger than specification"
 
         self._qpair = d.qpair_create(nvme.pcie._ctrlr, prio, depth)
         if self._qpair is NULL:
