@@ -2836,7 +2836,11 @@ def test_ioworker_io_count(nvme0n1):
     assert time.time()-start_time > 9
     assert time.time()-start_time < 20
 
+    w = nvme0n1.ioworker(io_size=8, io_count=1, qdepth=64).start().close()
+    assert w.io_count_read == 1
+    assert w.io_count_nonread == 0
 
+    
 def test_ioworker_io_random(nvme0n1):
     import time
     start_time = time.time()

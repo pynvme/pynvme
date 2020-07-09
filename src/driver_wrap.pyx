@@ -266,16 +266,19 @@ cdef class Buffer(object):
     @property
     def offset(self):
         """get the offset of the PRP in bytes"""
+        
         return self.offset
 
     @offset.setter
     def offset(self, offset):
         """set the offset of the PRP in bytes"""
+        
         self.offset = offset
 
     @property
     def phys_addr(self):
         """physical address of the buffer"""
+        
         return self.phys_addr + self.offset
 
     def dump(self, size=None):
@@ -284,8 +287,9 @@ cdef class Buffer(object):
         # Parameters
             size (int): the size of the buffer to print. Default: None, means to print the whole buffer
         """
-        output = ''
+        
         base = 0
+        output = self.name.decode('ascii')+'\n'
         if self.ptr and self.size:
             # no size means print the whole buffer
             if size is None or size > self.size:
@@ -945,28 +949,6 @@ cdef class Controller(object):
 
         # 9. send first aer cmd
         nvme0.aer()
-
-    def enable_hmb(self):
-        """enable HMB function"""
-
-        hmb_size = self.id_data(275, 272)
-        if hmb_size:
-            self.hmb_buf = Buffer(4096*hmb_size)
-            hmb_list_buf = Buffer(4096)
-            hmb_list_buf[0:8] = self.hmb_buf.phys_addr.to_bytes(8, 'little')
-            hmb_list_buf[8:12] = hmb_size.to_bytes(4, 'little')
-            hmb_list_phys = hmb_list_buf.phys_addr
-            self.setfeatures(0x0d,
-                             cdw11=1,
-                             cdw12=hmb_size,
-                             cdw13=hmb_list_phys&0xffffffff,
-                             cdw14=hmb_list_phys>>32,
-                             cdw15=1).waitdone()
-
-    def disable_hmb(self):
-        """disable HMB function """
-
-        self.setfeatures(0x0d, cdw11=0).waitdone()
 
     @property
     def latest_cid(self):
