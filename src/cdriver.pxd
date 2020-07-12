@@ -66,6 +66,7 @@ cdef extern from "driver.h":
         unsigned short lba_random
         unsigned short read_percentage
         signed short lba_step
+        bint lba_step_valid
         unsigned int iops
         unsigned long io_count
         unsigned int seconds

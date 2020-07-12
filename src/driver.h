@@ -111,6 +111,7 @@ typedef struct ioworker_args
   unsigned short lba_random;
   unsigned short read_percentage;
   signed short lba_step;
+  bool lba_step_valid;
   unsigned int iops;
   unsigned long io_count;
   unsigned int seconds;

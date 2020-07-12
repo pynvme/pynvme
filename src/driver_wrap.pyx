@@ -2000,23 +2000,16 @@ cdef class Namespace(object):
         assert type(lba_random) is int, "lba_random is a percentage, int"
         assert lba_random >= 0 and lba_random <= 100, "lba_random is a percentage, 0-100"
 
-        if lba_random < 100:
-            assert type(io_size) is int, "sequential workload cannot work with complex io_size"
-
         # io_size should be smaller than test region
         if type(io_size) is int:
-            assert io_size <= region_end-region_start, "region is smaller than IO!"
+            io_size = min(io_size, region_end-region_start)
         else:
             assert max(list(io_size)) < region_end-region_start, "region is smaller than IO"
 
-        # lba_step works with pure sequential workload only
-        if lba_step is None:
-            if lba_random < 100:
-                lba_step = io_size
-            else:
-                lba_step = 0
-        assert lba_step > -0x8000, "io size or step is too large"
-        assert lba_step < 0x8000, "io size or step is too large"
+        # lba_step works with sequential workload only
+        if lba_step is not None:
+            assert lba_step > -0x8000, "io size or step is too large"
+            assert lba_step < 0x8000, "io size or step is too large"
 
         # convert any possible io_size input to dict
         if isinstance(io_size, int):
@@ -2624,9 +2617,18 @@ class _IOWorker(object):
                     raise MemoryError()
                 memset(args.cmdlog_list, 0, sizeof(d.ioworker_cmdlog)*len(output_cmdlog_list))
 
+            # lba_step only works with sequential io
+            if lba_step is None:
+                lba_step = 0
+                lba_step_valid = False
+            else:
+                assert type(lba_step) == int
+                lba_step_valid = True
+                
             # transfer agurments
             args.lba_start = lba_start
             args.lba_step = lba_step
+            args.lba_step_valid = lba_step_valid
             args.lba_random = lba_random
             args.region_start = region_start
             args.region_end = region_end

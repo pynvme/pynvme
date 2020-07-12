@@ -381,10 +381,18 @@ static inline uint64_t ioworker_send_one_lba(struct ioworker_args* args,
                 ret, lba_align, args->region_end, gctx->sequential_lba);
   }
 
+  // setup for next sequential io
   if (is_random == false)
   {
-    // setup for next sequential io
-    gctx->sequential_lba = ret+args->lba_step;
+    if (args->lba_step_valid)
+    {
+      gctx->sequential_lba = ret+args->lba_step;
+    }
+    else
+    {
+      // no step specified, write in next lba
+      gctx->sequential_lba = ret+lba_count;
+    }
   }
 
   return ret;
@@ -495,6 +503,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_start = %ld\n", args->lba_start);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_step = %d\n", args->lba_step);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_step_valid = %d\n", args->lba_step_valid);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_size_max = %d\n", args->lba_size_max);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_align_max = %d\n", args->lba_align_max);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_random = %d\n", args->lba_random);
