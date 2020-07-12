@@ -782,67 +782,6 @@ def test_format_at_power_state(nvme0, nvme0n1, ps):
     assert p == ps
 
 
-@pytest.mark.skip("hmb")
-def test_enable_and_disable_hmb():
-    nvme0 = d.Controller(b'03:00.0')
-
-    # setfeatures on hmb
-    hmb_size = nvme0.id_data(275, 272)
-    hmb_list_buf = d.Buffer(4096)
-
-    if hmb_size == 0:
-        pytest.skip("hmb is not supported")
-
-    # for hmb setfeatures commands
-    buf = d.Buffer(4096)
-    hmb_status = 0
-    def cb(cdw0, status):
-        nonlocal hmb_status
-        hmb_status = cdw0
-
-    # disable hmb
-    nvme0.setfeatures(0x0d, cdw11=0).waitdone()
-
-    # getfeatures of hmb to check
-    nvme0.getfeatures(0x0d, buf=buf, cb=cb).waitdone()
-    assert hmb_status == 0
-
-    #one buffer, one entry in the list
-    hmb_buf = d.Buffer(4096*hmb_size)
-    hmb_list_buf[0:8] = hmb_buf.phys_addr.to_bytes(8, 'little')
-    hmb_list_buf[8:12] = hmb_size.to_bytes(4, 'little')
-
-    hmb_list_phys = hmb_list_buf.phys_addr
-    nvme0.setfeatures(0x0d, cdw11=1, cdw12=hmb_size,
-                      cdw13=hmb_list_phys&0xffffffff,
-                      cdw14=hmb_list_phys>>32, cdw15=1).waitdone()
-
-    # getfeatures of hmb to check
-    nvme0.getfeatures(0x0d, buf=buf, cb=cb).waitdone()
-    assert hmb_status == 1
-
-    # disable hmb
-    nvme0.setfeatures(0x0d, cdw11=0).waitdone()
-
-    # getfeatures of hmb to check
-    nvme0.getfeatures(0x0d, buf=buf, cb=cb).waitdone()
-    assert hmb_status == 0
-
-    # enable
-    nvme0.enable_hmb()
-
-    # getfeatures of hmb to check
-    nvme0.getfeatures(0x0d, buf=buf, cb=cb).waitdone()
-    assert hmb_status == 1
-
-    # disable hmb
-    nvme0.disable_hmb()
-
-    # getfeatures of hmb to check
-    nvme0.getfeatures(0x0d, buf=buf, cb=cb).waitdone()
-    assert hmb_status == 0
-
-
 def test_write_identify_and_verify(nvme0n1, nvme0):
     id_buf = d.Buffer(4096)
     nvme0.identify(id_buf)

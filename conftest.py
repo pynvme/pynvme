@@ -125,34 +125,6 @@ def aer():
     assert False, "aer fixture is replaced by admin command nvme0.aer()"
 
 
-@pytest.fixture(scope="function")
-def hmb(nvme0):
-    hmb_size = nvme0.id_data(275, 272)
-    if hmb_size == 0:
-        pytest.skip("hmb is not supported")
-    
-    hmb_buf = d.Buffer(4096*hmb_size)
-    assert hmb_buf
-    hmb_list_buf = d.Buffer(4096)
-    assert hmb_list_buf
-        
-    hmb_list_buf[0:8] = hmb_buf.phys_addr.to_bytes(8, 'little')
-    hmb_list_buf[8:12] = hmb_size.to_bytes(4, 'little')
-    hmb_list_phys = hmb_list_buf.phys_addr
-
-    # enable hmb
-    nvme0.setfeatures(0x0d,
-                      cdw11=1,
-                      cdw12=hmb_size,
-                      cdw13=hmb_list_phys&0xffffffff,
-                      cdw14=hmb_list_phys>>32,
-                      cdw15=1).waitdone()
-    yield
-
-    # disable hmb
-    nvme0.setfeatures(0x0d, cdw11=0).waitdone()
-
-    
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     # execute all other hooks to obtain the report object
