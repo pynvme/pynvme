@@ -1958,7 +1958,7 @@ cdef class Namespace(object):
             read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100. Obsoloted by op_percentage
             op_percentage (dict): opcode of commands sent in ioworker, and their percentage. Output: real io counts sent in ioworker. Default: None, fall back to read_percentage
             time (int): specified maximum time of the IOWorker in seconds, up to 1000*3600. Default:0, means no limit
-            qdepth (int): queue depth of the Qpair created by the IOWorker, up to 1024. 1base. Default: 64
+            qdepth (int): queue depth of the Qpair created by the IOWorker, up to 1024. 1base value. Default: 64
             region_start (long): sending IO in the specified LBA region, start. Default: 0
             region_end (long): sending IO in the specified LBA region, end but not include. Default: 0xffff_ffff_ffff_ffff
             iops (int): specified maximum IOPS. IOWorker throttles the sending IO speed. Default: 0, means no limit
@@ -1977,7 +1977,6 @@ cdef class Namespace(object):
             ioworker instance
         """
 
-        assert not (io_sequence==None and time==0 and io_count==0), "when to stop the ioworker?"
         assert qdepth>=2 and qdepth<=1024, "qdepth should be in [2, 1024]"
         assert qdepth <= (self._nvme.cap & 0xffff) + 1, "qdepth is larger than specification"
         assert region_start < region_end, "region end is not included"
@@ -1999,6 +1998,12 @@ cdef class Namespace(object):
             if lba_random == False: lba_random = 0
         assert type(lba_random) is int, "lba_random is a percentage, int"
         assert lba_random >= 0 and lba_random <= 100, "lba_random is a percentage, 0-100"
+        if lba_random == 0 and type(io_size) == int and region_end != 0xffffffffffffffff:
+            if time==0 and io_count==0:
+                # for pure sequential io, fill region one pass
+                io_count = (region_end-region_start+io_size-1)//io_size
+        else:
+            assert not (io_sequence==None and time==0 and io_count==0), "when to stop the ioworker?"
 
         # io_size should be smaller than test region
         if type(io_size) is int:

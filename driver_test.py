@@ -498,13 +498,46 @@ def test_ioworker_region_smaller_than_iosize(nvme0n1):
         assert c[2] == 2
     
 
-def _test_ioworker_sequential_region_unaligned_with_iosize(nvme0n1):
-    nvme0n1.ioworker(io_size=128, lba_random=False, region_end=129, io_count=2).start().close()
-
+def test_ioworker_sequential_region_unaligned_with_iosize(nvme0n1):
+    cmdlog_list = [None]*1000
+    nvme0n1.ioworker(io_size=128,
+                     lba_random=False,
+                     region_end=129,
+                     io_count=len(cmdlog_list),
+                     output_cmdlog_list=cmdlog_list).start().close()
+    for c in cmdlog_list:
+        if c[0] == 0:
+            assert c[1] == 128
+        else:
+            assert c[0] == 128
+            assert c[1] == 1
     
-def _test_ioworker_sequential_region_fill(nvme0n1):
-    nvme0n1.ioworker(io_size=8, lba_random=False, region_end=129).start().close()
-    nvme0n1.ioworker(io_size=[8, 64, 128], lba_random=False, region_end=1000).start().close()
+    
+def test_ioworker_sequential_region_fill(nvme0n1):
+    cmdlog_list = [None]*11
+    nvme0n1.ioworker(io_size=8,
+                     lba_random=False,
+                     region_end=77,
+                     output_cmdlog_list=cmdlog_list).start().close()
+    assert cmdlog_list[0][2] == 0
+    assert cmdlog_list[1][1] == 8
+    assert cmdlog_list[10][0] == 72
+    assert cmdlog_list[10][1] == 5
+
+    nvme0n1.ioworker(io_size=8,
+                     lba_align=1,
+                     lba_random=False,
+                     region_start=1,
+                     region_end=77,
+                     output_cmdlog_list=cmdlog_list).start().close()
+    assert cmdlog_list[0][2] == 0
+    assert cmdlog_list[1][0] == 1
+    assert cmdlog_list[1][1] == 8
+    assert cmdlog_list[10][0] == 73
+    assert cmdlog_list[10][1] == 4
+    
+    with pytest.raises(AssertionError):
+        nvme0n1.ioworker(io_size=[8, 64, 128], lba_random=False, region_end=1000).start().close()
 
     
 def test_ioworker_input_out_of_range(nvme0n1):

@@ -427,6 +427,8 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
                   ios_index,  lba_starting, lba_count, opcode);
   }
 
+  // trancate the tail out of the region
+  lba_count = MIN(lba_count, args->region_end-lba_starting);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba %lu, count %d, align %d, opcode %d\n",
                 ctx, lba_starting, lba_count, lba_align, opcode);
 
@@ -553,16 +555,15 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     args->seconds = 1000*3600ULL;
   }
   seconds = args->seconds;
-  if (args->region_end > nsze)
-  {
-    args->region_end = nsze;
-  }
 
   //adjust region to start_lba's region, but included here
   args->region_start = ALIGN_UP(args->region_start, args->lba_align_max);
-  args->region_end = args->region_end-args->lba_size_max;
-  args->region_end = ALIGN_DOWN(args->region_end, args->lba_size_max);
-  args->region_end = ALIGN_DOWN(args->region_end, args->lba_align_max);
+  args->region_end = MIN(nsze, args->region_end);
+  // truncate the last io at the region end, so do need to adjust region end
+  //args->region_end = args->region_end-args->lba_size_max;
+  //args->region_end = ALIGN_DOWN(args->region_end, args->lba_size_max);
+  //args->region_end = ALIGN_DOWN(args->region_end, args->lba_align_max);
+
   if (args->lba_start < args->region_start)
   {
     args->lba_start = args->region_start;
