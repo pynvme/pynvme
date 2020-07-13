@@ -518,6 +518,7 @@ def test_ioworker_sequential_region_fill(nvme0n1):
     cmdlog_list = [None]*11
     nvme0n1.ioworker(io_size=8,
                      lba_random=False,
+                     qdepth=2,
                      region_end=77,
                      output_cmdlog_list=cmdlog_list).start().close()
     assert cmdlog_list[0][2] == 0
@@ -530,6 +531,7 @@ def test_ioworker_sequential_region_fill(nvme0n1):
                      lba_random=False,
                      region_start=1,
                      region_end=77,
+                     qdepth=2,
                      output_cmdlog_list=cmdlog_list).start().close()
     assert cmdlog_list[0][2] == 0
     assert cmdlog_list[1][0] == 1
