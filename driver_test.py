@@ -464,7 +464,7 @@ def test_ioworker_sequential_unfixed_iosize(nvme0n1):
                      output_cmdlog_list=cmdlog_list).start().close()
     for i in range(len(cmdlog_list)-1):
         assert cmdlog_list[i][0]+cmdlog_list[i][1] == cmdlog_list[i+1][0]
-        
+
     nvme0n1.ioworker(io_size=7,
                      lba_align=1, 
                      lba_random=False,
@@ -482,19 +482,20 @@ def test_ioworker_region_smaller_than_iosize(nvme0n1):
                      lba_random=False,
                      io_count=len(cmdlog_list),
                      output_cmdlog_list=cmdlog_list).start().close()
+    logging.debug(cmdlog_list)
     for c in cmdlog_list:
         assert c[0] == 0
         assert c[1] == 100
         assert c[2] == 2
-    
+
     nvme0n1.ioworker(io_size=128,
                      region_end=100,
                      lba_random=True,
                      io_count=len(cmdlog_list),
                      output_cmdlog_list=cmdlog_list).start().close()
+    logging.debug(cmdlog_list)
     for c in cmdlog_list:
-        assert c[0] == 0
-        assert c[1] == 100
+        assert c[0]+c[1] == 100
         assert c[2] == 2
     
 
@@ -541,6 +542,7 @@ def test_ioworker_sequential_region_fill(nvme0n1):
 
     
 def test_ioworker_input_out_of_range(nvme0n1):
+    nvme0n1.ioworker(io_size=128, region_end=200, time=1).start().close()
     nvme0n1.ioworker(io_size=128, region_end=200, qdepth=2, io_count=2).start().close()
     nvme0n1.ioworker(io_size=128, region_end=300, time=1).start().close()
     nvme0n1.ioworker(io_size=8, region_end=100, time=1).start().close()

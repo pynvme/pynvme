@@ -303,9 +303,7 @@ static inline uint64_t ioworker_send_one_lba_sequential(struct ioworker_args* ar
                 gctx->sequential_lba, args->region_end);
 
   ret = gctx->sequential_lba;
-
-  // region_end is included in IO
-  if (ret > args->region_end)
+  if (ret >= args->region_end)
   {
     ret = args->region_start;
   }
@@ -377,8 +375,9 @@ static inline uint64_t ioworker_send_one_lba(struct ioworker_args* args,
   ret = ALIGN_UP(ret, lba_align);
   if (ret > args->region_end)
   {
-    SPDK_ERRLOG("ret 0x%lx, align 0x%x, end 0x%lx, seq 0x%lx\n",
-                ret, lba_align, args->region_end, gctx->sequential_lba);
+    ret = ALIGN_DOWN(ret-1, lba_align);
+    SPDK_INFOLOG(SPDK_LOG_NVME, "ret 0x%lx, align 0x%x, end 0x%lx, seq 0x%lx\n",
+                 ret, lba_align, args->region_end, gctx->sequential_lba);
   }
 
   // setup for next sequential io

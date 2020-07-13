@@ -889,7 +889,7 @@ Each ioworker can run upto 24 hours.
 
 * **io_size (short, range, list, dict)**\ : IO size, unit is LBA. It can be a fixed size, or a range or list of size, or specify ratio in the dict if they are not evenly distributed. 1base. Default: 8, 4K
 * **lba_step (short)**\ : valid only for sequential read/write, jump to next LBA by the step. Default: None, same as io_size, continous IO.
-* **lba_align (short)**\ : IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
+* **lba_align (short)**\ : IO alignment, unit is LBA. Default: None: means 1 lba.
 * **lba_random (int, bool)**\ : percentage of radom io, or True if sending IO with all random starting LBA. Default: True
 * **read_percentage (int)**\ : sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100. Obsoloted by op_percentage
 * **op_percentage (dict)**\ : opcode of commands sent in ioworker, and their percentage. Output: real io counts sent in ioworker. Default: None, fall back to read_percentage

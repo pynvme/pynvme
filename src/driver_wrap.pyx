@@ -1953,7 +1953,7 @@ cdef class Namespace(object):
         # Parameters
             io_size (short, range, list, dict): IO size, unit is LBA. It can be a fixed size, or a range or list of size, or specify ratio in the dict if they are not evenly distributed. 1base. Default: 8, 4K
             lba_step (short): valid only for sequential read/write, jump to next LBA by the step. Default: None, same as io_size, continous IO.
-            lba_align (short): IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
+            lba_align (short): IO alignment, unit is LBA. Default: None: means 1 lba.
             lba_random (int, bool): percentage of radom io, or True if sending IO with all random starting LBA. Default: True
             read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100. Obsoloted by op_percentage
             op_percentage (dict): opcode of commands sent in ioworker, and their percentage. Output: real io counts sent in ioworker. Default: None, fall back to read_percentage
@@ -2002,6 +2002,7 @@ cdef class Namespace(object):
             if time==0 and io_count==0:
                 # for pure sequential io, fill region one pass
                 io_count = (region_end-region_start+io_size-1)//io_size
+                logging.info("fill region with io count: %d" % io_count)
         else:
             assert not (io_sequence==None and time==0 and io_count==0), "when to stop the ioworker?"
 
@@ -2028,7 +2029,7 @@ cdef class Namespace(object):
 
         # set default alignment if it is specified
         if lba_align is None:
-            lba_align = [min(s, 8) for s in io_size.keys()]
+            lba_align = [1 for s in io_size.keys()]
         if isinstance(lba_align, int):
             lba_align = [lba_align, ]
         assert isinstance(lba_align, list)
