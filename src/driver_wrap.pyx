@@ -683,7 +683,7 @@ cdef class Pcie(object):
             if retry == 0:
                 logging.error("device lost: %s, retry %d" % (bdf, retry))
                 return False
-            time.sleep(1)
+            time.sleep(0.01)
             logging.info("rescan the device: %s, retry %d" % (bdf, retry))
             subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
 
