@@ -17,7 +17,6 @@ checkin_test:
   only:
     - pushes
   script:
-    - cd ./spdk/app/nvmf_tgt; make; cd ../../../
     - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob[1] --pciaddr=01:00.0
     - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=10.24.48.17
     - cd src; make unittest
