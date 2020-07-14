@@ -247,15 +247,6 @@ get the name of the admin command
 Returns
     (str): the command name
 
-disable_hmb
-^^^^^^^^^^^
-
-.. code-block:: python
-
-   Controller.disable_hmb()
-
-disable HMB function
-
 downfw
 ^^^^^^
 
@@ -292,15 +283,6 @@ device self test (DST) admin command
 
 Returns
     self (Controller)
-
-enable_hmb
-^^^^^^^^^^
-
-.. code-block:: python
-
-   Controller.enable_hmb()
-
-enable HMB function
 
 format
 ^^^^^^
@@ -894,7 +876,7 @@ Each ioworker can run upto 24 hours.
 * **read_percentage (int)**\ : sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100. Obsoloted by op_percentage
 * **op_percentage (dict)**\ : opcode of commands sent in ioworker, and their percentage. Output: real io counts sent in ioworker. Default: None, fall back to read_percentage
 * **time (int)**\ : specified maximum time of the IOWorker in seconds, up to 1000*3600. Default:0, means no limit
-* **qdepth (int)**\ : queue depth of the Qpair created by the IOWorker, up to 1024. 1base. Default: 64
+* **qdepth (int)**\ : queue depth of the Qpair created by the IOWorker, up to 1024. 1base value. Default: 64
 * **region_start (long)**\ : sending IO in the specified LBA region, start. Default: 0
 * **region_end (long)**\ : sending IO in the specified LBA region, end but not include. Default: 0xffff_ffff_ffff_ffff
 * **iops (int)**\ : specified maximum IOPS. IOWorker throttles the sending IO speed. Default: 0, means no limit
