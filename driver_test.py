@@ -665,7 +665,6 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     nvme1n1.close()
     q1.delete()
     q2.delete()
-
     pcie.close()
 
     
