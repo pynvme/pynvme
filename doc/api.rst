@@ -136,12 +136,12 @@ Controller class. Prefer to use fixture "nvme0" in test scripts.
 **Parameters**
 
 
-* **addr (bytes)**\ : the bus/device/function address of the DUT, for example:                       b'01:00.0' (PCIe BDF address),                        b'127.0.0.1' (TCP IP address).
+* **pcie (Pcie)**\ : Pcie object, or Tcp object for NVMe TCP targets
 * **nvme_init_func (callable, bool, None)**\ : True: no nvme init process, None: default process, callable: user defined process function
 
 **Example**
 
-.. code-block:: python
+.. code-block:: shell
 
        >>> n = Controller(Pcie('01:00.0'))
        >>> hex(n[0])     # CAP register
@@ -1105,7 +1105,7 @@ Pcie class to access PCIe configuration and memory space
 **Parameters**
 
 
-* **nvme (Controller)**\ : the nvme controller object of that subsystem
+* **addr (str)**\ : BDF address of PCIe device
 
 aspm
 ^^^^
@@ -1375,3 +1375,18 @@ lock or unlock the range for the user
 
 
 * **state (int)**\ : the lock state. 1: readonly, 2: rwlock, 4: unlock. default: 2
+
+Tcp
+---
+
+.. code-block:: python
+
+   Tcp()
+
+Tcp class for NVMe TCP target
+
+**Parameters**
+
+
+* **addr (str)**\ : IP address of TCP target
+* **port (int)**\ : the port number of TCP target. Default: 4420
