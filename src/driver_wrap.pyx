@@ -527,7 +527,8 @@ cdef class Pcie(object):
     """Pcie class to access PCIe configuration and memory space
 
     # Parameters
-        nvme (Controller): the nvme controller object of that subsystem
+        addr (str): BDF address of PCIe device, or IP address of TCP target
+        port (int): for TCP target, the port number. Default 0, for PCIe device
     """
 
     cdef d.ctrlr * _ctrlr
@@ -535,26 +536,34 @@ cdef class Pcie(object):
     cdef char _vdid[64]
     cdef bint _backup
     cdef long _magic
+    cdef int _port
 
-    def __cinit__(self, addr):
+    def __cinit__(self, addr, port=0):
         # pcie address, start with domain
         if not os.path.exists("/sys/bus/pci/devices/%s" % addr) and \
            not addr.startswith("0000:"):
-            addr = "0000:"+addr
+            if os.path.exists("/sys/bus/pci/devices/0000:%s" % addr):
+                # pci
+                addr = "0000:"+addr
+            elif port == 0:
+                # tcp
+                port = 4420
+
         bdf = addr.encode('utf-8')
         strncpy(self._bdf, bdf, strlen(bdf)+1)
-
         self._magic = 0x1243568790bacdfe
-        self._ctrlr = d.nvme_init(bdf, 0)
+        self._ctrlr = d.nvme_init(bdf, port)
         if self._ctrlr is NULL:
             raise NvmeEnumerateError("fail to create the controller")
         #print("create pcie: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
         self._backup = False
+        self._port = port
 
-        #get vdid
-        vdid = '%04x %04x' % (self.register(0, 2), self.register(2, 2))
-        vdid = vdid.encode('utf-8')
-        strncpy(self._vdid, vdid, strlen(vdid)+1)
+        #get vdid of pcie device
+        if port == 0:
+            vdid = '%04x %04x' % (self.register(0, 2), self.register(2, 2))
+            vdid = vdid.encode('utf-8')
+            strncpy(self._vdid, vdid, strlen(vdid)+1)
 
     def close(self):
         """close to explictly release its resources instead of del"""
@@ -833,13 +842,11 @@ cdef class Controller(object):
     """Controller class. Prefer to use fixture "nvme0" in test scripts.
 
     # Parameters
-        addr (bytes): the bus/device/function address of the DUT, for example: \
-                      b'01:00.0' (PCIe BDF address),  \
-                      b'127.0.0.1' (TCP IP address).
+        pcie (Pcie): pcie object, it could also be a TCP target
         nvme_init_func (callable, bool, None): True: no nvme init process, None: default process, callable: user defined process function
 
     # Example
-```python
+```shell
         >>> n = Controller(Pcie('01:00.0'))
         >>> hex(n[0])     # CAP register
         '0x28030fff'
@@ -891,9 +898,10 @@ cdef class Controller(object):
         d.nvme_register_timeout_cb(self.pcie._ctrlr, timeout_driver_cb, self._timeout)
         logging.debug("nvme initialized: %s", self.pcie._bdf)
 
-        # reset the device
-        if nvme_init_func is not True:
-            self._nvme_init()
+        # reset the pcie device
+        if self.pcie._port == 0:
+            if nvme_init_func is not True:
+                self._nvme_init()
 
     def _nvme_init(self):
         assert self.nvme_init_func is not True

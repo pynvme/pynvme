@@ -43,9 +43,6 @@ import nvme as d
 import nvme  # test double import
 
 
-tcp_target = b'10.24.48.17'  #b'127.0.0.1'
-
-
 @pytest.mark.parametrize("repeat", range(2))
 def test_init_nvme_back_compatibility(pciaddr, repeat):
     pcie = d.Pcie(pciaddr)
@@ -332,10 +329,12 @@ def test_hello_world(nvme0, nvme0n1, verify):
     qpair.delete()
 
 
-@pytest.mark.skip("tcp")
+tcp_target = '10.24.48.17'
+
 @pytest.mark.parametrize("repeat", range(2))
 def test_nvme_tcp_basic(repeat):
-    c = d.Controller(tcp_target)
+    tcp = d.Pcie(tcp_target) # actually it is a TCP target instead of PCIe device
+    c = d.Controller(tcp)
     logging.info("debug: %s" % c.id_data(63, 24, str))
     logging.info("debug: %s" % c.id_data(63, 24, str))
     logging.info("debug: %s" % c.id_data(63, 24, str))
@@ -347,6 +346,17 @@ def test_nvme_tcp_basic(repeat):
     logging.info("debug: %s" % c.id_data(63, 24, str))
     assert c.mdts == 128*1024
     c.cmdlog(10)
+
+    
+def test_nvme_tcp_ioworker():
+    tcp = d.Pcie(tcp_target, 4420)
+    c = d.Controller(tcp)
+    n = d.Namespace(c, 1)
+    n.ioworker(io_size=8, lba_align=8,
+               region_start=0, region_end=0x100,
+               lba_random=False, qdepth=4,
+               read_percentage=50, time=15).start().close()
+    n.close()
 
 
 def test_create_device(nvme0, nvme0n1):
@@ -671,17 +681,6 @@ def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
 
     nvme1n1.close()
     pcie.close()
-
-
-@pytest.mark.skip("tcp")
-def test_nvme_tcp_ioworker():
-    c = d.Controller(tcp_target)
-    n = d.Namespace(c, 1)
-    n.ioworker(io_size=8, lba_align=8,
-               region_start=0, region_end=0x100,
-               lba_random=False, qdepth=4,
-               read_percentage=50, time=15).start().close()
-    n.close()
 
 
 @pytest.mark.parametrize("nlba", [1, 2, 8])
