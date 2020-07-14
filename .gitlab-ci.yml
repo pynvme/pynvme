@@ -31,7 +31,7 @@ stress_test:
     expire_in: 5 yrs
   script:
     - make test pciaddr=0000:01:00.0
-    - cat test.log | grep "3 failed, 389 passed, 3 skipped" || exit -1
+    - cat test.log | grep "3 failed, 392 passed" || exit -1
 
 scripts_test:
   only:
