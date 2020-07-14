@@ -389,7 +389,6 @@ def test_latest_cid(nvme0, nvme0n1, qpair, buf):
     nvme0.abort(qpair.latest_cid).waitdone()
 
 
-@pytest.mark.skip("two controllers")
 def test_two_controllers(nvme0):
     pcie = d.Pcie('03:00.0')
     nvme1 = d.Controller(pcie)
@@ -583,7 +582,6 @@ def test_ioworker_power_cycle_async_cmdlog(nvme0, nvme0n1, subsystem):
     assert cmdlog_list[10][0] == cmdlog_list[9][0]+8
 
 
-@pytest.mark.skip("two namespaces")
 def test_two_namespace_basic(nvme0n1, nvme0, verify):
     pcie = d.Pcie('03:00.0')
     nvme1 = d.Controller(pcie)
@@ -593,7 +591,7 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
 
     logging.info("controller0 namespace size: %d" % nvme0n1.id_data(7, 0))
     logging.info("controller1 namespace size: %d" % nvme1n1.id_data(7, 0))
-    assert nvme0n1.id_data(7, 0) == nvme1n1.id_data(7, 0)
+    assert nvme0n1.id_data(7, 0) != nvme1n1.id_data(7, 0)
 
     q1 = d.Qpair(nvme0, 32)
     q2 = d.Qpair(nvme1, 64)
@@ -658,7 +656,7 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
 
     pcie.close()
 
-@pytest.mark.skip("two namespaces")
+    
 def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
     pcie = d.Pcie('03:00.0')
     nvme1 = d.Controller(pcie)

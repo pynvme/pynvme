@@ -8,7 +8,7 @@ default:
     - echo $SCRIPT_PATH
     - echo $DUT_PCIADDR
     - ./install.sh
-    - make setup
+    - make setup memsize=8000
   after_script:
     - make reset
     - make clean
@@ -31,8 +31,8 @@ stress_test:
     when: always
     expire_in: 5 yrs
   script:
-    - make test
-    - cat test.log | grep "3 failed, 386 passed, 6 skipped" || exit -1
+    - make test pciaddr=0000:01:00.0
+    - cat test.log | grep "3 failed, 389 passed, 3 skipped" || exit -1
 
 scripts_test:
   only:
@@ -44,4 +44,4 @@ scripts_test:
     when: always
     expire_in: 5 yrs
   script:
-    - make test TESTS=scripts/$SCRIPT_PATH
+    - make test pciaddr=$DUT_PCIADDR TESTS=scripts/$SCRIPT_PATH
