@@ -113,7 +113,7 @@ def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
 # multiple ioworkers, PCIe, TCP, CPU, performance, ioworker return values
 def test_multiple_controllers_and_namespaces(pciaddr):
     # address list of the devices to test
-    addr_list = ['01:00.0', '03:00.0', '192.168.0.3', '127.0.0.1:4420']
+    addr_list = ['01:00.0', '02:00.0', '03:00.0', '04:00.0']
     addr_list = [pciaddr, ]
     test_seconds = 10
 

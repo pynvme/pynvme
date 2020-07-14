@@ -333,7 +333,7 @@ tcp_target = '10.24.48.17'
 
 @pytest.mark.parametrize("repeat", range(2))
 def test_nvme_tcp_basic(repeat):
-    tcp = d.Pcie(tcp_target) # actually it is a TCP target instead of PCIe device
+    tcp = d.Tcp(tcp_target)
     c = d.Controller(tcp)
     logging.info("debug: %s" % c.id_data(63, 24, str))
     logging.info("debug: %s" % c.id_data(63, 24, str))
@@ -346,10 +346,11 @@ def test_nvme_tcp_basic(repeat):
     logging.info("debug: %s" % c.id_data(63, 24, str))
     assert c.mdts == 128*1024
     c.cmdlog(10)
+    tcp.close()
 
     
 def test_nvme_tcp_ioworker():
-    tcp = d.Pcie(tcp_target, 4420)
+    tcp = d.Tcp(tcp_target, 4420)
     c = d.Controller(tcp)
     n = d.Namespace(c, 1)
     n.ioworker(io_size=8, lba_align=8,
@@ -357,7 +358,8 @@ def test_nvme_tcp_ioworker():
                lba_random=False, qdepth=4,
                read_percentage=50, time=15).start().close()
     n.close()
-
+    tcp.close()
+    
 
 def test_create_device(nvme0, nvme0n1):
     assert nvme0 is not None

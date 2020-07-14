@@ -527,8 +527,7 @@ cdef class Pcie(object):
     """Pcie class to access PCIe configuration and memory space
 
     # Parameters
-        addr (str): BDF address of PCIe device, or IP address of TCP target
-        port (int): for TCP target, the port number. Default 0, for PCIe device
+        addr (str): BDF address of PCIe device
     """
 
     cdef d.ctrlr * _ctrlr
@@ -792,6 +791,17 @@ cdef class Pcie(object):
         pmcsr =  self.register(pmcsr_addr, 4)
         self.__setitem__(pmcsr_addr, (pmcsr&0xfc)|state)
 
+class Tcp(Pcie):
+    """Tcp class for NVMe TCP target
+
+    # Parameters
+        addr (str): IP address of TCP target
+        port (int): the port number of TCP target. Default: 4420
+    """
+    
+    def __cinit__(self, addr, port=4420):
+        super(Pcie, self).__init__(addr, port)
+
 
 class TcgError(Exception):
     pass
@@ -842,7 +852,7 @@ cdef class Controller(object):
     """Controller class. Prefer to use fixture "nvme0" in test scripts.
 
     # Parameters
-        pcie (Pcie): pcie object, it could also be a TCP target
+        pcie (Pcie): Pcie object, or Tcp object for NVMe TCP targets
         nvme_init_func (callable, bool, None): True: no nvme init process, None: default process, callable: user defined process function
 
     # Example
@@ -885,7 +895,7 @@ cdef class Controller(object):
     cdef object nvme_init_func
 
     def __cinit__(self, pcie, nvme_init_func=None):
-        assert type(pcie) is Pcie
+        assert type(pcie) is Pcie or type(pcie) is Tcp
         assert nvme_init_func is True or \
                nvme_init_func is None or \
                callable(nvme_init_func)
