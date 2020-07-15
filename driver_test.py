@@ -402,7 +402,7 @@ def test_latest_cid(nvme0, nvme0n1, qpair, buf):
 
 
 def test_two_controllers(nvme0):
-    pcie = d.Pcie('03:00.0')
+    pcie = d.Pcie(tcp_target)
     nvme1 = d.Controller(pcie)
     assert nvme0.id_data(63, 24, str)[:6] != nvme1.id_data(63, 24, str)[:6]
     assert nvme0.id_data(23, 4, str) != nvme1.id_data(23, 4, str)
@@ -595,21 +595,22 @@ def test_ioworker_power_cycle_async_cmdlog(nvme0, nvme0n1, subsystem):
 
 
 def test_two_namespace_basic(nvme0n1, nvme0, verify):
-    pcie = d.Pcie('03:00.0')
+    pcie = d.Pcie(tcp_target)
     nvme1 = d.Controller(pcie)
     nvme1n1 = d.Namespace(nvme1)
-    nvme0n1.format()
-    nvme1n1.format()
-
-    logging.info("controller0 namespace size: %d" % nvme0n1.id_data(7, 0))
-    logging.info("controller1 namespace size: %d" % nvme1n1.id_data(7, 0))
-    assert nvme0n1.id_data(7, 0) != nvme1n1.id_data(7, 0)
-
     q1 = d.Qpair(nvme0, 32)
     q2 = d.Qpair(nvme1, 64)
     buf = d.Buffer(512)
     buf1 = d.Buffer(512)
     buf2 = d.Buffer(512)
+
+    nvme0n1.write_zeroes(q1, 11, 1).waitdone()
+    nvme0n1.write_zeroes(q1, 22, 1).waitdone()
+    nvme1n1.write_zeroes(q2, 11, 1).waitdone()
+
+    logging.info("controller0 namespace size: %d" % nvme0n1.id_data(7, 0))
+    logging.info("controller1 namespace size: %d" % nvme1n1.id_data(7, 0))
+    assert nvme0n1.id_data(7, 0) != nvme1n1.id_data(7, 0)
 
     # test nvme0n1
     nvme0n1.read(q1, buf1, 11, 1).waitdone()
@@ -669,7 +670,7 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
 
     
 def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
-    pcie = d.Pcie('03:00.0')
+    pcie = d.Pcie(tcp_target)
     nvme1 = d.Controller(pcie)
     nvme1n1 = d.Namespace(nvme1)
     with nvme0n1.ioworker(io_size=8, lba_align=16,
