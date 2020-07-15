@@ -272,22 +272,6 @@ def test_nvme_tcp_ioworker():
     tcp.close()
     
     
-def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
-    pcie = d.Pcie(tcp_target)
-    nvme1 = d.Controller(pcie)
-    nvme1n1 = d.Namespace(nvme1)
-    with nvme0n1.ioworker(io_size=8, lba_align=16,
-                          lba_random=True, qdepth=16,
-                          read_percentage=0, time=1), \
-         nvme1n1.ioworker(io_size=8, lba_align=16,
-                          lba_random=True, qdepth=16,
-                          read_percentage=0, time=1):
-        pass
-
-    nvme1n1.close()
-    pcie.close()
-
-
 def test_two_controllers(nvme0):
     pcie = d.Pcie(tcp_target)
     nvme1 = d.Controller(pcie)
@@ -323,7 +307,6 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     nvme0n1.read(q1, buf1, 11, 1).waitdone()
     #print(buf1.dump())
     assert buf1[0] == 11
-    assert buf1[504] == 1
 
     # test nvme1n1
     nvme1n1.read(q2, buf2, 11, 1).waitdone()
@@ -334,21 +317,16 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     nvme1n1.read(q2, buf2, 11, 1).waitdone()
     #print(buf2.dump())
     assert buf2[0] == 11
-    assert buf2[504] == 2
-
-    assert buf1[:504] == buf2[:504]
     assert buf1[:] != buf2[:]
 
     # test nvme0n1 again
     nvme0n1.read(q1, buf1, 11, 1).waitdone()
     #print(buf1.dump())
     assert buf1[0] == 11
-    assert buf1[504] == 1
     nvme0n1.write(q1, buf, 11, 1).waitdone()
     nvme0n1.read(q1, buf1, 11, 1).waitdone()
     #print(buf1.dump())
     assert buf1[0] == 11
-    assert buf1[504] == 3
 
     nvme0n1.read(q1, buf1, 22, 1).waitdone()
     #print(buf1.dump())
@@ -358,7 +336,6 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     nvme0n1.read(q1, buf1, 22, 1).waitdone()
     #print(buf1.dump())
     assert buf1[0] == 22
-    assert buf1[504] == 4
 
     nvme0.cmdlog(15)
     nvme1.cmdlog(15)
@@ -371,6 +348,22 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
     pcie.close()
 
     
+def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
+    pcie = d.Pcie(tcp_target)
+    nvme1 = d.Controller(pcie)
+    nvme1n1 = d.Namespace(nvme1)
+    with nvme0n1.ioworker(io_size=8, lba_align=16,
+                          lba_random=True, qdepth=16,
+                          read_percentage=0, time=1), \
+         nvme1n1.ioworker(io_size=8, lba_align=16,
+                          lba_random=True, qdepth=16,
+                          read_percentage=0, time=1):
+        pass
+
+    nvme1n1.close()
+    pcie.close()
+
+
 @pytest.mark.parametrize("repeat", range(2))
 def test_false(nvme0, subsystem, repeat):
     assert False
