@@ -677,7 +677,7 @@ cdef class Pcie(object):
 
         logging.info("cannot find the capability %d" % cap_id)
 
-    def _rescan(self, retry=5):
+    def _rescan(self, retry=1000):
         bdf = self._bdf.decode('utf-8')
 
         # rescan device without kernel nvme driver
