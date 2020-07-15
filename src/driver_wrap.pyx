@@ -954,12 +954,12 @@ cdef class Controller(object):
         nvme0.identify(Buffer(4096)).waitdone()
         if nvme0.init_ns() < 0:
             # first try fail: warning, and retry
-            warnings.warn("init namespaces fail")
+            warnings.warn("init namespaces first warning")
             time.sleep(1)
             nvme0.identify(Buffer(4096)).waitdone()
             if nvme0.init_ns() < 0:
                 # second try fail: error
-                raise NvmeEnumerateError("fail to init namespaces")
+                raise NvmeEnumerateError("init namespaces failed")
 
         # 8. set/get num of queues
         nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
