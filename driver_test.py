@@ -35,6 +35,7 @@
 
 import os
 import time
+import ping3
 import pytest
 import logging
 import warnings
@@ -244,6 +245,9 @@ def test_expected_dut(nvme0):
 
 @pytest.mark.parametrize("repeat", range(2))
 def test_nvme_tcp_basic(repeat):
+    if ping3.ping(tcp_target, timeout=1) is None:
+        pytest.skip("tcp target is not accessible")
+        
     tcp = d.Tcp(tcp_target)
     c = d.Controller(tcp)
     logging.info("debug: %s" % c.id_data(63, 24, str))
@@ -261,6 +265,9 @@ def test_nvme_tcp_basic(repeat):
 
     
 def test_nvme_tcp_ioworker():
+    if ping3.ping(tcp_target, timeout=1) is None:
+        pytest.skip("tcp target is not accessible")
+    
     tcp = d.Tcp(tcp_target, 4420)
     c = d.Controller(tcp)
     n = d.Namespace(c, 1)
@@ -273,6 +280,9 @@ def test_nvme_tcp_ioworker():
     
     
 def test_two_controllers(nvme0):
+    if ping3.ping(tcp_target, timeout=1) is None:
+        pytest.skip("tcp target is not accessible")
+
     pcie = d.Pcie(tcp_target)
     nvme1 = d.Controller(pcie)
     assert nvme0.id_data(63, 24, str)[:6] != nvme1.id_data(63, 24, str)[:6]
@@ -281,6 +291,9 @@ def test_two_controllers(nvme0):
 
 
 def test_two_namespace_basic(nvme0n1, nvme0, verify):
+    if ping3.ping(tcp_target, timeout=1) is None:
+        pytest.skip("tcp target is not accessible")
+        
     pcie = d.Pcie(tcp_target)
     nvme1 = d.Controller(pcie)
     nvme1n1 = d.Namespace(nvme1)
@@ -349,6 +362,9 @@ def test_two_namespace_basic(nvme0n1, nvme0, verify):
 
     
 def test_two_namespace_ioworkers(nvme0n1, nvme0, verify):
+    if ping3.ping(tcp_target, timeout=1) is None:
+        pytest.skip("tcp target is not accessible")
+        
     pcie = d.Pcie(tcp_target)
     nvme1 = d.Controller(pcie)
     nvme1n1 = d.Namespace(nvme1)

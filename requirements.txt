@@ -1,6 +1,7 @@
 m2r
 numpy
 scipy
+ping3
 libpci
 cython
 psutil
