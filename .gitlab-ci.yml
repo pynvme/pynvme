@@ -8,7 +8,7 @@ default:
     - echo $SCRIPT_PATH
     - echo $DUT_PCIADDR
     - ./install.sh
-    - make setup memsize=8000
+    - make setup
   after_script:
     - make reset
     - make clean
