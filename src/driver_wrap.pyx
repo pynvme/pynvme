@@ -430,8 +430,8 @@ cdef class Subsystem(object):
         pcie = self._nvme.pcie
 
         # config spdk driver
-        pcie._bind_driver('uio_pci_generic')
         pcie._rescan()
+        pcie._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after power on")
         return True
 
@@ -511,8 +511,8 @@ cdef class Subsystem(object):
         self._nvme[0x20] = 0x4e564d65  # "NVMe"
 
         # config spdk driver
-        pcie._bind_driver('uio_pci_generic')
         pcie._rescan()
+        pcie._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after subsystem reset")
         return True
 
@@ -740,8 +740,8 @@ cdef class Pcie(object):
         time.sleep(0.5)
 
         # config spdk driver
-        self._bind_driver('uio_pci_generic')
         self._rescan()
+        self._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after pcie reset")
         return True
 

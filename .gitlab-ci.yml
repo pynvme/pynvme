@@ -26,7 +26,7 @@ stress_test:
     - schedules
   artifacts:
     paths:
-      - test*.log
+      - test_.*\.log
     when: always
     expire_in: 5 yrs
   script:
@@ -38,7 +38,7 @@ scripts_test:
     - web
   artifacts:
     paths:
-      - test*.log
+      - test_.*\.log
       - performance_report.xlsx
     when: always
     expire_in: 5 yrs
