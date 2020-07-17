@@ -9,13 +9,12 @@ pyyaml
 pytest
 pytest-cov
 pytemperature
-pydoc-markdown
+pydoc-markdown==2.1.3
 PySimpleGUI
 py-cpuinfo
 openpyxl
 pyserial==2.7
 quarchpy
-pydocmd
 sphinx
 sphinx_rtd_theme
 matplotlib
