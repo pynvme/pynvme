@@ -44,7 +44,7 @@ import nvme as d
 import nvme  # test double import
 
 
-tcp_target = '10.24.48.17'
+tcp_target = '127.0.0.1'  #'10.24.48.17'
 
 
 @pytest.mark.parametrize("repeat", range(2))
