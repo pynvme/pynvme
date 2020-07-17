@@ -15,6 +15,7 @@ py-cpuinfo
 openpyxl
 pyserial==2.7
 quarchpy
+pydocmd
 sphinx
 sphinx_rtd_theme
 matplotlib

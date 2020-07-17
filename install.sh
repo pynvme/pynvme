@@ -63,7 +63,6 @@ make                                         # compile pynvme
 
 # quick test after compile
 make setup
-sudo ./identify_nvme
 make test TESTS=scripts/test_examples.py::test_hello_world
 
 echo "pynvme install done."
