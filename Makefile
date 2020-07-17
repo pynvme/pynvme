@@ -53,6 +53,7 @@ clean:
 
 spdk:
 	cd spdk; make clean; ./configure --enable-debug --enable-log-bt --enable-werror --disable-tests --without-ocf --without-vhost --without-virtio --without-pmdk --without-vpp --without-rbd --without-isal; make -j8; cd ..
+	cd spdk/examples/nvme/identify; make
 
 doc:
 	pydocmd simple nvme++ > api.md
