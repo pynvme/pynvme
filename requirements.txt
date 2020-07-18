@@ -1,6 +1,7 @@
 m2r
-numpy==1.15.1
+numpy
 scipy
+ping3
 libpci
 cython
 psutil
@@ -8,7 +9,7 @@ pyyaml
 pytest
 pytest-cov
 pytemperature
-pydoc-markdown
+pydoc-markdown==2.1.3
 PySimpleGUI
 py-cpuinfo
 openpyxl
@@ -16,3 +17,4 @@ pyserial==2.7
 quarchpy
 sphinx
 sphinx_rtd_theme
+matplotlib

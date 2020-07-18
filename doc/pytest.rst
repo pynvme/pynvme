@@ -68,9 +68,9 @@ With pytest and pre-defined makefile, we can execute tests in many flexible ways
    make test TESTS="driver_test.py::test_ioworker_iops_multiple_queue[1]"
 
    # start tests on multiple drives with 1GB reserved memory space each
-   make test TESTS=scripts/stress/endurance_test.py::test_replay_jedec_client_trace memsize=1000 pciaddr=01:00.0   
-   make test TESTS=scripts/stress/endurance_test.py::test_replay_jedec_client_trace memsize=1000 pciaddr=02:00.0   
-   make test TESTS=scripts/stress/endurance_test.py::test_replay_jedec_client_trace memsize=1000 pciaddr=172.168.5.44
+   make test TESTS=scripts/stress/endurance_test.py::test_replay_jedec_client_trace pciaddr=01:00.0   
+   make test TESTS=scripts/stress/endurance_test.py::test_replay_jedec_client_trace pciaddr=02:00.0   
+   make test TESTS=scripts/stress/endurance_test.py::test_replay_jedec_client_trace pciaddr=172.168.5.44
    
    
 Without specified pciaddr commandline parameter, *make test* automatically uses the last PCIe NVMe device in the lspci list. Pynvme supports multiple test sessions with different NVMe devices, or even NVMe over TCP targets, specified in the command line.

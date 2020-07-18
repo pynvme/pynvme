@@ -7,7 +7,7 @@ Buffer
 
 .. code-block:: python
 
-   Buffer(self, /, *args, **kwargs)
+   Buffer()
 
 Buffer allocates memory in DPDK, so we can get its physical address for DMA. Data in buffer is clear to 0 in initialization.
 
@@ -69,7 +69,7 @@ data
 
 .. code-block:: python
 
-   Buffer.data(self, byte_end, byte_begin, type)
+   Buffer.data(byte_end, byte_begin, type)
 
 get field in the buffer. Little endian for integers.
 
@@ -81,16 +81,14 @@ get field in the buffer. Little endian for integers.
 * **type (type)**\ : the type of the field. It should be int or str. Default: int, convert to integer python object
 
 Returns
-
-
-* **(int or str)**\ : the data in the specified field
+    (int or str): the data in the specified field
 
 dump
 ^^^^
 
 .. code-block:: python
 
-   Buffer.dump(self, size)
+   Buffer.dump(size)
 
 get the buffer content
 
@@ -114,7 +112,7 @@ set_dsm_range
 
 .. code-block:: python
 
-   Buffer.set_dsm_range(self, index, lba, lba_count, attr)
+   Buffer.set_dsm_range(index, lba, lba_count, attr)
 
 set dsm ranges in the buffer, for dsm/deallocation (a.ka trim) commands
 
@@ -131,20 +129,21 @@ Controller
 
 .. code-block:: python
 
-   Controller(self, /, *args, **kwargs)
+   Controller()
 
 Controller class. Prefer to use fixture "nvme0" in test scripts.
 
 **Parameters**
 
 
-* **addr (bytes)**\ : the bus/device/function address of the DUT, for example:                       b'01:00.0' (PCIe BDF address),                        b'127.0.0.1' (TCP IP address).
+* **pcie (Pcie)**\ : Pcie object, or Tcp object for NVMe TCP targets
+* **nvme_init_func (callable, bool, None)**\ : True: no nvme init process, None: default process, callable: user defined process function
 
 **Example**
 
-.. code-block:: python
+.. code-block:: shell
 
-       >>> n = Controller(b'01:00.0')
+       >>> n = Controller(Pcie('01:00.0'))
        >>> hex(n[0])     # CAP register
        '0x28030fff'
        >>> hex(n[0x1c])  # CSTS register
@@ -179,7 +178,7 @@ abort
 
 .. code-block:: python
 
-   Controller.abort(self, cid, sqid, cb)
+   Controller.abort(cid, sqid, cb)
 
 abort admin commands
 
@@ -198,7 +197,7 @@ aer
 
 .. code-block:: python
 
-   Controller.aer(self, cb)
+   Controller.aer(cb)
 
 asynchorous event request admin command.
 
@@ -222,7 +221,7 @@ cmdlog
 
 .. code-block:: python
 
-   Controller.cmdlog(self, count)
+   Controller.cmdlog(count)
 
 print recent commands and their completions.
 
@@ -236,7 +235,7 @@ cmdname
 
 .. code-block:: python
 
-   Controller.cmdname(self, opcode)
+   Controller.cmdname(opcode)
 
 get the name of the admin command
 
@@ -246,25 +245,14 @@ get the name of the admin command
 * **opcode (int)**\ : the opcode of the admin command
 
 Returns
-
-
-* **(str)**\ : the command name
-
-disable_hmb
-^^^^^^^^^^^
-
-.. code-block:: python
-
-   Controller.disable_hmb(self)
-
-disable HMB function
+    (str): the command name
 
 downfw
 ^^^^^^
 
 .. code-block:: python
 
-   Controller.downfw(self, filename, slot, action)
+   Controller.downfw(filename, slot, action)
 
 firmware download utility: by 4K, and activate in next reset
 
@@ -282,7 +270,7 @@ dst
 
 .. code-block:: python
 
-   Controller.dst(self, stc, nsid, cb)
+   Controller.dst(stc, nsid, cb)
 
 device self test (DST) admin command
 
@@ -296,21 +284,12 @@ device self test (DST) admin command
 Returns
     self (Controller)
 
-enable_hmb
-^^^^^^^^^^
-
-.. code-block:: python
-
-   Controller.enable_hmb(self)
-
-enable HMB function
-
 format
 ^^^^^^
 
 .. code-block:: python
 
-   Controller.format(self, lbaf, ses, nsid, cb)
+   Controller.format(lbaf, ses, nsid, cb)
 
 format admin command
 
@@ -333,7 +312,7 @@ fw_commit
 
 .. code-block:: python
 
-   Controller.fw_commit(self, slot, action, cb)
+   Controller.fw_commit(slot, action, cb)
 
 firmware commit admin command
 
@@ -352,7 +331,7 @@ fw_download
 
 .. code-block:: python
 
-   Controller.fw_download(self, buf, offset, size, cb)
+   Controller.fw_download(buf, offset, size, cb)
 
 firmware download admin command
 
@@ -372,7 +351,8 @@ getfeatures
 
 .. code-block:: python
 
-   Controller.getfeatures(self, fid, sel, buf, cdw11, cdw12, cdw13, cdw14, cdw15, cb)
+   Controller.getfeatures(fid, sel, buf, cdw11, cdw12, cdw13, cdw14, cdw15,
+                          cb)
 
 getfeatures admin command
 
@@ -393,7 +373,7 @@ getlogpage
 
 .. code-block:: python
 
-   Controller.getlogpage(self, lid, buf, size, offset, nsid, cb)
+   Controller.getlogpage(lid, buf, size, offset, nsid, cb)
 
 getlogpage admin command
 
@@ -415,7 +395,7 @@ id_data
 
 .. code-block:: python
 
-   Controller.id_data(self, byte_end, byte_begin, type, nsid, cns)
+   Controller.id_data(byte_end, byte_begin, type, nsid, cns)
 
 get field in controller identify data
 
@@ -427,16 +407,14 @@ get field in controller identify data
 * **type (type)**\ : the type of the field. It should be int or str. Default: int, convert to integer python object
 
 Returns
-
-
-* **(int or str)**\ : the data in the specified field
+    (int or str): the data in the specified field
 
 identify
 ^^^^^^^^
 
 .. code-block:: python
 
-   Controller.identify(self, buf, nsid, cns, cb)
+   Controller.identify(buf, nsid, cns, cb)
 
 identify admin command
 
@@ -456,7 +434,7 @@ init_adminq
 
 .. code-block:: python
 
-   Controller.init_adminq(self)
+   Controller.init_adminq()
 
 used by NVMe init process in scripts
 
@@ -465,7 +443,7 @@ init_ns
 
 .. code-block:: python
 
-   Controller.init_ns(self)
+   Controller.init_ns()
 
 used by NVMe init process in scripts
 
@@ -479,7 +457,7 @@ mi_receive
 
 .. code-block:: python
 
-   Controller.mi_receive(self, opcode, dword0, dword1, buf, mtype, cb)
+   Controller.mi_receive(opcode, dword0, dword1, buf, mtype, cb)
 
 NVMe MI receive
 
@@ -501,7 +479,7 @@ mi_send
 
 .. code-block:: python
 
-   Controller.mi_send(self, opcode, dword0, dword1, buf, mtype, cb)
+   Controller.mi_send(opcode, dword0, dword1, buf, mtype, cb)
 
 NVMe MI Send
 
@@ -523,7 +501,7 @@ reset
 
 .. code-block:: python
 
-   Controller.reset(self)
+   Controller.reset()
 
 controller reset: cc.en 1 => 0 => 1
 
@@ -535,7 +513,7 @@ sanitize
 
 .. code-block:: python
 
-   Controller.sanitize(self, option, pattern, cb)
+   Controller.sanitize(option, pattern, cb)
 
 sanitize admin command
 
@@ -554,7 +532,7 @@ security_receive
 
 .. code-block:: python
 
-   Controller.security_receive(self, buf, spsp, secp, nssf, size, cb)
+   Controller.security_receive(buf, spsp, secp, nssf, size, cb)
 
 admin command: security receive
 
@@ -573,7 +551,7 @@ security_send
 
 .. code-block:: python
 
-   Controller.security_send(self, buf, spsp, secp, nssf, size, cb)
+   Controller.security_send(buf, spsp, secp, nssf, size, cb)
 
 admin command: security send
 
@@ -592,7 +570,8 @@ send_cmd
 
 .. code-block:: python
 
-   Controller.send_cmd(self, opcode, buf, nsid, cdw10, cdw11, cdw12, cdw13, cdw14, cdw15, cb)
+   Controller.send_cmd(opcode, buf, nsid, cdw10, cdw11, cdw12, cdw13, cdw14,
+                       cdw15, cb)
 
 send generic admin commands.
 
@@ -614,7 +593,8 @@ setfeatures
 
 .. code-block:: python
 
-   Controller.setfeatures(self, fid, sv, buf, cdw11, cdw12, cdw13, cdw14, cdw15, cb)
+   Controller.setfeatures(fid, sv, buf, cdw11, cdw12, cdw13, cdw14, cdw15,
+                          cb)
 
 setfeatures admin command
 
@@ -635,7 +615,7 @@ supports
 
 .. code-block:: python
 
-   Controller.supports(self, opcode)
+   Controller.supports(opcode)
 
 check if the admin command is supported
 
@@ -645,9 +625,7 @@ check if the admin command is supported
 * **opcode (int)**\ : the opcode of the admin command
 
 Returns
-
-
-* **(bool)**\ : if the command is supported
+    (bool): if the command is supported
 
 timeout
 ^^^^^^^
@@ -661,7 +639,7 @@ waitdone
 
 .. code-block:: python
 
-   Controller.waitdone(self, expected)
+   Controller.waitdone(expected)
 
 sync until expected admin commands completion
 
@@ -674,16 +652,14 @@ Notice
 * **expected (int)**\ : expected commands to complete. Default: 1
 
 Returns
-
-
-* **(int)**\ : cdw0 of the last command
+    (int): cdw0 of the last command
 
 Namespace
 ---------
 
 .. code-block:: python
 
-   Namespace(self, /, *args, **kwargs)
+   Namespace()
 
 Namespace class.
 
@@ -704,16 +680,16 @@ close
 
 .. code-block:: python
 
-   Namespace.close(self)
+   Namespace.close()
 
-obsoleted
+close to explictly release its resources instead of del
 
 cmdname
 ^^^^^^^
 
 .. code-block:: python
 
-   Namespace.cmdname(self, opcode)
+   Namespace.cmdname(opcode)
 
 get the name of the IO command
 
@@ -723,16 +699,14 @@ get the name of the IO command
 * **opcode (int)**\ : the opcode of the IO command
 
 Returns
-
-
-* **(str)**\ : the command name
+    (str): the command name
 
 compare
 ^^^^^^^
 
 .. code-block:: python
 
-   Namespace.compare(self, qpair, buf, lba, lba_count, io_flags, cb)
+   Namespace.compare(qpair, buf, lba, lba_count, io_flags, cb)
 
 compare IO command
 
@@ -750,9 +724,7 @@ Notice
 * **cb (function)**\ : callback function called at completion. Default: None
 
 Returns
-
-
-* **qpair (Qpair)**\ : the qpair used to send this command, for ease of chained call
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
 
 **Raises**
 
@@ -764,7 +736,7 @@ dsm
 
 .. code-block:: python
 
-   Namespace.dsm(self, qpair, buf, range_count, attribute, cb)
+   Namespace.dsm(qpair, buf, range_count, attribute, cb)
 
 data-set management IO command
 
@@ -781,9 +753,7 @@ Notice
 * **cb (function)**\ : callback function called at completion. Default: None
 
 Returns
-
-
-* **qpair (Qpair)**\ : the qpair used to send this command, for ease of chained call
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
 
 **Raises**
 
@@ -795,7 +765,7 @@ flush
 
 .. code-block:: python
 
-   Namespace.flush(self, qpair, cb)
+   Namespace.flush(qpair, cb)
 
 flush IO command
 
@@ -806,9 +776,7 @@ flush IO command
 * **cb (function)**\ : callback function called at completion. Default: None
 
 Returns
-
-
-* **qpair (Qpair)**\ : the qpair used to send this command, for ease of chained call
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
 
 **Raises**
 
@@ -820,12 +788,12 @@ format
 
 .. code-block:: python
 
-   Namespace.format(self, data_size, meta_size, ses)
+   Namespace.format(data_size, meta_size, ses)
 
 change the format of this namespace
 
 Notice
-    Namespace.format() not only sends the admin command, but also updates driver to activate new format immediately. Recommend to use this API to do format.
+    Namespace.format() not only sends the admin command, but also updates driver to activate new format immediately. Recommend to use this API to do format. Close and re-create namespace when lba format is changed.
 
 **Parameters**
 
@@ -835,16 +803,14 @@ Notice
 * **ses (int)**\ : ses field in the command. Default: 0, no secure erase
 
 Returns
-
-
-* **int**\ : cdw0 of the format admin command
+    int: cdw0 of the format admin command
 
 get_lba_format
 ^^^^^^^^^^^^^^
 
 .. code-block:: python
 
-   Namespace.get_lba_format(self, data_size, meta_size)
+   Namespace.get_lba_format(data_size, meta_size)
 
 find the lba format by its data size and meta data size
 
@@ -855,16 +821,14 @@ find the lba format by its data size and meta data size
 * **meta_size (int)**\ : meta data size. Default: 0
 
 Returns
-
-
-* **(int or None)**\ : the lba format has the specified data size and meta data size
+    (int or None): the lba format has the specified data size and meta data size
 
 id_data
 ^^^^^^^
 
 .. code-block:: python
 
-   Namespace.id_data(self, byte_end, byte_begin, type)
+   Namespace.id_data(byte_end, byte_begin, type)
 
 get field in namespace identify data
 
@@ -876,16 +840,19 @@ get field in namespace identify data
 * **type (type)**\ : the type of the field. It should be int or str. Default: int, convert to integer python object
 
 Returns
-
-
-* **(int or str)**\ : the data in the specified field
+    (int or str): the data in the specified field
 
 ioworker
 ^^^^^^^^
 
 .. code-block:: python
 
-   Namespace.ioworker(self, io_size, lba_step, lba_align, lba_random, read_percentage, op_percentage, time, qdepth, region_start, region_end, iops, io_count, lba_start, qprio, distribution, ptype, pvalue, io_sequence, output_io_per_second, output_percentile_latency, output_cmdlog_list)
+   Namespace.ioworker(io_size, lba_step, lba_align, lba_random,
+                      read_percentage, op_percentage, time, qdepth,
+                      region_start, region_end, iops, io_count, lba_start,
+                      qprio, distribution, ptype, pvalue, io_sequence,
+                      output_io_per_second, output_percentile_latency,
+                      output_cmdlog_list)
 
 workers sending different read/write IO on different CPU cores.
 
@@ -904,12 +871,12 @@ Each ioworker can run upto 24 hours.
 
 * **io_size (short, range, list, dict)**\ : IO size, unit is LBA. It can be a fixed size, or a range or list of size, or specify ratio in the dict if they are not evenly distributed. 1base. Default: 8, 4K
 * **lba_step (short)**\ : valid only for sequential read/write, jump to next LBA by the step. Default: None, same as io_size, continous IO.
-* **lba_align (short)**\ : IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
+* **lba_align (short)**\ : IO alignment, unit is LBA. Default: None: means 1 lba.
 * **lba_random (int, bool)**\ : percentage of radom io, or True if sending IO with all random starting LBA. Default: True
 * **read_percentage (int)**\ : sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100. Obsoloted by op_percentage
 * **op_percentage (dict)**\ : opcode of commands sent in ioworker, and their percentage. Output: real io counts sent in ioworker. Default: None, fall back to read_percentage
 * **time (int)**\ : specified maximum time of the IOWorker in seconds, up to 1000*3600. Default:0, means no limit
-* **qdepth (int)**\ : queue depth of the Qpair created by the IOWorker, up to 1024. 1base. Default: 64
+* **qdepth (int)**\ : queue depth of the Qpair created by the IOWorker, up to 1024. 1base value. Default: 64
 * **region_start (long)**\ : sending IO in the specified LBA region, start. Default: 0
 * **region_end (long)**\ : sending IO in the specified LBA region, end but not include. Default: 0xffff_ffff_ffff_ffff
 * **iops (int)**\ : specified maximum IOPS. IOWorker throttles the sending IO speed. Default: 0, means no limit
@@ -937,7 +904,8 @@ read
 
 .. code-block:: python
 
-   Namespace.read(self, qpair, buf, lba, lba_count, io_flags, dword13, dword14, dword15, cb)
+   Namespace.read(qpair, buf, lba, lba_count, io_flags, dword13, dword14,
+                  dword15, cb)
 
 read IO command
 
@@ -958,21 +926,15 @@ Notice
 * **cb (function)**\ : callback function called at completion. Default: None
 
 Returns
-
-
-* **qpair (Qpair)**\ : the qpair used to send this command, for ease of chained call
-
-**Raises**
-
-
-* ``SystemError``\ : the read command fails
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
 
 send_cmd
 ^^^^^^^^
 
 .. code-block:: python
 
-   Namespace.send_cmd(self, opcode, qpair, buf, nsid, cdw10, cdw11, cdw12, cdw13, cdw14, cdw15, cb)
+   Namespace.send_cmd(opcode, qpair, buf, nsid, cdw10, cdw11, cdw12, cdw13,
+                      cdw14, cdw15, cb)
 
 send generic IO commands.
 
@@ -989,16 +951,14 @@ This is a generic method. Scripts can use this method to send all kinds of comma
 * **cb (function)**\ : callback function called at completion. Default: None
 
 Returns
-
-
-* **qpair (Qpair)**\ : the qpair used to send this command, for ease of chained call
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
 
 supports
 ^^^^^^^^
 
 .. code-block:: python
 
-   Namespace.supports(self, opcode)
+   Namespace.supports(opcode)
 
 check if the IO command is supported
 
@@ -1008,16 +968,14 @@ check if the IO command is supported
 * **opcode (int)**\ : the opcode of the IO command
 
 Returns
-
-
-* **(bool)**\ : if the command is supported
+    (bool): if the command is supported
 
 verify
 ^^^^^^
 
 .. code-block:: python
 
-   Namespace.verify(self, qpair, lba, lba_count, io_flags, cb)
+   Namespace.verify(qpair, lba, lba_count, io_flags, cb)
 
 verify IO command
 
@@ -1031,9 +989,7 @@ verify IO command
 * **cb (function)**\ : callback function called at completion. Default: None
 
 Returns
-
-
-* **qpair (Qpair)**\ : the qpair used to send this command, for ease of chained call
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
 
 **Raises**
 
@@ -1045,7 +1001,7 @@ verify_enable
 
 .. code-block:: python
 
-   Namespace.verify_enable(self, enable)
+   Namespace.verify_enable(enable)
 
 enable or disable the inline verify function of the namespace
 
@@ -1055,16 +1011,15 @@ enable or disable the inline verify function of the namespace
 * **enable (bool)**\ : enable or disable the verify function
 
 Returns
-
-
-* **(bool)**\ : if it is enabled successfully
+    (bool): if it is enabled successfully
 
 write
 ^^^^^
 
 .. code-block:: python
 
-   Namespace.write(self, qpair, buf, lba, lba_count, io_flags, dword13, dword14, dword15, cb)
+   Namespace.write(qpair, buf, lba, lba_count, io_flags, dword13, dword14,
+                   dword15, cb)
 
 write IO command
 
@@ -1085,21 +1040,14 @@ Notice
 * **cb (function)**\ : callback function called at completion. Default: None
 
 Returns
-
-
-* **qpair (Qpair)**\ : the qpair used to send this command, for ease of chained call
-
-**Raises**
-
-
-* ``SystemError``\ : the write command fails
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
 
 write_uncorrectable
 ^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
-   Namespace.write_uncorrectable(self, qpair, lba, lba_count, cb)
+   Namespace.write_uncorrectable(qpair, lba, lba_count, cb)
 
 write uncorrectable IO command
 
@@ -1112,9 +1060,7 @@ write uncorrectable IO command
 * **cb (function)**\ : callback function called at completion. Default: None
 
 Returns
-
-
-* **qpair (Qpair)**\ : the qpair used to send this command, for ease of chained call
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
 
 **Raises**
 
@@ -1126,7 +1072,7 @@ write_zeroes
 
 .. code-block:: python
 
-   Namespace.write_zeroes(self, qpair, lba, lba_count, io_flags, cb)
+   Namespace.write_zeroes(qpair, lba, lba_count, io_flags, cb)
 
 write zeroes IO command
 
@@ -1140,9 +1086,7 @@ write zeroes IO command
 * **cb (function)**\ : callback function called at completion. Default: None
 
 Returns
-
-
-* **qpair (Qpair)**\ : the qpair used to send this command, for ease of chained call
+    qpair (Qpair): the qpair used to send this command, for ease of chained call
 
 **Raises**
 
@@ -1154,14 +1098,14 @@ Pcie
 
 .. code-block:: python
 
-   Pcie(self, /, *args, **kwargs)
+   Pcie()
 
 Pcie class to access PCIe configuration and memory space
 
 **Parameters**
 
 
-* **nvme (Controller)**\ : the nvme controller object of that subsystem
+* **addr (str)**\ : BDF address of PCIe device
 
 aspm
 ^^^^
@@ -1182,7 +1126,7 @@ cap_offset
 
 .. code-block:: python
 
-   Pcie.cap_offset(self, cap_id)
+   Pcie.cap_offset(cap_id)
 
 get the offset of a capability
 
@@ -1192,9 +1136,16 @@ get the offset of a capability
 * **cap_id (int)**\ : capability id
 
 Returns
+    (int): the offset of the register, or None if the capability is not existed
 
+close
+^^^^^
 
-* **(int)**\ : the offset of the register, or None if the capability is not existed
+.. code-block:: python
+
+   Pcie.close()
+
+close to explictly release its resources instead of del
 
 power_state
 ^^^^^^^^^^^
@@ -1215,7 +1166,7 @@ register
 
 .. code-block:: python
 
-   Pcie.register(self, offset, byte_count)
+   Pcie.register(offset, byte_count)
 
 access registers in pcie config space, and get its integer value.
 
@@ -1223,19 +1174,17 @@ access registers in pcie config space, and get its integer value.
 
 
 * **offset (int)**\ : the offset (in bytes) of the register in the config space
-* **byte_count (int)**\ : the size (in bytes) of the register
+* **byte_count (int)**\ : the size (in bytes) of the register. Default: 4, dword
 
 Returns
-
-
-* **(int)**\ : the value of the register
+    (int): the value of the register
 
 reset
 ^^^^^
 
 .. code-block:: python
 
-   Pcie.reset(self)
+   Pcie.reset()
 
 reset this pcie device with hot reset
 
@@ -1247,7 +1196,7 @@ Qpair
 
 .. code-block:: python
 
-   Qpair(self, /, *args, **kwargs)
+   Qpair()
 
 Qpair class. IO SQ and CQ are combinded as qpairs.
 
@@ -1263,7 +1212,7 @@ cmdlog
 
 .. code-block:: python
 
-   Qpair.cmdlog(self, count)
+   Qpair.cmdlog(count)
 
 print recent IO commands and their completions in this qpair.
 
@@ -1272,12 +1221,21 @@ print recent IO commands and their completions in this qpair.
 
 * **count (int)**\ : the number of commands to print. Default: 0, to print the whole cmdlog
 
+delete
+^^^^^^
+
+.. code-block:: python
+
+   Qpair.delete()
+
+delete qpair's SQ and CQ
+
 waitdone
 ^^^^^^^^
 
 .. code-block:: python
 
-   Qpair.waitdone(self, expected)
+   Qpair.waitdone(expected)
 
 sync until expected IO commands completion
 
@@ -1290,9 +1248,7 @@ Notice
 * **expected (int)**\ : expected commands to complete. Default: 1
 
 Returns
-
-
-* **(int)**\ : cdw0 of the last command
+    (int): cdw0 of the last command
 
 srand
 -----
@@ -1313,7 +1269,7 @@ Subsystem
 
 .. code-block:: python
 
-   Subsystem(self, /, *args, **kwargs)
+   Subsystem()
 
 Subsystem class. Prefer to use fixture "subsystem" in test scripts.
 
@@ -1329,7 +1285,7 @@ power_cycle
 
 .. code-block:: python
 
-   Subsystem.power_cycle(self, sec)
+   Subsystem.power_cycle(sec)
 
 power off and on in seconds
 
@@ -1346,7 +1302,7 @@ poweroff
 
 .. code-block:: python
 
-   Subsystem.poweroff(self)
+   Subsystem.poweroff()
 
 power off the device by the poweroff function provided in Subsystem initialization
 
@@ -1355,7 +1311,7 @@ poweron
 
 .. code-block:: python
 
-   Subsystem.poweron(self)
+   Subsystem.poweron()
 
 power on the device by the poweron function provided in Subsystem initialization
 
@@ -1367,7 +1323,7 @@ reset
 
 .. code-block:: python
 
-   Subsystem.reset(self)
+   Subsystem.reset()
 
 reset the nvme subsystem through register nssr.nssrc
 
@@ -1379,9 +1335,9 @@ shutdown_notify
 
 .. code-block:: python
 
-   Subsystem.shutdown_notify(self, abrupt)
+   Subsystem.shutdown_notify(abrupt)
 
-notify nvme subsystem a shutdown event through register cc.chn
+notify nvme subsystem a shutdown event through register cc.shn
 
 **Parameters**
 
@@ -1393,16 +1349,25 @@ Tcg
 
 .. code-block:: python
 
-   Tcg(self, /, *args, **kwargs)
+   Tcg()
 
 TCG class, for opal and pyrite tests
+
+close
+^^^^^
+
+.. code-block:: python
+
+   Tcg.close()
+
+close to explictly release its resources instead of del
 
 lock
 ^^^^
 
 .. code-block:: python
 
-   Tcg.lock(self, passwd, state, user, range)
+   Tcg.lock(passwd, state, user, range)
 
 lock or unlock the range for the user
 
@@ -1410,3 +1375,18 @@ lock or unlock the range for the user
 
 
 * **state (int)**\ : the lock state. 1: readonly, 2: rwlock, 4: unlock. default: 2
+
+Tcp
+---
+
+.. code-block:: python
+
+   Tcp()
+
+Tcp class for NVMe TCP target
+
+**Parameters**
+
+
+* **addr (str)**\ : IP address of TCP target
+* **port (int)**\ : the port number of TCP target. Default: 4420

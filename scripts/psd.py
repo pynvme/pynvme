@@ -284,20 +284,12 @@ class IOSQ(object):
         self.ctrlr[0x1000+2*self.id*4] = tail
 
     def delete(self, qid=None):
-        def delete_io_sq_cpl(cdw0, status1):
-            if status1>>1:
-                logging.info("delete io sq fail: %d" % qid)
-            else:
-                self.id = 0
-
         if qid == None:
             qid = self.id
 
         logging.debug("delete sqid %d" % qid)
         if qid != 0:
-            self.ctrlr.send_cmd(0x00,
-                                cdw10 = qid,
-                                cb = delete_io_sq_cpl).waitdone()
+            self.ctrlr.send_cmd(0x00, cdw10=qid).waitdone()
 
 
 class IOCQ(object):
@@ -370,20 +362,12 @@ class IOCQ(object):
         self.ctrlr[0x1000+(2*self.id+1)*4] = head
 
     def delete(self, qid=None):
-        def delete_io_cq_cpl(cdw0, status1):
-            if status1>>1:
-                logging.info("delete io cq fail: %d" % qid)
-            else:
-                self.id = 0
-
         if qid is None:
             qid = self.id
 
         logging.debug("delete cqid %d" % qid)
         if qid != 0:
-            self.ctrlr.send_cmd(0x04,
-                                cdw10 = qid,
-                                cb = delete_io_cq_cpl).waitdone()
+            self.ctrlr.send_cmd(0x04, cdw10=qid).waitdone()
 
 
 def test_create_delete_iocq(nvme0):
@@ -748,5 +732,76 @@ def test_write_before_power_cycle(nvme0, subsystem):
     cq.head = 1
     print(buf_read.dump(32))
 
+    sq.delete()
+    cq.delete()
+
+
+def test_invalid_sq_doorbell(nvme0):
+    cq = IOCQ(nvme0, 4, 16, PRP())
+    sq1 = IOSQ(nvme0, 4, 16, PRP(), cqid=4)
+
+    write_cmd = SQE(1, 1)
+    write_cmd.prp1 = PRP()
+    prp_list = PRPList()
+    prp_list[0] = PRP()
+    prp_list[1] = PRP()
+    prp_list[2] = PRP()
+    write_cmd.prp2 = prp_list
+    write_cmd[10] = 0
+    write_cmd[12] = 31
+    write_cmd.cid = 123
+
+    sq1[0] = write_cmd
+    write_cmd.cid = 567
+    sq1.tail = 17
+
+    # wait for the controller to respond the error
+    time.sleep(0.1)
+    with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
+        nvme0.waitdone()
+    sq1.delete()
+    cq.delete()
+    
+
+def test_write_read_verify(nvme0, nvme0n1):
+    cq = IOCQ(nvme0, 1, 1024, PRP(1024*64))
+    sq = IOSQ(nvme0, 1, 1024, PRP(1024*64), cqid=1)
+
+    write_cmd = SQE(1, 1)
+    write_cmd[12] = 7  # 4K write
+    buf_list = []
+    for i in range(10):
+        buf = PRP(ptype=32, pvalue=0x01010101*i)
+        buf_list.append(buf)
+        write_cmd.prp1 = buf
+        write_cmd.cid = i
+        write_cmd[10] = i
+        sq[i] = write_cmd
+    sq.tail = 10
+    
+    while cq[9].p == 0: pass
+    sq.delete()
+    cq.delete()
+    
+    # read after reset with outstanding writes
+    cq = IOCQ(nvme0, 1, 1024, PRP(1024*64))
+    sq = IOSQ(nvme0, 1, 1024, PRP(1024*64), cqid=1)
+
+    read_cmd = SQE(2, 1)
+    read_cmd[12] = 7  # 4K read
+    buf_list = []
+    for i in range(10):
+        buf = PRP()
+        buf_list.append(buf)
+        read_cmd.prp1 = buf
+        read_cmd.cid = i
+        read_cmd[10] = i
+        sq[i] = read_cmd
+    sq.tail = 10
+
+    while cq[9].p == 0: pass
+    for i in range(10):
+        logging.info(cq[i].cid)
+        assert buf_list[cq[i].cid][0] == cq[i].cid
     sq.delete()
     cq.delete()

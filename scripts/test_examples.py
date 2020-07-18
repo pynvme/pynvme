@@ -111,10 +111,10 @@ def test_ioworker_with_temperature_and_trim(nvme0, nvme0n1):
 
 
 # multiple ioworkers, PCIe, TCP, CPU, performance, ioworker return values
-def test_multiple_controllers_and_namespaces():
+def test_multiple_controllers_and_namespaces(pciaddr):
     # address list of the devices to test
-    addr_list = ['01:00.0', '03:00.0', '192.168.0.3', '127.0.0.1:4420']
-    addr_list = ['3d:00.0']
+    addr_list = ['01:00.0', '02:00.0', '03:00.0', '04:00.0']
+    addr_list = [pciaddr, ]
     test_seconds = 10
 
     # create all controllers and namespace
@@ -329,9 +329,9 @@ def test_create_qpairs(nvme0, nvme0n1, buf):
         q.delete()
 
 
-def test_namespace_multiple(buf):
+def test_namespace_multiple(pciaddr, buf):
     # create all controllers and namespace
-    addr_list = ['3d:00.0', ] # add more DUT BDF here
+    addr_list = [pciaddr, ] # add more DUT BDF here
     pcie_list = [d.Pcie(a) for a in addr_list]
 
     for p in pcie_list:
@@ -703,3 +703,43 @@ def test_powercycle_with_qpair(nvme0, nvme0n1, buf, subsystem):
 
     nvme0n1.read(qpair, buf, 0).waitdone()
     qpair.delete()
+
+
+def test_reset_time(pcie):
+    def nvme_init(nvme0):
+        logging.info("user defined nvme init")
+        
+        nvme0[0x14] = 0
+        while not (nvme0[0x1c]&0x1) == 0: pass
+        logging.info(time.time())
+
+        # 3. set admin queue registers
+        nvme0.init_adminq()
+        logging.info(time.time())
+
+        # 5. enable cc.en
+        nvme0[0x14] = 0x00460001
+
+        # 6. wait csts.rdy to 1
+        while not (nvme0[0x1c]&0x1) == 1: pass
+        logging.info(time.time())
+
+        # 7. identify controller
+        nvme0.identify(d.Buffer(4096)).waitdone()
+        logging.info(time.time())
+
+    logging.info("1: nvme init")
+    logging.info(time.time())
+    nvme0 = d.Controller(pcie, nvme_init_func=nvme_init)
+    subsystem = d.Subsystem(nvme0)
+    
+    logging.info("2: nvme reset")
+    logging.info(time.time())
+    nvme0.reset()
+
+    logging.info("3: power cycle")
+    subsystem.poweroff()
+    logging.info(time.time())
+    subsystem.poweron()
+    nvme0.reset()
+    

@@ -126,14 +126,16 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
     _latest_cqe_cdw0 = arg.cdw0
 
     if func is not None:
-        # call script callback function to check cpl
+        assert callable(func)
+        
         try:
-            # we support 2 types of callback (dword0, status1), and (cpl)
             argc = len(signature(func).parameters)
             assert argc == 1 or argc == 2, "command callback has illegal parameter list"
             if argc == 2:
+                # call script callback function to check cpl
                 func(arg.cdw0, status1)
             else:
+                # we support 2 types of callback (dword0, status1), and (cpl)
                 cdw2 = arg.sqid
                 cdw3 = arg.status1
                 func((arg.cdw0,
@@ -264,16 +266,19 @@ cdef class Buffer(object):
     @property
     def offset(self):
         """get the offset of the PRP in bytes"""
+        
         return self.offset
 
     @offset.setter
     def offset(self, offset):
         """set the offset of the PRP in bytes"""
+        
         self.offset = offset
 
     @property
     def phys_addr(self):
         """physical address of the buffer"""
+        
         return self.phys_addr + self.offset
 
     def dump(self, size=None):
@@ -282,8 +287,9 @@ cdef class Buffer(object):
         # Parameters
             size (int): the size of the buffer to print. Default: None, means to print the whole buffer
         """
-        output = ''
+        
         base = 0
+        output = self.name.decode('ascii')+'\n'
         if self.ptr and self.size:
             # no size means print the whole buffer
             if size is None or size > self.size:
@@ -392,6 +398,7 @@ cdef class Subsystem(object):
         """power off the device by the poweroff function provided in Subsystem initialization
         """
 
+        # cut power supply immediately without any delay
         if self._poweroff:
             logging.info("power off callback")
             self._poweroff()
@@ -399,12 +406,8 @@ cdef class Subsystem(object):
         pcie = self._nvme.pcie
         bdf = pcie._bdf.decode('utf-8')
 
-        # wait power stable
-        time.sleep(3)
         # cleanup host driver after power off, so IO is active at power off
         pcie._driver_cleanup()
-
-        # reset to inbox driver
         pcie._bind_driver(None)
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
@@ -455,7 +458,7 @@ cdef class Subsystem(object):
         return True
 
     def shutdown_notify(self, abrupt=False):
-        """notify nvme subsystem a shutdown event through register cc.chn
+        """notify nvme subsystem a shutdown event through register cc.shn
 
         # Parameters
             abrupt (bool): it will be an abrupt shutdown (return immediately) or clean shutdown (wait shutdown completely)
@@ -466,7 +469,7 @@ cdef class Subsystem(object):
         if rtd3e == 0:
             rtd3e = 1000_000
 
-        # cc.chn
+        # cc.shn
         cc = self._nvme[0x14]
         if abrupt:
             cc = cc | 0x8000
@@ -500,8 +503,6 @@ cdef class Subsystem(object):
 
         # notify ioworker to terminate, and wait all IO Qpair closed
         pcie._driver_cleanup()
-
-        # reset to inbox driver
         pcie._bind_driver(None)
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
@@ -526,7 +527,7 @@ cdef class Pcie(object):
     """Pcie class to access PCIe configuration and memory space
 
     # Parameters
-        nvme (Controller): the nvme controller object of that subsystem
+        addr (str): BDF address of PCIe device
     """
 
     cdef d.ctrlr * _ctrlr
@@ -534,26 +535,34 @@ cdef class Pcie(object):
     cdef char _vdid[64]
     cdef bint _backup
     cdef long _magic
+    cdef int _port
 
-    def __cinit__(self, addr):
+    def __cinit__(self, addr, port=0):
         # pcie address, start with domain
         if not os.path.exists("/sys/bus/pci/devices/%s" % addr) and \
            not addr.startswith("0000:"):
-            addr = "0000:"+addr
+            if os.path.exists("/sys/bus/pci/devices/0000:%s" % addr):
+                # pci
+                addr = "0000:"+addr
+            elif port == 0:
+                # tcp
+                port = 4420
+
         bdf = addr.encode('utf-8')
         strncpy(self._bdf, bdf, strlen(bdf)+1)
-
         self._magic = 0x1243568790bacdfe
-        self._ctrlr = d.nvme_init(bdf, 0)
+        self._ctrlr = d.nvme_init(bdf, port)
         if self._ctrlr is NULL:
             raise NvmeEnumerateError("fail to create the controller")
         #print("create pcie: %x" % <unsigned long>self._ctrlr); sys.stdout.flush()
         self._backup = False
+        self._port = port
 
-        #get vdid
-        vdid = '%04x %04x' % (self.register(0, 2), self.register(2, 2))
-        vdid = vdid.encode('utf-8')
-        strncpy(self._vdid, vdid, strlen(vdid)+1)
+        #get vdid of pcie device
+        if port == 0:
+            vdid = '%04x %04x' % (self.register(0, 2), self.register(2, 2))
+            vdid = vdid.encode('utf-8')
+            strncpy(self._vdid, vdid, strlen(vdid)+1)
 
     def close(self):
         """close to explictly release its resources instead of del"""
@@ -600,14 +609,17 @@ cdef class Pcie(object):
         return d.driver_config(c)
 
     def _driver_cleanup(self):
-        # notify ioworker to terminate, and wait all IO Qpair closed
-        if d.driver_io_qpair_count(self._ctrlr):
+        # notify and wait all secondary processes to terminate
+        if not d.driver_no_secondary(self._ctrlr):
             self._config(ioworker_terminate=True)
             logging.info("wait all qpair to be deleted")
-            while d.driver_io_qpair_count(self._ctrlr):
-                pass
-            time.sleep(1)
             d.crc32_unlock_all(self._ctrlr)
+            retry = 100
+            while not d.driver_no_secondary(self._ctrlr):
+                retry -= 1
+                if retry == 0:
+                    raise TimeoutError("secondary processes are not cleared")
+                time.sleep(0.01)
             self._config(ioworker_terminate=False)
 
     def __getitem__(self, index):
@@ -665,7 +677,7 @@ cdef class Pcie(object):
 
         logging.info("cannot find the capability %d" % cap_id)
 
-    def _rescan(self, retry=5):
+    def _rescan(self, retry=1000):
         bdf = self._bdf.decode('utf-8')
 
         # rescan device without kernel nvme driver
@@ -679,7 +691,7 @@ cdef class Pcie(object):
             if retry == 0:
                 logging.error("device lost: %s, retry %d" % (bdf, retry))
                 return False
-            time.sleep(1)
+            time.sleep(0.01)
             logging.info("rescan the device: %s, retry %d" % (bdf, retry))
             subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
 
@@ -700,8 +712,6 @@ cdef class Pcie(object):
             subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, driver), shell=True)
             logging.debug("bind %s on %s" % (driver, bdf))
 
-        self._rescan()
-
     def reset(self):  # pcie
         """reset this pcie device with hot reset
 
@@ -718,8 +728,6 @@ cdef class Pcie(object):
 
         # notify ioworker to terminate, and wait all IO Qpair closed
         self._driver_cleanup()
-
-        # reset to inbox driver
         self._bind_driver(None)
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
 
@@ -781,6 +789,17 @@ cdef class Pcie(object):
         pmcsr =  self.register(pmcsr_addr, 4)
         self.__setitem__(pmcsr_addr, (pmcsr&0xfc)|state)
 
+class Tcp(Pcie):
+    """Tcp class for NVMe TCP target
+
+    # Parameters
+        addr (str): IP address of TCP target
+        port (int): the port number of TCP target. Default: 4420
+    """
+    
+    def __cinit__(self, addr, port=4420):
+        super(Pcie, self).__init__(addr, port)
+
 
 class TcgError(Exception):
     pass
@@ -831,13 +850,11 @@ cdef class Controller(object):
     """Controller class. Prefer to use fixture "nvme0" in test scripts.
 
     # Parameters
-        addr (bytes): the bus/device/function address of the DUT, for example: \
-                      b'01:00.0' (PCIe BDF address),  \
-                      b'127.0.0.1' (TCP IP address).
+        pcie (Pcie): Pcie object, or Tcp object for NVMe TCP targets
         nvme_init_func (callable, bool, None): True: no nvme init process, None: default process, callable: user defined process function
 
     # Example
-```python
+```shell
         >>> n = Controller(Pcie('01:00.0'))
         >>> hex(n[0])     # CAP register
         '0x28030fff'
@@ -876,7 +893,7 @@ cdef class Controller(object):
     cdef object nvme_init_func
 
     def __cinit__(self, pcie, nvme_init_func=None):
-        assert type(pcie) is Pcie
+        assert type(pcie) is Pcie or type(pcie) is Tcp
         assert nvme_init_func is True or \
                nvme_init_func is None or \
                callable(nvme_init_func)
@@ -889,9 +906,10 @@ cdef class Controller(object):
         d.nvme_register_timeout_cb(self.pcie._ctrlr, timeout_driver_cb, self._timeout)
         logging.debug("nvme initialized: %s", self.pcie._bdf)
 
-        # reset the device
-        if nvme_init_func is not True:
-            self._nvme_init()
+        # reset the pcie device
+        if self.pcie._port == 0:
+            if nvme_init_func is not True:
+                self._nvme_init()
 
     def _nvme_init(self):
         assert self.nvme_init_func is not True
@@ -911,7 +929,7 @@ cdef class Controller(object):
         while not (nvme0[0x1c]&0x1) == 0:
             if time.time()-t > timeout:
                 logging.error("csts.rdy timeout after cc.en=0, timeout: %ds" % timeout)
-                raise NvmeEnumerateError("fail to init namespaces")
+                raise NvmeEnumerateError("csts.rdy timeout after clearing cc.en")
 
         # 3. set admin queue registers
         if 0 != nvme0.init_adminq():
@@ -928,18 +946,18 @@ cdef class Controller(object):
         while not (nvme0[0x1c]&0x1) == 1:
             if time.time()-t > timeout:
                 logging.error("csts.rdy timeout after cc.en=1, timeout: %ds" % timeout)
-                raise NvmeEnumerateError("fail to init namespaces")
+                raise NvmeEnumerateError("csts.rdy timeout after setting cc.en")
 
         # 7. identify controller and all namespaces
         nvme0.identify(Buffer(4096)).waitdone()
         if nvme0.init_ns() < 0:
             # first try fail: warning, and retry
-            warnings.warn("init namespaces fail")
+            warnings.warn("init namespaces first warning")
             time.sleep(1)
             nvme0.identify(Buffer(4096)).waitdone()
             if nvme0.init_ns() < 0:
                 # second try fail: error
-                raise NvmeEnumerateError("fail to init namespaces")
+                raise NvmeEnumerateError("init namespaces failed")
 
         # 8. set/get num of queues
         nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
@@ -947,28 +965,6 @@ cdef class Controller(object):
 
         # 9. send first aer cmd
         nvme0.aer()
-
-    def enable_hmb(self):
-        """enable HMB function"""
-
-        hmb_size = self.id_data(275, 272)
-        if hmb_size:
-            self.hmb_buf = Buffer(4096*hmb_size)
-            hmb_list_buf = Buffer(4096)
-            hmb_list_buf[0:8] = self.hmb_buf.phys_addr.to_bytes(8, 'little')
-            hmb_list_buf[8:12] = hmb_size.to_bytes(4, 'little')
-            hmb_list_phys = hmb_list_buf.phys_addr
-            self.setfeatures(0x0d,
-                             cdw11=1,
-                             cdw12=hmb_size,
-                             cdw13=hmb_list_phys&0xffffffff,
-                             cdw14=hmb_list_phys>>32,
-                             cdw15=1).waitdone()
-
-    def disable_hmb(self):
-        """disable HMB function """
-
-        self.setfeatures(0x0d, cdw11=0).waitdone()
 
     @property
     def latest_cid(self):
@@ -1080,7 +1076,6 @@ cdef class Controller(object):
         self.pcie._driver_cleanup()
 
         # reset driver: namespace is init by every test, so no need reinit
-        time.sleep(1)
         self.pcie._ctrlr_reinit()
         self._nvme_init()
 
@@ -1705,7 +1700,7 @@ cdef class Qpair(object):
                   unsigned int prio=0):
         # create CQ and SQ
         assert depth>=2 and depth<=1024, "qdepth should be in [2, 1024]"
-        assert depth <= (nvme.cap & 0xffff) + 1, "qdepth is larger than specification"
+        assert depth <= (nvme.cap & 0xffff) + 1, "qpair depth is larger than specification"
 
         self._qpair = d.qpair_create(nvme.pcie._ctrlr, prio, depth)
         if self._qpair is NULL:
@@ -1908,7 +1903,7 @@ cdef class Namespace(object):
         """change the format of this namespace
 
         Notice
-            Namespace.format() not only sends the admin command, but also updates driver to activate new format immediately. Recommend to use this API to do format.
+            Namespace.format() not only sends the admin command, but also updates driver to activate new format immediately. Recommend to use this API to do format. Close and re-create namespace when lba format is changed. 
 
         # Parameters
             data_size (int): data size. Default: 512
@@ -1974,12 +1969,12 @@ cdef class Namespace(object):
         # Parameters
             io_size (short, range, list, dict): IO size, unit is LBA. It can be a fixed size, or a range or list of size, or specify ratio in the dict if they are not evenly distributed. 1base. Default: 8, 4K
             lba_step (short): valid only for sequential read/write, jump to next LBA by the step. Default: None, same as io_size, continous IO.
-            lba_align (short): IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
+            lba_align (short): IO alignment, unit is LBA. Default: None: means 1 lba.
             lba_random (int, bool): percentage of radom io, or True if sending IO with all random starting LBA. Default: True
             read_percentage (int): sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100. Obsoloted by op_percentage
             op_percentage (dict): opcode of commands sent in ioworker, and their percentage. Output: real io counts sent in ioworker. Default: None, fall back to read_percentage
             time (int): specified maximum time of the IOWorker in seconds, up to 1000*3600. Default:0, means no limit
-            qdepth (int): queue depth of the Qpair created by the IOWorker, up to 1024. 1base. Default: 64
+            qdepth (int): queue depth of the Qpair created by the IOWorker, up to 1024. 1base value. Default: 64
             region_start (long): sending IO in the specified LBA region, start. Default: 0
             region_end (long): sending IO in the specified LBA region, end but not include. Default: 0xffff_ffff_ffff_ffff
             iops (int): specified maximum IOPS. IOWorker throttles the sending IO speed. Default: 0, means no limit
@@ -1998,7 +1993,6 @@ cdef class Namespace(object):
             ioworker instance
         """
 
-        assert not (io_sequence==None and time==0 and io_count==0), "when to stop the ioworker?"
         assert qdepth>=2 and qdepth<=1024, "qdepth should be in [2, 1024]"
         assert qdepth <= (self._nvme.cap & 0xffff) + 1, "qdepth is larger than specification"
         assert region_start < region_end, "region end is not included"
@@ -2020,24 +2014,24 @@ cdef class Namespace(object):
             if lba_random == False: lba_random = 0
         assert type(lba_random) is int, "lba_random is a percentage, int"
         assert lba_random >= 0 and lba_random <= 100, "lba_random is a percentage, 0-100"
-
-        if lba_random < 100:
-            assert type(io_size) is int, "sequential workload cannot work with complex io_size"
+        if lba_random == 0 and type(io_size) == int and region_end != 0xffffffffffffffff:
+            if time==0 and io_count==0:
+                # for pure sequential io, fill region one pass
+                io_count = (region_end-region_start+io_size-1)//io_size
+                logging.info("fill region with io count: %d" % io_count)
+        else:
+            assert not (io_sequence==None and time==0 and io_count==0), "when to stop the ioworker?"
 
         # io_size should be smaller than test region
         if type(io_size) is int:
-            assert io_size <= region_end-region_start, "region is smaller than IO!"
+            io_size = min(io_size, region_end-region_start)
         else:
             assert max(list(io_size)) < region_end-region_start, "region is smaller than IO"
 
-        # lba_step works with pure sequential workload only
-        if lba_step is None:
-            if lba_random < 100:
-                lba_step = io_size
-            else:
-                lba_step = 0
-        assert lba_step > -0x8000, "io size or step is too large"
-        assert lba_step < 0x8000, "io size or step is too large"
+        # lba_step works with sequential workload only
+        if lba_step is not None:
+            assert lba_step > -0x8000, "io size or step is too large"
+            assert lba_step < 0x8000, "io size or step is too large"
 
         # convert any possible io_size input to dict
         if isinstance(io_size, int):
@@ -2051,7 +2045,7 @@ cdef class Namespace(object):
 
         # set default alignment if it is specified
         if lba_align is None:
-            lba_align = [min(s, 8) for s in io_size.keys()]
+            lba_align = [1 for s in io_size.keys()]
         if isinstance(lba_align, int):
             lba_align = [lba_align, ]
         assert isinstance(lba_align, list)
@@ -2645,9 +2639,18 @@ class _IOWorker(object):
                     raise MemoryError()
                 memset(args.cmdlog_list, 0, sizeof(d.ioworker_cmdlog)*len(output_cmdlog_list))
 
+            # lba_step only works with sequential io
+            if lba_step is None:
+                lba_step = 0
+                lba_step_valid = False
+            else:
+                assert type(lba_step) == int
+                lba_step_valid = True
+                
             # transfer agurments
             args.lba_start = lba_start
             args.lba_step = lba_step
+            args.lba_step_valid = lba_step_valid
             args.lba_random = lba_random
             args.region_start = region_start
             args.region_end = region_end
@@ -2720,7 +2723,7 @@ class _IOWorker(object):
                     # fail fast to delete queue after power loss
                     orig = nvme0.timeout
                     if d.driver_config_read() & 0x10:
-                        nvme0.timeout = 1000
+                        nvme0.timeout = 10
                         # backup BAR and remap to another memory
                         d.nvme_bar_remap(nvme0.pcie._ctrlr)
 

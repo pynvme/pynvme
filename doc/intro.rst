@@ -12,7 +12,7 @@ Design
 
 Pynvme is an user-space PCIe/NVMe test driver with Python API. It is open, fast, and extensible.
 
-**Open**. Every people and team can use it and make contributions to pynvme. Instead of a windows-based native application, pynvme is designed as an open Python module. With pynvme, as well as the whole Python ecosystem, engineers can efficiently develop and deploy their own test scripts.
+**Open**. Every people and team can use it and make contributions to pynvme. Instead of the GUI-based applications, pynvme is designed as an open Python module. With pynvme, as well as the whole Python ecosystem, engineers can efficiently develop and deploy their own test scripts.
 
 **Fast**. Pynvme is an user-space software. It bypasses the whole Kernel and accesses PCIe/NVMe hardware resources directly to eliminate system-call overhead. Pynvme is also a poll mode driver (PMD), which further eliminates the cost of interrupts. So its performance is very high and consistent.
 
@@ -23,7 +23,7 @@ We did not build pynvme from scratch. We build it based on the `SPDK <https://sp
 1. Interrupts. SPDK is a polling mode driver, so it does not support interrupts, like MSIx and MSI. We implemented a software interrupt host controller to enable and check interrupt signals.
 2. Checksum. Storage cares data integrity. Pynvme verifies each LBA block with CRC32 checksum, without any penalty on performance.
 3. Cmdlog. Pynvme traces every command and completion dwords. When any problem happens, users can check the trace data to debug the issue.
-4. IOWorker. It is slow to send each IO in test scripts, therefore pynvme provides a mocked agent to send IOes in separated processes. Users can create multiple IOWorkers with diminishing resource overhead. 
+4. IOWorker. It is slow to send each IO in test scripts, therefore pynvme provides an agent to send IOes in separated processes. Users can create multiple IOWorkers with little overhead. 
 
 .. image:: pic/pynvme.png
    :target: pic/pynvme.png

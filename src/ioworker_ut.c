@@ -1153,12 +1153,26 @@ static void test_ioworker_send_one_lba_seq_end()
   ctx.sequential_lba = 100;
 
   ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
-
-  CU_ASSERT_EQUAL(ret, 100);
-  CU_ASSERT_EQUAL(ctx.sequential_lba, 104);
+  CU_ASSERT_EQUAL(ret, 0);
+  CU_ASSERT_EQUAL(ctx.sequential_lba, 4);
 
   ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+  CU_ASSERT_EQUAL(ret, 4);
+  CU_ASSERT_EQUAL(ctx.sequential_lba, 8);
 
+  lba_align = 1;
+  lba_count = 4;
+  args.lba_random = 0;
+  args.region_end = 100;
+  args.region_start = 0;
+  args.lba_step = 4;
+  ctx.sequential_lba = 99;
+
+  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+  CU_ASSERT_EQUAL(ret, 99);
+  CU_ASSERT_EQUAL(ctx.sequential_lba, 103);
+  
+  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
   CU_ASSERT_EQUAL(ret, 0);
   CU_ASSERT_EQUAL(ctx.sequential_lba, 4);
 }
