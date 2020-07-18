@@ -33,8 +33,8 @@ stress_test:
   script:
     - make setup memsize=4000; make nvmt
     - make test pciaddr=0000:06:00.0
-    - cat test*.log | grep "3 failed, 393 passed" || exit -1
     - mv test*.log test.log.txt
+    - cat test.log.txt | grep "3 failed, 393 passed" || exit -1
     - make setup memsize=0
 
 scripts_test:

@@ -2641,8 +2641,8 @@ def test_ioworker_output_io_per_second(nvme0n1, nvme0):
     logging.info(r)
     assert len(output_io_per_second) == 10
     assert output_io_per_second[0] != 0
-    assert output_io_per_second[-1] >= 12344
-    assert output_io_per_second[-1] <= 12346
+    assert output_io_per_second[-1] >= 12000
+    assert output_io_per_second[-1] <= 13000
     assert r.iops_consistency != 0
 
 
