@@ -10,6 +10,7 @@ default:
     - ./install.sh
     - make setup
   after_script:
+    - make setup memsize=0
     - make reset
     - make clean
   
@@ -17,8 +18,9 @@ checkin_test:
   only:
     - pushes
   script:
-    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob --pciaddr=01:00.0
-    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=10.24.48.17
+    - make setup memsize=4000; make nvmt
+    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob --pciaddr=0000:06:00.0
+    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=127.0.0.1
     - cd src; make unittest
 
 stress_test:
@@ -30,8 +32,7 @@ stress_test:
     when: always
     expire_in: 5 yrs
   script:
-    - make setup memsize=4000
-    - make nvmt
+    - make setup memsize=4000; make nvmt
     - make test pciaddr=0000:06:00.0
     - cat test*.log | grep "3 failed, 393 passed" || exit -1
     - mv test*.log test.log.txt
