@@ -10,7 +10,6 @@ default:
     - ./install.sh
     - make setup
   after_script:
-    - make setup memsize=0
     - make reset
     - make clean
   
