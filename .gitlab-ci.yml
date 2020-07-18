@@ -10,6 +10,7 @@ default:
     - ./install.sh
     - make setup
   after_script:
+    - make setup memsize=0
     - make reset
     - make clean
   
@@ -21,7 +22,6 @@ checkin_test:
     - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob --pciaddr=0000:06:00.0
     - make setup memsize=4000; make nvmt
     - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=127.0.0.1
-    - make setup memsize=0
 
 stress_test:
   only:
