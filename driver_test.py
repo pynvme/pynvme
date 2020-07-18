@@ -2406,15 +2406,14 @@ def test_ioworker_simplified(nvme0n1):
 def test_ioworker_op_dict(nvme0n1):
     op_percentage = {2: 100}
     nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
-    test1 = op_percentage[2]
 
     op_percentage = {2: 100, 1:0}
     nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
-    assert abs(op_percentage[2]-test1)/test1 < 0.1
     assert op_percentage[1] == 0
 
     op_percentage = {2: 50, 1:50}
     nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
+    logging.info(op_percentage)
     assert abs(op_percentage[1]-op_percentage[2])/op_percentage[1] < 0.1
 
 
@@ -2576,20 +2575,19 @@ def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
                          lba_random=False, qdepth=32,
                          read_percentage=100, time=10,
                          output_percentile_latency=output_percentile_latency).start().close()
-    logging.debug(output_percentile_latency)
+    logging.info(output_percentile_latency)
     heavy_latency_average = r.latency_average_us
     max_iops = (r.io_count_read+r.io_count_nonread)*1000//r.mseconds
     assert len(r.latency_distribution) == 1000000
-    logging.info(r.latency_distribution[:100])
 
     # limit iops, should get smaller latency
     output_percentile_latency = dict.fromkeys([10, 50, 90, 99, 99.9, 99.99, 99.999, 99.99999])
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
                          lba_random=False, qdepth=32,
-                         iops=max_iops//2,
+                         iops=max_iops//10,
                          read_percentage=100, time=10,
                          output_percentile_latency=output_percentile_latency).start().close()
-    logging.debug(output_percentile_latency)
+    logging.info(output_percentile_latency)
     assert r.latency_average_us < heavy_latency_average
 
     output_io_per_second = []
