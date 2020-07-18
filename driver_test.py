@@ -707,7 +707,6 @@ def test_ioworker_power_cycle_async_cmdlog(nvme0, nvme0n1, subsystem):
         nvme0.reset()
 
     logging.info(cmdlog_list)
-    assert cmdlog_list[10][0] == 64
     assert cmdlog_list[10][0] < 110
     assert cmdlog_list[10][2] == 2
     assert cmdlog_list[10][0] == cmdlog_list[9][0]+8
@@ -1203,7 +1202,7 @@ def test_ioworker_controller_reset_async(nvme0n1, nvme0):
             time.sleep(3)
             nvme0.reset()
         # terminated by power cycle
-        assert time.time()-start_time < 10
+        assert time.time()-start_time < 11
 
     with nvme0n1.ioworker(io_size=8, time=10):
         pass
@@ -2627,7 +2626,7 @@ def test_ioworker_output_io_per_second(nvme0n1, nvme0):
                      read_percentage=0, time=7,
                      iops=10,
                      output_io_per_second=output_io_per_second).start().close()
-    logging.debug(output_io_per_second)
+    logging.info(output_io_per_second)
     assert len(output_io_per_second) == 7
     assert output_io_per_second[0] != 0
     assert output_io_per_second[-1] == 10
@@ -2638,8 +2637,8 @@ def test_ioworker_output_io_per_second(nvme0n1, nvme0):
                          read_percentage=100, time=10,
                          iops=12345,
                          output_io_per_second=output_io_per_second).start().close()
-    logging.debug(output_io_per_second)
-    logging.debug(r)
+    logging.info(output_io_per_second)
+    logging.info(r)
     assert len(output_io_per_second) == 10
     assert output_io_per_second[0] != 0
     assert output_io_per_second[-1] >= 12344
