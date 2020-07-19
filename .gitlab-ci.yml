@@ -37,11 +37,7 @@ stress_test:
     - cat test.log.txt | grep "3 failed, 387 passed, 6 skipped" || exit -1
     - make setup memsize=4000
     - make nvmt
-    - sudo python3 -B -m pytest driver_test.py::test_nvme_tcp_basic --pciaddr=0000:06:00.0
-    - sudo python3 -B -m pytest driver_test.py::test_nvme_tcp_ioworker --pciaddr=0000:06:00.0
-    - sudo python3 -B -m pytest driver_test.py::test_two_controllers --pciaddr=0000:06:00.0
-    - sudo python3 -B -m pytest driver_test.py::test_two_namespace_basic --pciaddr=0000:06:00.0
-    - sudo python3 -B -m pytest driver_test.py::test_two_namespace_ioworkers --pciaddr=0000:06:00.0
+    - make test TESTS=driver_test_tcp.py pciaddr=0000:06:00.0
     - make setup memsize=0
 
 scripts_test:
