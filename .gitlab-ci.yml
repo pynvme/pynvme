@@ -9,7 +9,6 @@ default:
     - echo $DUT_PCIADDR
     - ./install.sh
   after_script:
-    - make setup memsize=0
     - make reset
     - make clean
   
@@ -22,6 +21,7 @@ checkin_test:
     - make nvmt
     - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=127.0.0.1
     - cd src; make unittest; cd ..
+    - make setup memsize=0
 
 stress_test:
   only:
@@ -34,9 +34,14 @@ stress_test:
   script:
     - make test pciaddr=0000:06:00.0
     - mv test*.log test.log.txt
-    - cat test.log.txt | grep "3 failed, 387 passed, 6 skiped" || exit -1
+    - cat test.log.txt | grep "3 failed, 387 passed, 6 skipped" || exit -1
     - make setup memsize=4000
     - make nvmt
+    - sudo python3 -B -m pytest driver_test.py::test_nvme_tcp_basic
+    - sudo python3 -B -m pytest driver_test.py::test_nvme_tcp_ioworker
+    - sudo python3 -B -m pytest driver_test.py::test_two_controllers
+    - sudo python3 -B -m pytest driver_test.py::test_two_namespace_basic
+    - sudo python3 -B -m pytest driver_test.py::test_two_namespace_ioworkers
     - make setup memsize=0
 
 scripts_test:
