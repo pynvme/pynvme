@@ -708,6 +708,7 @@ def test_ioworker_power_cycle_async_cmdlog(nvme0, nvme0n1, subsystem):
 
     logging.info(cmdlog_list)
     assert cmdlog_list[10][0] < 110
+    assert cmdlog_list[10][0] == 64
     assert cmdlog_list[10][2] == 2
     assert cmdlog_list[10][0] == cmdlog_list[9][0]+8
 
@@ -1202,7 +1203,7 @@ def test_ioworker_controller_reset_async(nvme0n1, nvme0):
             time.sleep(3)
             nvme0.reset()
         # terminated by power cycle
-        assert time.time()-start_time < 11
+        assert time.time()-start_time < 10
 
     with nvme0n1.ioworker(io_size=8, time=10):
         pass
@@ -2405,14 +2406,15 @@ def test_ioworker_simplified(nvme0n1):
 def test_ioworker_op_dict(nvme0n1):
     op_percentage = {2: 100}
     nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
+    test1 = op_percentage[2]
 
     op_percentage = {2: 100, 1:0}
     nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
+    assert abs(op_percentage[2]-test1)/test1 < 0.1
     assert op_percentage[1] == 0
 
     op_percentage = {2: 50, 1:50}
     nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
-    logging.info(op_percentage)
     assert abs(op_percentage[1]-op_percentage[2])/op_percentage[1] < 0.1
 
 
@@ -2574,7 +2576,7 @@ def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
                          lba_random=False, qdepth=32,
                          read_percentage=100, time=10,
                          output_percentile_latency=output_percentile_latency).start().close()
-    logging.info(output_percentile_latency)
+    logging.debug(output_percentile_latency)
     heavy_latency_average = r.latency_average_us
     max_iops = (r.io_count_read+r.io_count_nonread)*1000//r.mseconds
     assert len(r.latency_distribution) == 1000000
@@ -2583,10 +2585,10 @@ def test_ioworker_output_io_per_latency(nvme0n1, nvme0):
     output_percentile_latency = dict.fromkeys([10, 50, 90, 99, 99.9, 99.99, 99.999, 99.99999])
     r = nvme0n1.ioworker(io_size=8, lba_align=8,
                          lba_random=False, qdepth=32,
-                         iops=max_iops//10,
+                         iops=max_iops//2,
                          read_percentage=100, time=10,
                          output_percentile_latency=output_percentile_latency).start().close()
-    logging.info(output_percentile_latency)
+    logging.debug(output_percentile_latency)
     assert r.latency_average_us < heavy_latency_average
 
     output_io_per_second = []
@@ -2626,7 +2628,7 @@ def test_ioworker_output_io_per_second(nvme0n1, nvme0):
                      read_percentage=0, time=7,
                      iops=10,
                      output_io_per_second=output_io_per_second).start().close()
-    logging.info(output_io_per_second)
+    logging.debug(output_io_per_second)
     assert len(output_io_per_second) == 7
     assert output_io_per_second[0] != 0
     assert output_io_per_second[-1] == 10
@@ -2637,12 +2639,12 @@ def test_ioworker_output_io_per_second(nvme0n1, nvme0):
                          read_percentage=100, time=10,
                          iops=12345,
                          output_io_per_second=output_io_per_second).start().close()
-    logging.info(output_io_per_second)
-    logging.info(r)
+    logging.debug(output_io_per_second)
+    logging.debug(r)
     assert len(output_io_per_second) == 10
     assert output_io_per_second[0] != 0
-    assert output_io_per_second[-1] >= 12000
-    assert output_io_per_second[-1] <= 13000
+    assert output_io_per_second[-1] >= 12344
+    assert output_io_per_second[-1] <= 12346
     assert r.iops_consistency != 0
 
 
