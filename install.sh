@@ -63,6 +63,6 @@ make                                         # compile pynvme
 
 # quick test after compile
 make setup
-make test TESTS=scripts/test_examples.py::test_hello_world
+make test TESTS=scripts/test_examples.py::test_hello_world pciaddr=06:00.0
 
 echo "pynvme install done."
