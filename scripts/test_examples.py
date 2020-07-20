@@ -306,14 +306,24 @@ def test_buffer_read_write(nvme0, nvme0n1):
     qpair.delete()
 
 
-def test_create_qpairs(nvme0, nvme0n1, buf):
+@pytest.fixture()
+def ncqa(nvme0):
+    num_of_queue = 0
+    def test_greater_id(cdw0, status):
+        nonlocal num_of_queue
+        num_of_queue = 1+(cdw0&0xffff)
+    nvme0.getfeatures(7, cb=test_greater_id).waitdone()
+    logging.info("number of queue: %d" % num_of_queue)
+    return num_of_queue
+
+def test_create_qpairs(nvme0, nvme0n1, buf, ncqa):
     qpair = d.Qpair(nvme0, 1024)
     nvme0n1.read(qpair, buf, 0)
     qpair.waitdone()
     nvme0n1.read(qpair, buf, 0, 8).waitdone()
 
     ql = []
-    for i in range(15):
+    for i in range(ncqa-1):
         ql.append(d.Qpair(nvme0, 8))
 
     with pytest.raises(d.QpairCreationError):
