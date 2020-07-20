@@ -27,7 +27,6 @@ def test_reset_within_ioworker(nvme0, repeat):
     # run the test one by one
     subsystem = d.Subsystem(nvme0)
     nvme0n1 = d.Namespace(nvme0, 1, region_end)
-    assert True == nvme0n1.verify_enable(True)
     orig_unsafe_count = power_cycle_count()
     logging.info("power cycle count: %d" % orig_unsafe_count)
 
@@ -36,7 +35,7 @@ def test_reset_within_ioworker(nvme0, repeat):
     with nvme0n1.ioworker(io_size=256,
                           lba_random=True,
                           read_percentage=30,
-                          region_end=256*1000*1000,
+                          region_end=region_end,
                           time=10,
                           qdepth=qdepth, 
                           output_cmdlog_list=cmdlog_list):
@@ -44,9 +43,9 @@ def test_reset_within_ioworker(nvme0, repeat):
         time.sleep(5)
         nvme0.reset()
 
-    time.sleep(5)
-
     # verify data in cmdlog_list
+    time.sleep(5)
+    assert True == nvme0n1.verify_enable(True)
     logging.info(cmdlog_list[-10:])
     read_buf = d.Buffer(256*512)
     qpair = d.Qpair(nvme0, 10)
@@ -56,15 +55,16 @@ def test_reset_within_ioworker(nvme0, repeat):
         op = cmd[2]
         if nlba:
             def read_cb(cdw0, status1):
-                nonlocal slba
+                nonlocal _slba
                 if status1>>1:
-                    logging.info("slba 0x%x, status 0x%x" % (slba, status1>>1))
+                    logging.info("slba %d, 0x%x, _slba 0x%x, status 0x%x" % \
+                                 (slba, slba, _slba, status1>>1))
                     
             logging.debug("verify slba %d, nlba %d" % (slba, nlba))
-            for i in range(4):
-                nvme0n1.read(qpair, read_buf,
-                             slba+i*nlba//4, nlba//4,
-                             cb=read_cb).waitdone()
+            _nlba = nlba//16
+            for i in range(16):
+                _slba = slba+i*_nlba
+                nvme0n1.read(qpair, read_buf, _slba, _nlba, cb=read_cb).waitdone()
             
             # re-write to clear CRC mismatch
             nvme0n1.write(qpair, read_buf, slba, nlba, cb=read_cb).waitdone()

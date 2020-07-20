@@ -34,8 +34,8 @@ def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     cmdlog_list = [None]*1000
     with nvme0n1.ioworker(io_size=256,
                           lba_random=True,
-                          read_percentage=0,
-                          region_end=256*1000*1000,
+                          read_percentage=30,
+                          region_end=region_end,
                           time=30,
                           qdepth=qdepth, 
                           output_cmdlog_list=cmdlog_list):
