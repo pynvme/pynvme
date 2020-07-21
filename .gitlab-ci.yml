@@ -28,7 +28,7 @@ stress_test:
     - schedules
   script:
     - make test pciaddr=0000:06:00.0
-    - cat test_*.log | grep "3 failed, 387 passed" || exit -1
+    - cat test_*.log | grep "3 failed, 388 passed" || exit -1
     - make setup memsize=4000
     - make nvmt
     - make test TESTS=driver_test_tcp.py pciaddr=06:00.0

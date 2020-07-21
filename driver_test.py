@@ -147,6 +147,15 @@ def test_init_nvme_customerized(pcie, repeat):
     nvme0.reset()              # controller reset: CC.EN
     nvme0.getfeatures(7).waitdone()
 
+    subsystem.power_cycle(10)  # power cycle NVMe device: cold reset
+    nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
+
+    subsystem.poweroff()
+    subsystem.poweron()
+    nvme0.reset()              # controller reset: CC.EN
+    nvme0.getfeatures(7).waitdone()
+
 
 def test_jsonrpc_list_qpairs(pciaddr):
     import json
@@ -531,7 +540,12 @@ def test_ioworker_sequential_region_fill(nvme0n1):
     
     with pytest.raises(AssertionError):
         nvme0n1.ioworker(io_size=[8, 64, 128], lba_random=False, region_end=1000).start().close()
-
+    with pytest.raises(AssertionError):
+        nvme0n1.ioworker(io_size=8,
+                         lba_random=False,
+                         qdepth=2,
+                         output_cmdlog_list=cmdlog_list).start().close()
+    
     
 def test_ioworker_input_out_of_range(nvme0n1):
     nvme0n1.ioworker(io_size=128, region_end=200, time=1).start().close()
@@ -3525,6 +3539,23 @@ def test_ioworker_longtime(nvme0, nvme0n1, verify):
         r = a.close()
 
 
+def test_ioworker_changing_ps(nvme0, nvme0n1):
+    orig_ps = nvme0.getfeatures(0x2).waitdone()
+    
+    with nvme0n1.ioworker(io_size=256, 
+                          lba_random=True,
+                          read_percentage=100,
+                          time=60):
+        for ps in range(5):
+            time.sleep(5)
+            logging.info("switch to PS %d" % ps)
+            nvme0.setfeatures(0x2, cdw11=ps).waitdone()
+            p = nvme0.getfeatures(0x2).waitdone()
+            time.sleep(5)
+
+    nvme0.setfeatures(0x2, cdw11=orig_ps).waitdone()
+
+    
 @pytest.mark.parametrize("lba_size", [4096, 512, 4096, 512])
 def test_namespace_change_format(nvme0, lba_size):
     # format to another lba format
