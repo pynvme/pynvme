@@ -1872,6 +1872,25 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     q.delete()
 
 
+def test_ioworker_with_admin(nvme0, nvme0n1, buf, qpair):
+    # start ioworker with admin commands
+    with nvme0n1.ioworker(io_size=256,
+                          lba_random=False,
+                          read_percentage=100,
+                          time=10):
+        start_time = time.time()
+        while time.time()-start_time < 15:
+            nvme0.getlogpage(2, buf, 512).waitdone()
+            
+    with nvme0n1.ioworker(io_size=256,
+                          lba_random=False,
+                          read_percentage=100,
+                          time=10):
+        start_time = time.time()
+        while time.time()-start_time < 15:
+            nvme0n1.read(qpair, buf, 0).waitdone()
+    
+    
 def test_ioworker_fast_complete(nvme0n1):
     nvme0n1.ioworker(io_size=64, lba_align=64,
                      lba_random=False, qdepth=128,

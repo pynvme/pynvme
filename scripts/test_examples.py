@@ -770,23 +770,3 @@ def test_power_state_transition_latency(nvme0, nvme0n1, qpair, buf, ps):
     
     nvme0.setfeatures(0x2, cdw11=orig_ps).waitdone()
     
-
-def _test_ioworker_with_temperature(nvme0, nvme0n1, qpair, buf):
-    # start read/write ioworker and admin commands
-    io_per_second = []
-    smart_log = d.Buffer(512, "smart log")
-    start_time = time.time()
-    with nvme0n1.ioworker(io_size=256,
-                          lba_random=False,
-                          read_percentage=100,
-                          output_io_per_second=io_per_second, 
-                          time=10):
-        while time.time()-start_time < 15:
-            nvme0.getlogpage(0x02, smart_log, 512).waitdone()
-            #time.sleep(0.0000001)
-            #nvme0n1.read(qpair, buf, 0).waitdone()
-            pass
-
-    logging.info(io_per_second)
-
-    
