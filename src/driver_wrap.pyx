@@ -398,13 +398,14 @@ cdef class Subsystem(object):
         """power off the device by the poweroff function provided in Subsystem initialization
         """
 
+        pcie = self._nvme.pcie
+        pcie.power_state = 3  # d3hot
+        bdf = pcie._bdf.decode('utf-8')
+
         # cut power supply immediately without any delay
         if self._poweroff:
             logging.info("power off callback")
             self._poweroff()
-
-        pcie = self._nvme.pcie
-        bdf = pcie._bdf.decode('utf-8')
 
         # cleanup host driver after power off, so IO is active at power off
         pcie._driver_cleanup()
@@ -423,11 +424,11 @@ cdef class Subsystem(object):
             call Controller.reset() to re-initialize controller after this power on
         """
 
+        pcie = self._nvme.pcie
+
         if self._poweron:
             logging.info("power on callback")
             self._poweron()
-
-        pcie = self._nvme.pcie
 
         # config spdk driver
         pcie._rescan()
@@ -2450,6 +2451,7 @@ class _IOWorker(object):
             "io timeout",  #-3
             "ioworker timeout", #-4
             "buffer pool alloc fail", #-5
+            "io cmd error", #-6
             "illegal error code"
         )
         error_str = _error_strings[min(len(_error_strings)-1, -error)]
@@ -2675,6 +2677,8 @@ class _IOWorker(object):
 
             # go: start at the same time
             error = d.ioworker_entry(nvme0n1._ns, qpair._qpair, &args, &rets)
+            if not error and rets.error:
+                error = -6;  # io cmd error
 
             # transfer back iops counter per second: c => cython
             if output_io_per_second is not None:
