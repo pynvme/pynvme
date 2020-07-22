@@ -43,19 +43,27 @@ from nvme import *
 class Zone(object):
     def __init__(self, zns, slba, size, capacity):
         assert capacity <= size
-        self._slba = slba
         self._size = size
-        self._capacity = capacity
         self._ns = zns
+        self.type = 1  #Sequential Write Required
+        self.state = 0
+        self.wpointer = 0
+        self.slba = slba
+        self.capacity = capacity
+        self.extension = False
+        self.recommended_reset = False
+        self.recommended_finish = False
+        self.finished_by_controller = False
+        
 
     def write(self, qpair, buf, offset, lba_count=1, io_flags=0, 
               dword13=0, dword14=0, dword15=0, cb=None):
-        return self._ns.write(qpair, buf, self._slba+offset, lba_count,
+        return self._ns.write(qpair, buf, self.slba+offset, lba_count,
                               io_flags, dword13, dword14, dword15, cb)
 
     def read(self, qpair, buf, offset, lba_count=1, io_flags=0, 
              dword13=0, dword14=0, dword15=0, cb=None):
-        return self._ns.read(qpair, buf, self._slba+offset, lba_count,
+        return self._ns.read(qpair, buf, self.slba+offset, lba_count,
                              io_flags, dword13, dword14, dword15, cb)
 
     def ioworker(self, io_size=8, lba_step=None, lba_align=None,
@@ -79,11 +87,11 @@ class Zone(object):
                                  op_percentage=op_percentage,
                                  time=time,
                                  qdepth=qdepth,
-                                 region_start=self._slba,
-                                 region_end=self._slba+self._capacity,
+                                 region_start=self.slba,
+                                 region_end=self.slba+self.capacity,
                                  iops=iops,
                                  io_count=io_count,
-                                 lba_start=offset_start+self._slba,
+                                 lba_start=offset_start+self.slba,
                                  qprio=qprio,
                                  distribution=distribution,
                                  ptype=ptype,
