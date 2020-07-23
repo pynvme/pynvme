@@ -1147,7 +1147,7 @@ cdef class Controller(object):
             # - from: https://stackoverflow.com/questions/16769870/cython-python-and-keyboardinterrupt-ignored
             PyErr_CheckSignals()
         signal.alarm(0)
-        time.sleep(0.0000000001)
+        time.sleep(0.000001)
         
         # in admin queue, may reap more than expected, because driver
         # will get admin CQ as many as possible
@@ -1784,7 +1784,7 @@ cdef class Qpair(object):
             reaped += d.qpair_wait_completion(self._qpair, 1)
             PyErr_CheckSignals()
         signal.alarm(0)
-        time.sleep(0.0000000001)
+        time.sleep(0.000001)
 
         assert reaped == expected, \
             "not reap the exact completions! reaped %d, expected %d" % (reaped, expected)
