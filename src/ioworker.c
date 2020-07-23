@@ -711,6 +711,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     if ((driver_config_read() & DCFG_IOW_TERM) != 0)
     {
       SPDK_DEBUGLOG(SPDK_LOG_NVME, "force termimate ioworker\n");
+      ret = -7;
       break;
     }
 

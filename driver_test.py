@@ -420,7 +420,7 @@ def test_controller_reset_redo(nvme0):
 
     
 def test_ioworker_is_running(nvme0n1):
-    with nvme0n1.ioworker(io_size=8, time=5) as a:
+    with nvme0n1.ioworker(io_size=8, time=6) as a:
         for i in range(5):
             time.sleep(1)
             assert a.running == True
@@ -474,6 +474,35 @@ def test_ioworker_sequential_unfixed_iosize(nvme0n1):
         assert cmdlog_list[i][0]+cmdlog_list[i][1] == cmdlog_list[i+1][0]
 
 
+def test_ioworker_with_admin(nvme0, nvme0n1, buf, qpair):
+    with nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10):
+        start_time = time.time()
+        while time.time()-start_time < 8:
+            nvme0.getlogpage(0x02, buf, 512).waitdone()
+            nvme0.identify(buf).waitdone()
+            
+    with nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10):
+        start_time = time.time()
+        while time.time()-start_time < 15:
+            nvme0.getfeatures(7).waitdone()
+
+    with nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10), \
+         nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10), \
+         nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10):
+        start_time = time.time()
+        while time.time()-start_time < 15:
+            nvme0.getlogpage(0x02, buf, 512).waitdone()
+
+    with nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10), \
+         nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10), \
+         nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10):
+        start_time = time.time()
+        qpair3 = d.Qpair(nvme0, 10)
+        while time.time()-start_time < 15:
+            nvme0n1.read(qpair3, buf, 0, 8).waitdone()
+        qpair3.delete()
+
+    
 def test_ioworker_region_smaller_than_iosize(nvme0n1):
     cmdlog_list = [None]*1000
     nvme0n1.ioworker(io_size=128,
@@ -1500,13 +1529,18 @@ def test_ioworker_data_pattern(nvme0, nvme0n1, qpair):
 
     buf = d.Buffer(512)
 
-    nvme0n1.ioworker(io_size=8,
+    r = nvme0n1.ioworker(io_size=8,
                      lba_random=False,
                      read_percentage=0,
                      lba_start=0,
                      io_count=1,
                      pvalue=0x55555555,
                      ptype=32).start().close()
+    logging.info(r)
+    assert r.io_count_read == 0
+    assert r.io_count_write == 1
+    assert r.io_count_nonread == 1
+    
     nvme0n1.read(qpair, buf, 0).waitdone()
     assert buf[8] == 0x55
     #print(buf.dump(128))
@@ -1872,25 +1906,6 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     q.delete()
 
 
-def test_ioworker_with_admin(nvme0, nvme0n1, buf, qpair):
-    # start ioworker with admin commands
-    with nvme0n1.ioworker(io_size=256,
-                          lba_random=False,
-                          read_percentage=100,
-                          time=10):
-        start_time = time.time()
-        while time.time()-start_time < 15:
-            nvme0.getlogpage(2, buf, 512).waitdone()
-            
-    with nvme0n1.ioworker(io_size=256,
-                          lba_random=False,
-                          read_percentage=100,
-                          time=10):
-        start_time = time.time()
-        while time.time()-start_time < 15:
-            nvme0n1.read(qpair, buf, 0).waitdone()
-    
-    
 def test_ioworker_fast_complete(nvme0n1):
     nvme0n1.ioworker(io_size=64, lba_align=64,
                      lba_random=False, qdepth=128,
@@ -3306,7 +3321,7 @@ def test_io_generic_cmd(nvme0n1, nvme0):
     q.delete()
 
 
-def test_ioworker_vscode_showcase(nvme0n1):
+def test_ioworker_vscode_showcase(nvme0n1, qpair):
     with nvme0n1.ioworker(io_size=8, lba_align=8, lba_random=False,
                           qdepth=16, read_percentage=100,
                           iops=100, time=10), \

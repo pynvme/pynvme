@@ -97,7 +97,7 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
   {
     return NULL;
   }
-  
+
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "buffer: alloc ptr at %p, size %ld\n",
                 buf, bytes);
 
@@ -300,7 +300,7 @@ static void crc32_clear(struct spdk_nvme_ns *ns,
   if (crc_table != NULL && lba*sizeof(uint32_t) < ns->table_size)
   {
     assert(ns->table_size != 0);
-    
+
     // clear crc table if it exists and cover the lba range
     if (lba*sizeof(uint32_t)+len > ns->table_size)
     {
@@ -727,7 +727,7 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   {
     return;
   }
-  
+
   assert(cpl != NULL);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
 
@@ -799,7 +799,7 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
 
   // keep the latest cid for inqury by scripts later
   log_table->latest_cid = req->cmd.cid;
-  
+
   if (log_entry->req != NULL)
   {
     // this entry is overlapped before command complete
@@ -1250,7 +1250,7 @@ uint16_t qpair_get_latest_cid(struct spdk_nvme_qpair* q,
                               struct spdk_nvme_ctrlr* c)
 {
   struct cmd_log_table_t* log_table;
-  
+
   if (q == NULL)
   {
     q = c->adminq;
@@ -1385,7 +1385,7 @@ int ns_refresh(struct spdk_nvme_ns *ns, uint32_t id,
 {
   int ret = 0;
   crc_table_t* crc_table = (crc_table_t*)ns->crc_table;
-  
+
   if (crc_table != NULL)
   {
     assert(ns->table_size != 0);
@@ -1477,8 +1477,8 @@ int ns_cmd_io(uint8_t opcode,
               uint32_t io_flags,
               spdk_nvme_cmd_cb cb_fn,
               void* cb_arg,
-              unsigned int dword13, 
-              unsigned int dword14, 
+              unsigned int dword13,
+              unsigned int dword14,
               unsigned int dword15)
 {
   struct spdk_nvme_cmd cmd;
@@ -2145,7 +2145,7 @@ int driver_init(void)
 
   // at least 4-core system
   assert(get_nprocs() >= 4);
-  
+
   // get the shared memory group id among primary and secondary processes
   sprintf(buf, "/var/run/dpdk/spdk%d", getppid());
   if (stat(buf, &sb) == 0 && S_ISDIR(sb.st_mode))
@@ -2246,3 +2246,11 @@ bool driver_no_secondary(struct spdk_nvme_ctrlr* ctrlr)
   return spdk_nvme_secondary_process_nonexist(ctrlr);
 }
 
+void driver_init_num_queues(struct spdk_nvme_ctrlr* ctrlr, uint32_t cdw0)
+{
+  struct spdk_nvme_cpl cpl;
+
+  memset(&cpl, 0, sizeof(cpl));
+  cpl.cdw0 = cdw0;
+  return spdk_nvme_ctrlr_get_num_queues_done(ctrlr, &cpl);
+}

@@ -127,7 +127,7 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
 
     if func is not None:
         assert callable(func)
-        
+
         try:
             argc = len(signature(func).parameters)
             assert argc == 1 or argc == 2, "command callback has illegal parameter list"
@@ -266,19 +266,19 @@ cdef class Buffer(object):
     @property
     def offset(self):
         """get the offset of the PRP in bytes"""
-        
+
         return self.offset
 
     @offset.setter
     def offset(self, offset):
         """set the offset of the PRP in bytes"""
-        
+
         self.offset = offset
 
     @property
     def phys_addr(self):
         """physical address of the buffer"""
-        
+
         return self.phys_addr + self.offset
 
     def dump(self, size=None):
@@ -287,7 +287,7 @@ cdef class Buffer(object):
         # Parameters
             size (int): the size of the buffer to print. Default: None, means to print the whole buffer
         """
-        
+
         base = 0
         output = self.name.decode('ascii')+'\n'
         if self.ptr and self.size:
@@ -797,7 +797,7 @@ class Tcp(Pcie):
         addr (str): IP address of TCP target
         port (int): the port number of TCP target. Default: 4420
     """
-    
+
     def __cinit__(self, addr, port=4420):
         super(Pcie, self).__init__(addr, port)
 
@@ -917,55 +917,57 @@ cdef class Controller(object):
         if self.nvme_init_func:
             # user defined nvme init process
             logging.info("run user defined nvme init")
-            return self.nvme_init_func(self)
+            self.nvme_init_func(self)
+        else:
+            # pynvme defined default nvme init process
+            logging.debug("start nvme init process in pynvme")
+            nvme0 = self
+            timeout = ((nvme0.cap>>24) & 0xff)/2
 
-        # pynvme defined default nvme init process
-        logging.debug("start nvme init process in pynvme")
-        nvme0 = self
-        timeout = ((nvme0.cap>>24) & 0xff)/2
+            # 2. disable cc.en and wait csts.rdy to 0
+            nvme0[0x14] = 0
+            t = time.time()
+            while not (nvme0[0x1c]&0x1) == 0:
+                if time.time()-t > timeout:
+                    logging.error("csts.rdy timeout after cc.en=0, timeout: %ds" % timeout)
+                    raise NvmeEnumerateError("csts.rdy timeout after clearing cc.en")
 
-        # 2. disable cc.en and wait csts.rdy to 0
-        nvme0[0x14] = 0
-        t = time.time()
-        while not (nvme0[0x1c]&0x1) == 0:
-            if time.time()-t > timeout:
-                logging.error("csts.rdy timeout after cc.en=0, timeout: %ds" % timeout)
-                raise NvmeEnumerateError("csts.rdy timeout after clearing cc.en")
+            # 3. set admin queue registers
+            if 0 != nvme0.init_adminq():
+                raise NvmeEnumerateError("fail to init admin queue")
 
-        # 3. set admin queue registers
-        if 0 != nvme0.init_adminq():
-            raise NvmeEnumerateError("fail to init admin queue")
+            # 4. set register cc
+            nvme0[0x14] = 0x00460000
 
-        # 4. set register cc
-        nvme0[0x14] = 0x00460000
+            # 5. enable cc.en
+            nvme0[0x14] = 0x00460001
 
-        # 5. enable cc.en
-        nvme0[0x14] = 0x00460001
+            # 6. wait csts.rdy to 1
+            t = time.time()
+            while not (nvme0[0x1c]&0x1) == 1:
+                if time.time()-t > timeout:
+                    logging.error("csts.rdy timeout after cc.en=1, timeout: %ds" % timeout)
+                    raise NvmeEnumerateError("csts.rdy timeout after setting cc.en")
 
-        # 6. wait csts.rdy to 1
-        t = time.time()
-        while not (nvme0[0x1c]&0x1) == 1:
-            if time.time()-t > timeout:
-                logging.error("csts.rdy timeout after cc.en=1, timeout: %ds" % timeout)
-                raise NvmeEnumerateError("csts.rdy timeout after setting cc.en")
-
-        # 7. identify controller and all namespaces
-        nvme0.identify(Buffer(4096)).waitdone()
-        if nvme0.init_ns() < 0:
-            # first try fail: warning, and retry
-            warnings.warn("init namespaces first warning")
-            time.sleep(1)
+            # 7. identify controller and all namespaces
             nvme0.identify(Buffer(4096)).waitdone()
             if nvme0.init_ns() < 0:
-                # second try fail: error
-                raise NvmeEnumerateError("init namespaces failed")
+                # first try fail: warning, and retry
+                warnings.warn("init namespaces first warning")
+                time.sleep(1)
+                nvme0.identify(Buffer(4096)).waitdone()
+                if nvme0.init_ns() < 0:
+                    # second try fail: error
+                    raise NvmeEnumerateError("init namespaces failed")
+
+            # 9. send first aer cmd
+            nvme0.aer()
 
         # 8. set/get num of queues
-        nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
-        nvme0.getfeatures(0x7).waitdone()
-
-        # 9. send first aer cmd
-        nvme0.aer()
+        logging.debug("init queue number")
+        nvme0.setfeatures(0x7, cdw11=0xfffefffe).waitdone()
+        cdw0 = nvme0.getfeatures(0x7).waitdone()
+        d.driver_init_num_queues(nvme0.pcie._ctrlr, cdw0)
 
     @property
     def latest_cid(self):
@@ -1147,8 +1149,7 @@ cdef class Controller(object):
             # - from: https://stackoverflow.com/questions/16769870/cython-python-and-keyboardinterrupt-ignored
             PyErr_CheckSignals()
         signal.alarm(0)
-        time.sleep(0.000001)
-        
+
         # in admin queue, may reap more than expected, because driver
         # will get admin CQ as many as possible
         assert reaped >= expected, \
@@ -1784,7 +1785,6 @@ cdef class Qpair(object):
             reaped += d.qpair_wait_completion(self._qpair, 1)
             PyErr_CheckSignals()
         signal.alarm(0)
-        time.sleep(0.000001)
 
         assert reaped == expected, \
             "not reap the exact completions! reaped %d, expected %d" % (reaped, expected)
@@ -1814,6 +1814,7 @@ cdef class Namespace(object):
     cdef unsigned int _nsid
     cdef unsigned int sector_size
     cdef unsigned long nlba_verify
+    cdef object locker  # locker for all ioworker processes
 
     def __cinit__(self, Controller nvme, unsigned int nsid=1, unsigned long nlba_verify=0):
         logging.debug("initialize namespace nsid %d" % nsid)
@@ -1824,6 +1825,7 @@ cdef class Namespace(object):
             raise NamespaceCreationError()
         self.sector_size = d.ns_get_sector_size(self._ns)
         self.nlba_verify = nlba_verify
+        self.locker = _mp.Lock()
         #print("created namespace: 0x%x" % <unsigned long>self._ns); sys.stdout.flush()
 
     def close(self):
@@ -1906,7 +1908,7 @@ cdef class Namespace(object):
         """change the format of this namespace
 
         Notice
-            Namespace.format() not only sends the admin command, but also updates driver to activate new format immediately. Recommend to use this API to do format. Close and re-create namespace when lba format is changed. 
+            Namespace.format() not only sends the admin command, but also updates driver to activate new format immediately. Recommend to use this API to do format. Close and re-create namespace when lba format is changed.
 
         # Parameters
             data_size (int): data size. Default: 512
@@ -2055,7 +2057,7 @@ cdef class Namespace(object):
         assert 0 not in lba_align, "lba_align cannot be 0"
 
         pciaddr = self._nvme.pcie._bdf
-        return _IOWorker(pciaddr, self._nsid, self.nlba_verify,
+        return _IOWorker(pciaddr, self.locker, self._nsid, self.nlba_verify,
                          lba_start, lba_step, io_size,
                          lba_align, lba_random, region_start, region_end,
                          op_percentage, iops, io_count, time, qdepth, qprio,
@@ -2373,7 +2375,7 @@ class _IOWorker(object):
 
     target_start_time = 0
 
-    def __init__(self, pciaddr, nsid, nlba_verify,
+    def __init__(self, pciaddr, locker, nsid, nlba_verify,
                  lba_start, lba_step, lba_size,
                  lba_align, lba_random, region_start, region_end,
                  op_percentage, iops, io_count, time, qdepth, qprio,
@@ -2382,14 +2384,11 @@ class _IOWorker(object):
                  output_percentile_latency,
                  output_cmdlog_list):
         # queue for returning result
-        self.q = _mp.Queue()
-
-        # lock for processes sync
-        self.l = _mp.Lock()
+        self.q = _mp.SimpleQueue()
 
         # create the child process
         self.p = _mp.Process(target = self._ioworker,
-                             args = (self.q, self.l, pciaddr,
+                             args = (self.q, locker, pciaddr,
                                      nsid, nlba_verify,
                                      int(random.random()*0xffffffff),
                                      lba_start, lba_step, lba_size,
@@ -2411,6 +2410,10 @@ class _IOWorker(object):
     def start(self):
         """Start the worker's process"""
         self.p.start()
+        r = self.q.get()
+        if r != "STARTED":
+            # the result is sent after failed ioworker init
+            self.q.put(r)
         return self
 
     @property
@@ -2454,6 +2457,7 @@ class _IOWorker(object):
             "ioworker timeout", #-4
             "buffer pool alloc fail", #-5
             "io cmd error", #-6
+            "sudden terminated", #-7
             "illegal error code"
         )
         error_str = _error_strings[min(len(_error_strings)-1, -error)]
@@ -2650,7 +2654,7 @@ class _IOWorker(object):
             else:
                 assert type(lba_step) == int
                 lba_step_valid = True
-                
+
             # transfer agurments
             args.lba_start = lba_start
             args.lba_step = lba_step
@@ -2678,6 +2682,7 @@ class _IOWorker(object):
             time.sleep(_IOWorker.target_start_time-time.time())
 
             # go: start at the same time
+            rqueue.put("STARTED")
             error = d.ioworker_entry(nvme0n1._ns, qpair._qpair, &args, &rets)
             if not error and rets.error:
                 error = -6;  # io cmd error
@@ -2714,6 +2719,12 @@ class _IOWorker(object):
             if _timeout_happened:
                 error = -3
 
+            # sudden terminate, not block on the queue
+            fast_exit = False
+            if error == -7:
+                error = 0
+                fast_exit = True
+
             # feed return to main process
             rqueue.put((os.getpid(),
                         error,
@@ -2722,6 +2733,10 @@ class _IOWorker(object):
                         output_io_per_latency,
                         output_cmdlog_list,
                         op_percentage))
+            if not fast_exit:
+                # wait ioworker to collect result data in main process
+                while not rqueue.empty():
+                    time.sleep(1)
 
             with locker:
                 # close resources in right order
