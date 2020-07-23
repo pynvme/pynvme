@@ -913,6 +913,7 @@ cdef class Controller(object):
                 self._nvme_init()
 
     def _nvme_init(self):
+        nvme0 = self
         assert self.nvme_init_func is not True
         if self.nvme_init_func:
             # user defined nvme init process
@@ -921,7 +922,6 @@ cdef class Controller(object):
         else:
             # pynvme defined default nvme init process
             logging.debug("start nvme init process in pynvme")
-            nvme0 = self
             timeout = ((nvme0.cap>>24) & 0xff)/2
 
             # 2. disable cc.en and wait csts.rdy to 0
@@ -964,7 +964,7 @@ cdef class Controller(object):
             nvme0.aer()
 
         # 8. set/get num of queues
-        logging.debug("init queue number")
+        logging.debug("init number of queues")
         nvme0.setfeatures(0x7, cdw11=0xfffefffe).waitdone()
         cdw0 = nvme0.getfeatures(0x7).waitdone()
         d.driver_init_num_queues(nvme0.pcie._ctrlr, cdw0)
