@@ -15,7 +15,7 @@ checkin_test:
   only:
     - pushes
   script:
-    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob
+    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob --pciaddr=3d:00.0
     - make setup memsize=4000
     - make nvmt
     - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=127.0.0.1
