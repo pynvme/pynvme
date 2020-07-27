@@ -713,6 +713,35 @@ cdef class Pcie(object):
             subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, driver), shell=True)
             logging.debug("bind %s on %s" % (driver, bdf))
 
+    def flr(self):
+        """pci function level reset 
+
+        Notice
+            call Controller.reset() to re-initialize controller after this reset
+        """
+        
+        bdf = self._bdf.decode('utf-8')
+        dev_link = os.readlink("/sys/bus/pci/devices/"+bdf)
+        port = dev_link.split('/')[-2]
+        if 'pci' in port:
+            port = port[3:]+":00.0"
+        assert os.path.exists("/sys/bus/pci/devices/"+port)
+
+        # notify ioworker to terminate, and wait all IO Qpair closed
+        self._driver_cleanup()
+        self._bind_driver(None)
+        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
+
+        # FLR
+        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/reset" 2> /dev/null || true' % bdf, shell=True)
+
+        # config spdk driver
+        self._rescan()
+        self._bind_driver('uio_pci_generic')
+        logging.info("reset controller to use it after pcie function level reset")
+        return True
+
+        
     def reset(self):  # pcie
         """reset this pcie device with hot reset
 

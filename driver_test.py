@@ -275,6 +275,10 @@ def test_power_and_reset(pcie, nvme0, subsystem):
     nvme0.reset()              # reset controller after pcie reset
     nvme0.getfeatures(7).waitdone()
 
+    pcie.flr()                 # PCIe function level reset
+    nvme0.reset()              # reset controller after pcie reset
+    nvme0.getfeatures(7).waitdone()
+
     subsystem.reset()          # NVMe subsystem reset: NSSR
     nvme0.reset()              # controller reset: CC.EN
     nvme0.getfeatures(7).waitdone()
