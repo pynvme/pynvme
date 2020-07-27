@@ -3617,3 +3617,21 @@ def test_namespace_change_format(nvme0, lba_size):
         r = a.close()
 
     nvme0n1.close()
+
+
+def test_issue65(nvme0, nvme0n1, subsystem):
+    io = []
+    for qpair in range(16):
+        io.append(nvme0n1.ioworker(io_size=1, lba_random=True,
+                                   read_percentage=0,
+                                   qdepth=1023,
+                                   time=1000).start())
+    time.sleep(55)
+    subsystem.poweroff()
+    for i in io:
+        i.close()
+        
+    time.sleep(1)
+    subsystem.poweron()
+    nvme0.reset()
+
