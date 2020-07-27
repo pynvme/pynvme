@@ -15,7 +15,7 @@ checkin_test:
   only:
     - pushes
   script:
-    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob --pciaddr=0000:06:00.0
+    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob
     - make setup memsize=4000
     - make nvmt
     - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=127.0.0.1
@@ -26,11 +26,11 @@ stress_test:
   only:
     - schedules
   script:
-    - make test pciaddr=0000:06:00.0
+    - make test
     - cat test_*.log | grep "3 failed, 389 passed" || exit -1
     - make setup memsize=4000
     - make nvmt
-    - make test TESTS=driver_test_tcp.py pciaddr=06:00.0
+    - make test TESTS=driver_test_tcp.py
     - make setup memsize=0
 
 scripts_test:
