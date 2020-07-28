@@ -114,7 +114,7 @@ set_dsm_range
 
    Buffer.set_dsm_range(index, lba, lba_count, attr)
 
-set dsm ranges in the buffer, for dsm/deallocation (a.ka trim) commands
+set dsm ranges in the buffer, for dsm/deallocation (a.k.a. trim) commands
 
 **Parameters**
 

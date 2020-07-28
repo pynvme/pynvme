@@ -870,7 +870,7 @@ Based on SPDK, pynvme provides a high performance NVMe driver for product test. 
 In order to cover these considerations, pynvme provides an extension of **Python Space Driver** (PSD). It is an NVMe driver implemented in pure Python based on two fundamental pynvme classes:
 
 #. DMA memory allocation abstracted by class `Buffer`.
-#. PCIe configuration and memory spaceprovided by class `Pcie`.
+#. PCIe configuration and memory space provided by class `Pcie`.
 
 PSD implements NVMe data structures and operations in the module *scripts/psd.py* based on Buffer: 
 

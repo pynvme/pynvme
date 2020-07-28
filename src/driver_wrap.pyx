@@ -353,7 +353,7 @@ cdef class Buffer(object):
             raise TypeError()
 
     def set_dsm_range(self, index, lba, lba_count, attr=0):
-        """set dsm ranges in the buffer, for dsm/deallocation (a.ka trim) commands
+        """set dsm ranges in the buffer, for dsm/deallocation (a.k.a. trim) commands
 
         # Parameters
             index (int): the index of the dsm range to set
