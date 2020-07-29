@@ -316,7 +316,6 @@ class IOCQ(object):
 
         assert qid < 64*1024 and qid >= 0
         assert qsize < 64*1024 and qsize > 0
-        assert iv < 2048, "a maximum of 2048 vectors are used"
 
         def create_io_cq_cpl(cdw0, status1):
             nonlocal status; status = status1>>1
@@ -389,9 +388,13 @@ def test_create_delete_iocq(nvme0):
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         cq = IOCQ(nvme0, 0, 5, buf)
 
-    # Invalid Queue Identifier
+    # Invalid interrupt vector
     with pytest.warns(UserWarning, match="ERROR status: 01/08"):
         cq = IOCQ(nvme0, 5, 5, buf, iv=2047, ien=True)
+
+    # Invalid interrupt vector
+    with pytest.warns(UserWarning, match="ERROR status: 01/08"):
+        cq = IOCQ(nvme0, 5, 5, buf, iv=2049, ien=True)
 
     cq = IOCQ(nvme0, 5, 5, buf, iv=5)
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):

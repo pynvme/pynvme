@@ -774,3 +774,9 @@ def test_power_state_transition_latency(nvme0, nvme0n1, qpair, buf, ps):
     
     nvme0.setfeatures(0x2, cdw11=orig_ps).waitdone()
     
+
+@pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
+def test_getlogpage_nsid(nvme0, buf, nsid):
+    logging.info("model name: %s, nsid %d" % (nvme0.id_data(63, 24, str), nsid))
+    nvme0.getlogpage(0xCA, buf, 512, nsid=nsid).waitdone()
+    nvme0.getlogpage(0x02, buf, 512, nsid=nsid).waitdone()
