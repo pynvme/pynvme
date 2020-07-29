@@ -759,12 +759,14 @@ def test_reset_time(pcie):
     
 
 @pytest.mark.parametrize("ps", range(5))
-def test_power_state_transition_latency(nvme0, nvme0n1, qpair, buf, ps):
+def test_power_state_transition_latency(pcie, nvme0, nvme0n1, qpair, buf, ps):
     orig_ps = nvme0.getfeatures(0x2).waitdone()
 
     latency_list = []
-    for i in range(1000):
+    for i in range(100):
+        pcie.aspm = 2
         nvme0.setfeatures(0x2, cdw11=ps).waitdone()
+        time.sleep(0.01)
         start_time = time.time()
         nvme0n1.read(qpair, buf, 0, 8).waitdone()
         latency_list.append(time.time()-start_time)
