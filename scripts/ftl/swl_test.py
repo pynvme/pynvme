@@ -1,11 +1,13 @@
 import time
 import pytest
 import logging
+
 import nvme as d
-import matplotlib.pyplot as plt
 
 
 def test_swl_only(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
+    import matplotlib.pyplot as plt
+    
     logging.info("format")
     nvme0n1.format(512)
 
@@ -42,6 +44,8 @@ def test_swl_only(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
     
 
 def test_swl_with_gc(nvme0: d.Controller, nvme0n1: d.Namespace, verify):
+    import matplotlib.pyplot as plt
+    
     logging.info("format")
     nvme0n1.format(512)
 

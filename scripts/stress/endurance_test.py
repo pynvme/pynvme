@@ -86,13 +86,13 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
                     nvme0n1.dsm(q, trim_buf, 1)
                     counter += 1
                 else:
-                    logging.info(l)
+                    logging.error(l)
 
             # reap in batch for better efficiency
             if counter > 100:
                 q.waitdone(counter)
                 if batch % 1000 == 0:
-                    logging.info("replay batch %d" % (batch//1000))
+                    logging.info("replay progress: %d" % (batch//1000))
                 batch += 1
                 counter = 0
 
