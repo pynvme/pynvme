@@ -763,8 +763,8 @@ def test_power_state_transition_latency(pcie, nvme0, nvme0n1, qpair, buf, ps):
     orig_ps = nvme0.getfeatures(0x2).waitdone()
 
     latency_list = []
-    for i in range(100):
-        pcie.aspm = 2
+    pcie.aspm = 2
+    for i in range(10):
         nvme0.setfeatures(0x2, cdw11=ps).waitdone()
         time.sleep(0.01)
         start_time = time.time()
@@ -774,6 +774,7 @@ def test_power_state_transition_latency(pcie, nvme0, nvme0n1, qpair, buf, ps):
     logging.info("\nsetPS %d, postPS %d, read latency %0.3f msec" %
                  (ps, post_ps, 1000*sum(latency_list)/len(latency_list)))
     
+    pcie.aspm = 0
     nvme0.setfeatures(0x2, cdw11=orig_ps).waitdone()
     
 

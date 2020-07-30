@@ -499,23 +499,11 @@ cdef class Subsystem(object):
             logging.warning("the controller does not supprt NSSR")
             return False
 
-        pcie = self._nvme.pcie
-        bdf = pcie._bdf.decode('utf-8')
-
-        # notify ioworker to terminate, and wait all IO Qpair closed
-        pcie._driver_cleanup()
-        pcie._bind_driver(None)
-        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
-
         # nssr.nssrc: nvme subsystem reset
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
         self._nvme[0x20] = 0x4e564d65  # "NVMe"
-
-        # config spdk driver
-        pcie._rescan()
-        pcie._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after subsystem reset")
-        return True
+        return self._nvme.pcie.flr()
 
 
 class NvmeEnumerateError(Exception):
@@ -714,12 +702,6 @@ cdef class Pcie(object):
             logging.debug("bind %s on %s" % (driver, bdf))
 
     def flr(self):
-        """pci function level reset 
-
-        Notice
-            call Controller.reset() to re-initialize controller after this reset
-        """
-        
         bdf = self._bdf.decode('utf-8')
         dev_link = os.readlink("/sys/bus/pci/devices/"+bdf)
         port = dev_link.split('/')[-2]
@@ -738,7 +720,6 @@ cdef class Pcie(object):
         # config spdk driver
         self._rescan()
         self._bind_driver('uio_pci_generic')
-        logging.info("reset controller to use it after pcie function level reset")
         return True
 
         
