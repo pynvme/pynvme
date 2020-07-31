@@ -13,7 +13,7 @@ def test_precondition_format(pcie, nvme0, nvme0n1, subsystem):
     nvme0n1.format(512)
     
 
-@pytest.mark.parametrize("repeat", range(100))
+@pytest.mark.parametrize("repeat", range(10))
 def test_reset_within_ioworker(nvme0, repeat):
     region_end = 256*1000*1000  # 1GB
     qdepth = min(1024, 1+(nvme0.cap&0xffff))

@@ -499,11 +499,20 @@ cdef class Subsystem(object):
             logging.warning("the controller does not supprt NSSR")
             return False
 
-        # nssr.nssrc: nvme subsystem reset
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
         self._nvme[0x20] = 0x4e564d65  # "NVMe"
+        
+        # notify ioworker to terminate, and wait all IO Qpair closed
+        pcie = self._nvme.pcie
+        pcie._driver_cleanup()
+        pcie._bind_driver(None)
+        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null' % pcie._bdf.decode('utf-8'), shell=True)
+
+        # config spdk driver
+        pcie._rescan()
+        pcie._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after subsystem reset")
-        return self._nvme.pcie.flr()
+        return True
 
 
 class NvmeEnumerateError(Exception):
@@ -670,9 +679,9 @@ cdef class Pcie(object):
         bdf = self._bdf.decode('utf-8')
 
         # rescan device without kernel nvme driver
-        subprocess.call('rmmod nvme 2> /dev/null || true', shell=True)
-        subprocess.call('rmmod nvme_core 2> /dev/null || true', shell=True)
-        subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
+        subprocess.call('rmmod nvme 2> /dev/null', shell=True)
+        subprocess.call('rmmod nvme_core 2> /dev/null', shell=True)
+        subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null', shell=True)
 
         # check if the device is online
         while not os.path.exists("/sys/bus/pci/devices/"+bdf):
@@ -682,7 +691,7 @@ cdef class Pcie(object):
                 return False
             time.sleep(0.01)
             logging.info("rescan the device: %s, retry %d" % (bdf, retry))
-            subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null || true', shell=True)
+            subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null', shell=True)
 
         logging.debug("find device on %s" % bdf)
         return True
@@ -693,35 +702,29 @@ cdef class Pcie(object):
 
         if os.path.exists("/sys/bus/pci/devices/%s/driver" % bdf):
             logging.debug("unbind %s on %s" % (vdid, bdf))
-            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
-            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null' % (vdid, bdf), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null' % (bdf, bdf), shell=True)
 
         if driver:
-            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, driver), shell=True)
-            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, driver), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null' % (vdid, driver), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null' % (bdf, driver), shell=True)
             logging.debug("bind %s on %s" % (driver, bdf))
 
     def flr(self):
         bdf = self._bdf.decode('utf-8')
-        dev_link = os.readlink("/sys/bus/pci/devices/"+bdf)
-        port = dev_link.split('/')[-2]
-        if 'pci' in port:
-            port = port[3:]+":00.0"
-        assert os.path.exists("/sys/bus/pci/devices/"+port)
-
+        
+        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/reset" 2> /dev/null' % bdf, shell=True)
+        
         # notify ioworker to terminate, and wait all IO Qpair closed
         self._driver_cleanup()
         self._bind_driver(None)
-        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
-
-        # FLR
-        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/reset" 2> /dev/null || true' % bdf, shell=True)
+        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null' % bdf, shell=True)
 
         # config spdk driver
         self._rescan()
         self._bind_driver('uio_pci_generic')
+        logging.info("reset controller to use it after function level reset")
         return True
-
         
     def reset(self):  # pcie
         """reset this pcie device with hot reset
@@ -740,14 +743,14 @@ cdef class Pcie(object):
         # notify ioworker to terminate, and wait all IO Qpair closed
         self._driver_cleanup()
         self._bind_driver(None)
-        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
+        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null' % bdf, shell=True)
 
         # hot reset by TS1 TS2
-        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL 2> /dev/null || true' % port, shell=True)
+        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL 2> /dev/null' % port, shell=True)
         bc = int(ret.strip(), 16)
-        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL=0x%x 2> /dev/null || true' % (port, bc|0x40), shell=True)
+        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL=0x%x 2> /dev/null' % (port, bc|0x40), shell=True)
         time.sleep(0.01)
-        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL=0x%x 2> /dev/null || true' % (port, bc), shell=True)
+        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL=0x%x 2> /dev/null' % (port, bc), shell=True)
         time.sleep(0.5)
 
         # config spdk driver
@@ -1085,6 +1088,9 @@ cdef class Controller(object):
             Test scripts should delete all io qpairs before reset!
         """
 
+        # 2. disable cc.en
+        self[0x14] = 0
+        
         # notify ioworker to terminate, and wait all IO Qpair closed
         self.pcie._driver_cleanup()
 

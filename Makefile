@@ -62,6 +62,7 @@ doc:
 	cd doc; make clean; make html
 
 reset:
+	- sudo sh -c "echo 1 > /sys/bus/pci/rescan"
 	- sudo rm -rf /run/dpdk
 	- sudo rm -rf /var/run/dpdk
 	sudo ./src/setup.sh cleanup
