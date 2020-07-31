@@ -27,7 +27,7 @@ stress_test:
     - schedules
   script:
     - make test
-    - cat test_*.log | grep "3 failed, 392 passed" || exit -1
+    - cat test_*.log | grep "3 failed, 390 passed" || exit -1
     - make setup memsize=4000
     - make nvmt
     - make test TESTS=driver_test_tcp.py
