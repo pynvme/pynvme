@@ -812,7 +812,7 @@ class Tcp(Pcie):
     """
 
     def __cinit__(self, addr, port=4420):
-        super(Pcie, self).__init__(addr, port)
+        super(Tcp, self).__init__(addr, port)
 
 
 class TcgError(Exception):

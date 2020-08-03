@@ -41,6 +41,10 @@ def test_reset_within_ioworker(nvme0, repeat):
                           output_cmdlog_list=cmdlog_list):
         # sudden power loss before the ioworker end
         time.sleep(5)
+        
+        # disable cc.en
+        nvme0[0x14] = 0
+        #time.sleep(1)
         nvme0.reset()
 
     # verify data in cmdlog_list
