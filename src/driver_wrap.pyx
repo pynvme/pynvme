@@ -1088,9 +1088,6 @@ cdef class Controller(object):
             Test scripts should delete all io qpairs before reset!
         """
 
-        # 2. disable cc.en
-        self[0x14] = 0
-        
         # notify ioworker to terminate, and wait all IO Qpair closed
         self.pcie._driver_cleanup()
 

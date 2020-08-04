@@ -44,7 +44,7 @@ def test_reset_within_ioworker(nvme0, repeat):
         
         # disable cc.en
         nvme0[0x14] = 0
-        #time.sleep(1)
+        time.sleep(1)
         nvme0.reset()
 
     # verify data in cmdlog_list
