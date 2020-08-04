@@ -14,7 +14,7 @@ def test_precondition_format(pcie, nvme0, nvme0n1, subsystem):
     
 
 @pytest.mark.parametrize("repeat", range(10))
-def test_reset_within_ioworker(nvme0, repeat):
+def test_reset_within_ioworker(nvme0, subsystem, pcie, repeat):
     region_end = 256*1000*1000  # 1GB
     qdepth = min(1024, 1+(nvme0.cap&0xffff))
     
@@ -42,10 +42,17 @@ def test_reset_within_ioworker(nvme0, repeat):
         # sudden power loss before the ioworker end
         time.sleep(5)
         
-        # disable cc.en
+        # disable cc.en and wait for csts.rdy
+    if 0:
         nvme0[0x14] = 0
-        time.sleep(1)
-        nvme0.reset()
+        t = time.time()
+        while not (nvme0[0x1c]&0x1) == 0:
+            if time.time()-t > 10:
+                logging.error("csts.rdy timeout 10s after cc.en=0")
+                assert False
+
+    subsystem.reset()
+    nvme0.reset()
 
     # verify data in cmdlog_list
     time.sleep(5)
