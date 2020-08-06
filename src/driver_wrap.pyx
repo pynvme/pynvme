@@ -803,6 +803,7 @@ cdef class Pcie(object):
         pmcsr =  self.register(pmcsr_addr, 4)
         self.__setitem__(pmcsr_addr, (pmcsr&0xfc)|state)
 
+        
 class Tcp(Pcie):
     """Tcp class for NVMe TCP target
 
@@ -813,51 +814,6 @@ class Tcp(Pcie):
 
     def __cinit__(self, addr, port=4420):
         super(Tcp, self).__init__(addr, port)
-
-
-class TcgError(Exception):
-    pass
-
-cdef class Tcg(object):
-    """TCG class, for opal and pyrite tests"""
-
-    cdef void* _dev
-
-    def __cinit__(self, Controller nvme):
-        self._dev = d.tcg_dev_init(nvme.pcie._ctrlr)
-        if not self._dev:
-            raise TcgError("tcg init fail")
-
-    def close(self):
-        """close to explictly release its resources instead of del"""
-
-        d.tcg_dev_close(self._dev)
-
-    def take_ownership(self, passwd=b'cranechu@gmail.com'):
-        logging.debug("take ownership, %s" % passwd)
-        if d.tcg_take_ownership(self._dev, passwd):
-            raise TcgError("take_ownership fail")
-
-    def revert_tper(self, passwd):
-        logging.debug("revert, %s" % passwd)
-        if d.tcg_revert_tper(self._dev, passwd):
-            raise TcgError("revert_tper fail")
-
-    def set_new_passwd(self, passwd, new_passwd, user=0):
-        logging.debug("passwd, %s => %s" % (passwd, new_passwd))
-        if d.tcg_set_passwd(self._dev, user, new_passwd, passwd):
-            raise TcgError("set_new_passwd fail")
-
-    def lock(self, passwd, state=2, user=0, range=0):
-        """lock or unlock the range for the user
-
-        # Parameters
-            state (int): the lock state. 1: readonly, 2: rwlock, 4: unlock. default: 2
-        """
-
-        logging.debug("lock, %s, %d" % (passwd, state))
-        if d.tcg_lock_unlock(self._dev, user, state, range, passwd):
-            raise TcgError("lock/unlock fail")
 
 
 cdef class Controller(object):

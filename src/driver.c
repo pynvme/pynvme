@@ -1559,45 +1559,6 @@ int ns_fini(struct spdk_nvme_ns* ns)
 }
 
 
-////module: tcg
-///////////////////////////////
-void* tcg_dev_init(struct spdk_nvme_ctrlr* ctrlr)
-{
-  return spdk_opal_init_dev(ctrlr);
-}
-
-void tcg_dev_close(void* dev)
-{
-  spdk_opal_close(dev);
-}
-
-int tcg_take_ownership(void* dev, const char* passwd)
-{
-  int ret = spdk_opal_cmd_take_ownership(dev, (char*)passwd);
-
-  if (ret == 0)
-  {
-    return spdk_opal_cmd_activate_locking_sp(dev, passwd);
-  }
-
-  return ret;
-}
-
-int tcg_revert_tper(void* dev, const char* passwd)
-{
-  return spdk_opal_cmd_revert_tper(dev, passwd);
-}
-
-int tcg_set_passwd(void* dev, int user, const char* new_passwd, const char* old_passwd)
-{
-  return spdk_opal_cmd_set_new_passwd(dev, user, new_passwd, old_passwd, false);
-}
-
-int tcg_lock_unlock(void* dev, int user, int state, int range, const char* passwd)
-{
-  return spdk_opal_cmd_lock_unlock(dev, user, state, range, passwd);
-}
-
 ////module: log
 ///////////////////////////////
 

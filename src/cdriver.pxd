@@ -206,9 +206,3 @@ cdef extern from "driver.h":
     bint driver_no_secondary(ctrlr* c)
     void driver_init_num_queues(ctrlr* c, unsigned int cdw0)
 
-    void* tcg_dev_init(ctrlr* c)
-    void tcg_dev_close(void* dev)
-    int tcg_take_ownership(void* dev, const char* passwd)
-    int tcg_revert_tper(void* dev, const char* passwd)
-    int tcg_set_passwd(void* dev, int user, const char* new_passwd, const char* old_passwd)
-    int tcg_lock_unlock(void* dev, int user, int state, int range, const char* passwd)

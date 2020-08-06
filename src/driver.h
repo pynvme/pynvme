@@ -262,9 +262,3 @@ extern void* intc_lookup_ctrl(struct spdk_nvme_ctrlr* ctrlr);
 extern void timeval_gettimeofday(struct timeval *tv);
 extern uint32_t timeval_to_us(struct timeval* t);
 
-extern void* tcg_dev_init(struct spdk_nvme_ctrlr* ctrlr);
-extern void tcg_dev_close(void* dev);
-extern int tcg_take_ownership(void* dev, const char* passwd);
-extern int tcg_revert_tper(void* dev, const char* passwd);
-extern int tcg_set_passwd(void* dev, int user, const char* new_passwd, const char* old_passwd);
-extern int tcg_lock_unlock(void* dev, int user, int state, int range, const char* passwd);
