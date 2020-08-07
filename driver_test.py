@@ -434,26 +434,32 @@ def test_ioworker_is_running(nvme0n1):
     b = nvme0n1.ioworker(io_size=8, time=5)
     assert a.running == True
     assert b.running == True
-
-    a.start()
+    logging.info("PASS")
+    
     b.start()
+    a.start()
     assert a.running == True
     assert b.running == True
+    logging.info("PASS")
 
-    time.sleep(3)
+    time.sleep(1)
     assert a.running == False
     assert b.running == True
+    logging.info("PASS")
 
     a.close()
     assert a.running == False
     assert b.running == True
+    logging.info("PASS")
 
     while b.running: pass
     assert a.running == False
+    logging.info("PASS")
 
     b.close()
     assert a.running == False
     assert b.running == False
+    logging.info("PASS")
 
 
 def test_ioworker_sequential_unfixed_iosize(nvme0n1):
