@@ -189,10 +189,14 @@ class Command(object):
 
         # fill length
         assert self.pos > 56 # larger than header
-        self.buf[16:] = struct.pack('>I', self.pos-19)
-        self.buf[40:] = struct.pack('>I', self.pos-43)
         self.buf[52:] = struct.pack('>I', self.pos-56)
-
+        while self.pos%4:
+            # padding to dword
+            self.append_u8(0)
+        self.buf[16:] = struct.pack('>I', self.pos-20)
+        self.buf[40:] = struct.pack('>I', self.pos-44)
+        assert self.pos < 2048
+        
         # send packet
         logging.debug(self.buf.dump(512))
         self.nvme0.security_send(self.buf, self.comid).waitdone()
@@ -375,8 +379,9 @@ class Response(object):
             length += 4
 
             # parse discovery response buffer
-            if feature == 0x303:
-                # pyrite 2.0
+            if feature == 0x0303 or \
+               feature == 0x0302:
+                # pyrite 2, or pyrite 1
                 comid, = struct.unpack('>H', self.buf[offset+4:offset+6])
                 
             offset += length
@@ -414,26 +419,20 @@ def test_take_ownership_and_revert_tper(nvme0, new_passwd=b'123456'):
 
     Command(nvme0, comid).start_anybody_adminsp_session(0x65).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
-
     Command(nvme0, comid).get_msid_cpin_pin(hsn, tsn).send()
     password = Response(nvme0, comid).receive().get_c_pin_msid()
-
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
     Command(nvme0, comid).start_adminsp_session(0x66, password).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
-
     Command(nvme0, comid).set_sid_cpin_pin(hsn, tsn, new_passwd).send()
     Response(nvme0, comid).receive()
-
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
-
+    
     Command(nvme0, comid).start_adminsp_session(0x69, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
-
     Command(nvme0, comid).revert_tper(hsn, tsn).send()
     Response(nvme0, comid).receive()
-
     # No "end session" for revert tper
