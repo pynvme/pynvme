@@ -182,7 +182,10 @@ class Command(object):
 
     def send(self, append_end_tokens=True):
         if append_end_tokens:
-            self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
+            self.append_token_list(OPAL_TOKEN.ENDOFDATA,
+                                   OPAL_TOKEN.STARTLIST,
+                                   0, 0, 0,
+                                   OPAL_TOKEN.ENDLIST)
 
         # fill length
         assert self.pos > 56 # larger than header
@@ -191,13 +194,17 @@ class Command(object):
         self.buf[52:] = struct.pack('>I', self.pos-56)
 
         # send packet
-        logging.debug(self.buf.dump(256))
+        logging.debug(self.buf.dump(512))
         self.nvme0.security_send(self.buf, self.comid).waitdone()
         return self
 
     def append_u8(self, val):
         self.buf[self.pos] = val
         self.pos += 1
+
+    def append_u16(self, val):
+        self.buf[self.pos:] = struct.pack('>H', val)
+        self.pos += 2
 
     def append_token(self, token):
         self.append_u8(token)
@@ -221,10 +228,14 @@ class Command(object):
             if atom < 64:
                 # tiny
                 self.append_u8(atom)
-            elif atom < 256:
+            elif atom < 0x100:
                 # short: 1-byte int
                 self.append_u8(0x81)
                 self.append_u8(atom)
+            elif atom < 0x10000:
+                # short: 2-byte int
+                self.append_u8(0x82)
+                self.append_u16(atom)
             else:
                 # TODO: medium and long atom
                 assert False
@@ -320,8 +331,29 @@ class Command(object):
         self.buf[20:] = struct.pack('>I', tsn)
         self.buf[24:] = struct.pack('>I', hsn)
         return self
-    
 
+    def properties(self, host_properties={}):
+        self.append_token(OPAL_TOKEN.CALL)
+        self.append_token_uid(OPAL_UID.SMUID)
+        self.append_token_method(OPAL_METHOD.PROPERTIES)
+        self.append_token_list(OPAL_TOKEN.STARTLIST, 
+                               OPAL_TOKEN.STARTNAME,
+                               0)   #host properties list
+        self.append_token(OPAL_TOKEN.STARTLIST)
+
+        for k in host_properties:
+            self.append_token(OPAL_TOKEN.STARTNAME)
+            self.append_token_atom(k)
+            self.append_token_atom(host_properties[k])
+            self.append_token(OPAL_TOKEN.ENDNAME)
+
+        self.append_token(OPAL_TOKEN.ENDLIST)
+        self.append_token(OPAL_TOKEN.ENDNAME)
+        self.append_token(OPAL_TOKEN.ENDLIST)
+        
+        return self
+
+    
 class Response(object):
     def __init__(self, nvme0, comid=1):
         self.nvme0 = nvme0
@@ -330,7 +362,7 @@ class Response(object):
 
     def receive(self):
         self.nvme0.security_receive(self.buf, self.comid).waitdone()
-        logging.debug(self.buf.dump(256))
+        logging.debug(self.buf.dump(512))
         return self
     
     def level0_discovery(self):
@@ -359,6 +391,22 @@ class Response(object):
     def get_c_pin_msid(self):
         length = struct.unpack(">B", self.buf[0x3d:0x3e])[0]
         return self.buf[0x3e:0x3e+length]
+
+
+def test_properties(nvme0):
+    host_properties = {
+        b"MaxComPacketSize": 4096,
+        b"MaxPacketSize": 4076,
+        b"MaxIndTokenSize": 4040, 
+        b"MaxPackets": 1, 
+        b"MaxSubPackets": 1, 
+        b"MaxMethods": 1,
+    }
+    comid = Response(nvme0).receive().level0_discovery()
+    Command(nvme0, comid).properties().send()
+    Response(nvme0, comid).receive()
+    Command(nvme0, comid).properties(host_properties).send()
+    Response(nvme0, comid).receive()
 
     
 def test_take_ownership_and_revert_tper(nvme0, new_passwd=b'123456'):
