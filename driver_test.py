@@ -431,7 +431,7 @@ def test_ioworker_is_running(nvme0n1):
     assert a.running == False
 
     a = nvme0n1.ioworker(io_size=8, time=1)
-    b = nvme0n1.ioworker(io_size=8, time=5)
+    b = nvme0n1.ioworker(io_size=8, time=10)
     assert a.running == True
     assert b.running == True
     logging.info("PASS")
