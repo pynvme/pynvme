@@ -198,7 +198,7 @@ class Command(object):
         assert self.pos < 2048
 
         # send packet
-        logging.debug(self.buf.dump(512))
+        logging.debug(self.buf.dump(256))
         self.nvme0.security_send(self.buf, self.comid).waitdone()
         return self
 
@@ -260,16 +260,18 @@ class Command(object):
         self.append_token_method(OPAL_METHOD.STARTSESSION)
         self.append_token(OPAL_TOKEN.STARTLIST)
         self.append_token_atom(hsn)
-        self.append_token_uid(OPAL_UID.ADMINSP)
-        self.append_token(OPAL_TOKEN.TRUE)
 
     def start_anybody_adminsp_session(self, hsn):
         self._start_session(hsn)
+        self.append_token_uid(OPAL_UID.ADMINSP)
+        self.append_token(OPAL_TOKEN.TRUE)
         self.append_token(OPAL_TOKEN.ENDLIST)
         return self
 
     def start_adminsp_session(self, hsn, key):
         self._start_session(hsn)
+        self.append_token_uid(OPAL_UID.ADMINSP)
+        self.append_token(OPAL_TOKEN.TRUE)
         self.append_token(OPAL_TOKEN.STARTNAME)
         self.append_token(0)
         self.append_token_atom(key)
@@ -287,25 +289,6 @@ class Command(object):
         self.append_token_method(OPAL_METHOD.REVERT)
         self.append_token(OPAL_TOKEN.STARTLIST)
         self.append_token(OPAL_TOKEN.ENDLIST)
-        self.buf[20:] = struct.pack('>I', tsn)
-        self.buf[24:] = struct.pack('>I', hsn)
-        return self
-
-    def set_sid_cpin_pin(self, hsn, tsn, new_passwd):
-        self.append_token(OPAL_TOKEN.CALL)
-        self.append_token_uid(OPAL_UID.C_PIN_SID)
-        self.append_token_method(OPAL_METHOD.SET)
-        self.append_token_list(OPAL_TOKEN.STARTLIST,
-                               OPAL_TOKEN.STARTNAME,
-                               OPAL_TOKEN.VALUES,
-                               OPAL_TOKEN.STARTLIST,
-                               OPAL_TOKEN.STARTNAME,
-                               OPAL_TOKEN.PIN)
-        self.append_token_atom(new_passwd)
-        self.append_token_list(OPAL_TOKEN.ENDNAME,
-                               OPAL_TOKEN.ENDLIST,
-                               OPAL_TOKEN.ENDNAME,
-                               OPAL_TOKEN.ENDLIST)
         self.buf[20:] = struct.pack('>I', tsn)
         self.buf[24:] = struct.pack('>I', hsn)
         return self
@@ -359,6 +342,51 @@ class Command(object):
         self.buf[20:] = struct.pack('>I', tsn)
         self.buf[24:] = struct.pack('>I', hsn)
         return self
+
+    def enable_user(self, hsn, tsn, user_id):
+        self.append_token(OPAL_TOKEN.CALL)
+        self.append_token_uid(OPAL_UID.USER1)  # TODO
+        self.append_token_method(OPAL_METHOD.SET)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.VALUES,
+                               OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.AUTH_ENABLE,
+                               OPAL_TOKEN.TRUE,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
+        return self
+
+    def set_new_passwd(self, hsn, tsn, user_id, new_passwd):
+        self.append_token(OPAL_TOKEN.CALL)
+        if user_id == 0:
+            self.append_token_uid(OPAL_UID.C_PIN_SID)
+        elif user_id == 1:
+            self.append_token_uid(OPAL_UID.USER1)
+        elif user_id == 2:
+            self.append_token_uid(OPAL_UID.USER2)
+        else:
+            assert False, "not supported user id"
+        self.append_token_method(OPAL_METHOD.SET)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.VALUES,
+                               OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.PIN)
+        self.append_token_atom(new_passwd)
+        self.append_token_list(OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
+        return self
     
     def end_session(self, hsn, tsn):
         self.append_u8(OPAL_TOKEN.ENDOFSESSION)
@@ -396,7 +424,7 @@ class Response(object):
 
     def receive(self):
         self.nvme0.security_receive(self.buf, self.comid).waitdone()
-        logging.debug(self.buf.dump(512))
+        logging.debug(self.buf.dump(128))
         return self
 
     def level0_discovery(self):
@@ -429,11 +457,11 @@ class Response(object):
     def get_c_pin_msid(self):
         length = struct.unpack(">B", self.buf[0x3d:0x3e])[0]
         return self.buf[0x3e:0x3e+length]
-    
+
     def get_locking_sp_lifecycle(self):
         return
 
-    
+
 def test_properties(nvme0):
     host_properties = {
         b"MaxComPacketSize": 4096,
@@ -453,9 +481,9 @@ def test_properties(nvme0):
 def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     #subsystem.power_cycle()
     #nvme0.reset()
-    
-    comid = Response(nvme0).receive().level0_discovery()
 
+    comid = Response(nvme0).receive().level0_discovery()
+    
     Command(nvme0, comid).start_anybody_adminsp_session(0x65).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).get_msid_cpin_pin(hsn, tsn).send()
@@ -465,7 +493,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
 
     Command(nvme0, comid).start_adminsp_session(0x66, password).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
-    Command(nvme0, comid).set_sid_cpin_pin(hsn, tsn, new_passwd).send()
+    Command(nvme0, comid).set_new_passwd(hsn, tsn, 0, new_passwd).send()
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
@@ -475,6 +503,22 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).get_locking_sp_lifecycle(hsn, tsn).send()
     Response(nvme0, comid).receive().get_locking_sp_lifecycle()
     Command(nvme0, comid).activate(hsn, tsn).send()
+    Response(nvme0, comid).receive()
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    Response(nvme0, comid).receive()
+
+    # enable user
+    Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
+    hsn, tsn = Response(nvme0, comid).receive().start_session()
+    Command(nvme0, comid).enable_user(hsn, tsn, 1).send()
+    Response(nvme0, comid).receive()
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    Response(nvme0, comid).receive()
+
+    # change passwd
+    Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
+    hsn, tsn = Response(nvme0, comid).receive().start_session()
+    Command(nvme0, comid).set_new_passwd(hsn, tsn, 1, b"654321").send()
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
