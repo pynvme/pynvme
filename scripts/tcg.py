@@ -268,16 +268,9 @@ class Command(object):
         self.append_token(OPAL_TOKEN.ENDLIST)
         return self
 
-    def start_adminsp_session(self, hsn, user_id, key):
+    def start_adminsp_session(self, hsn, key):
         self._start_session(hsn)
-        if user_id == 0:
-            self.append_token_uid(OPAL_UID.ADMINSP)
-        elif user_id == 1:
-            self.append_token_uid(OPAL_UID.USER1)
-        elif user_id == 2:
-            self.append_token_uid(OPAL_UID.USER2)
-        else:
-            assert False, "not supported user id %d" % user_id
+        self.append_token_uid(OPAL_UID.ADMINSP)
         self.append_token(OPAL_TOKEN.TRUE)
         self.append_token(OPAL_TOKEN.STARTNAME)
         self.append_token(0)
@@ -286,6 +279,28 @@ class Command(object):
                                OPAL_TOKEN.STARTNAME,
                                3)
         self.append_token_uid(OPAL_UID.SID)
+        self.append_token(OPAL_TOKEN.ENDNAME)
+        self.append_token(OPAL_TOKEN.ENDLIST)
+        return self
+
+    def start_auth_session(self, hsn, user_id, key):
+        self._start_session(hsn)
+        self.append_token_uid(OPAL_UID.LOCKINGSP)
+        self.append_token(OPAL_TOKEN.TRUE)
+        self.append_token(OPAL_TOKEN.STARTNAME)
+        self.append_token(0)
+        self.append_token_atom(key)
+        self.append_token_list(OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.STARTNAME,
+                               3)
+        if user_id == 0:
+            self.append_token_uid(OPAL_UID.ADMIN1)
+        elif user_id == 1:
+            self.append_token_uid(OPAL_UID.USER1)
+        elif user_id == 2:
+            self.append_token_uid(OPAL_UID.USER2)
+        else:
+            assert False, "not supported user id %d" % user_id
         self.append_token(OPAL_TOKEN.ENDNAME)
         self.append_token(OPAL_TOKEN.ENDLIST)
         return self
@@ -369,14 +384,31 @@ class Command(object):
         self.buf[24:] = struct.pack('>I', hsn)
         return self
 
+    def set_sid_cpin_pin(self, hsn, tsn, new_passwd):
+        self.append_token(OPAL_TOKEN.CALL)
+        self.append_token_uid(OPAL_UID.C_PIN_SID)
+        self.append_token_method(OPAL_METHOD.SET)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.VALUES,
+                               OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.PIN)
+        self.append_token_atom(new_passwd)
+        self.append_token_list(OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
+        return self
+
     def set_new_passwd(self, hsn, tsn, user_id, new_passwd):
         self.append_token(OPAL_TOKEN.CALL)
         if user_id == 0:
-            self.append_token_uid(OPAL_UID.C_PIN_SID)
+            self.append_token_uid(OPAL_UID.C_PIN_ADMIN1)
         elif user_id == 1:
-            self.append_token_uid(OPAL_UID.USER1)
-        elif user_id == 2:
-            self.append_token_uid(OPAL_UID.USER2)
+            self.append_token_uid(OPAL_UID.C_PIN_USER1)
         else:
             assert False, "not supported user id %d" % user_id
         self.append_token_method(OPAL_METHOD.SET)
@@ -394,7 +426,7 @@ class Command(object):
         self.buf[20:] = struct.pack('>I', tsn)
         self.buf[24:] = struct.pack('>I', hsn)
         return self
-    
+
     def end_session(self, hsn, tsn):
         self.append_u8(OPAL_TOKEN.ENDOFSESSION)
         self.buf[20:] = struct.pack('>I', tsn)
@@ -486,11 +518,12 @@ def test_properties(nvme0):
 
 
 def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
-    #subsystem.power_cycle()
-    #nvme0.reset()
+    # subsystem.power_cycle()
+    # nvme0.reset()
 
     comid = Response(nvme0).receive().level0_discovery()
-    
+
+    # take ownership
     Command(nvme0, comid).start_anybody_adminsp_session(0x65).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).get_msid_cpin_pin(hsn, tsn).send()
@@ -498,14 +531,16 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    Command(nvme0, comid).start_adminsp_session(0x66, 0, password).send()
+    # set password
+    Command(nvme0, comid).start_adminsp_session(0x66, password).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
-    Command(nvme0, comid).set_new_passwd(hsn, tsn, 0, new_passwd).send()
+    Command(nvme0, comid).set_sid_cpin_pin(hsn, tsn, new_passwd).send()
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    Command(nvme0, comid).start_adminsp_session(0x66, 0, new_passwd).send()
+    # activate locking sp
+    Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).get_locking_sp_lifecycle(hsn, tsn).send()
     Response(nvme0, comid).receive().get_locking_sp_lifecycle()
@@ -515,7 +550,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
 
     # enable user
-    Command(nvme0, comid).start_adminsp_session(0x66, 0, new_passwd).send()
+    Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).enable_user(hsn, tsn, 1).send()
     Response(nvme0, comid).receive()
@@ -523,7 +558,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
 
     # change passwd
-    Command(nvme0, comid).start_adminsp_session(0x66, 0, new_passwd).send()
+    Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).set_new_passwd(hsn, tsn, 1, b"654321").send()
     Response(nvme0, comid).receive()
@@ -531,13 +566,21 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
 
     # user session
-    #Command(nvme0, comid).start_adminsp_session(0x66, 1, b"654321").send()
-    #hsn, tsn = Response(nvme0, comid).receive().start_session()
-    #Command(nvme0, comid).end_session(hsn, tsn).send(False)
-    #Response(nvme0, comid).receive()
-    
+    Command(nvme0, comid).start_auth_session(0x66, 1, b"654321").send()
+    hsn, tsn = Response(nvme0, comid).receive().start_session()
+    Command(nvme0, comid).set_new_passwd(hsn, tsn, 1, b"111111").send()
+    Response(nvme0, comid).receive()
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    Response(nvme0, comid).receive()
+
+    # auth admin session
+    Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
+    hsn, tsn = Response(nvme0, comid).receive().start_session()
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    Response(nvme0, comid).receive()
+
     # revert
-    Command(nvme0, comid).start_adminsp_session(0x69, 0, new_passwd).send()
+    Command(nvme0, comid).start_adminsp_session(0x69, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).revert_tper(hsn, tsn).send()
     Response(nvme0, comid).receive()
