@@ -36,7 +36,7 @@
 import enum
 import time
 import pytest
-import struct 
+import struct
 import logging
 
 from nvme import *
@@ -78,13 +78,13 @@ class OPAL_TOKEN(enum.IntEnum):
     AUTH_ENABLE = 0x05
     BOOLEAN_EXPR = 0x03
 
-        
+
 class OPAL_UID(enum.IntEnum):
     # user
     SMUID = 0
-    THISSP = 1 
+    THISSP = 1
     ADMINSP = 2
-    LOCKINGSP = 3 
+    LOCKINGSP = 3
     ANYBODY = 4
     SID = 5
     ADMIN1 = 6
@@ -105,7 +105,7 @@ class OPAL_UID(enum.IntEnum):
     # C_PIN
     C_PIN_MSID = 18
     C_PIN_SID = 19
-    C_PIN_ADMIN1 = 20 
+    C_PIN_ADMIN1 = 20
     C_PIN_USER1 = 21
 
     # half
@@ -188,15 +188,15 @@ class Command(object):
                                    OPAL_TOKEN.ENDLIST)
 
         # fill length
-        assert self.pos > 56 # larger than header
+        assert self.pos > 56  # larger than header
         self.buf[52:] = struct.pack('>I', self.pos-56)
-        while self.pos%4:
+        while self.pos % 4:
             # padding to dword
             self.append_u8(0)
         self.buf[16:] = struct.pack('>I', self.pos-20)
         self.buf[40:] = struct.pack('>I', self.pos-44)
         assert self.pos < 2048
-        
+
         # send packet
         logging.debug(self.buf.dump(512))
         self.nvme0.security_send(self.buf, self.comid).waitdone()
@@ -217,7 +217,7 @@ class Command(object):
         uid = opal_uid_table[u]
         self.append_u8(0xa0+len(uid))
         self.append_token_list(*uid)
-        
+
     def append_token_method(self, m):
         method = opal_method_table[m]
         self.append_u8(0xa0+len(method))
@@ -280,7 +280,7 @@ class Command(object):
         self.append_token(OPAL_TOKEN.ENDNAME)
         self.append_token(OPAL_TOKEN.ENDLIST)
         return self
-    
+
     def revert_tper(self, hsn, tsn):
         self.append_token(OPAL_TOKEN.CALL)
         self.append_token_uid(OPAL_UID.ADMINSP)
@@ -290,7 +290,7 @@ class Command(object):
         self.buf[20:] = struct.pack('>I', tsn)
         self.buf[24:] = struct.pack('>I', hsn)
         return self
-    
+
     def set_sid_cpin_pin(self, hsn, tsn, new_passwd):
         self.append_token(OPAL_TOKEN.CALL)
         self.append_token_uid(OPAL_UID.C_PIN_SID)
@@ -309,7 +309,7 @@ class Command(object):
         self.buf[20:] = struct.pack('>I', tsn)
         self.buf[24:] = struct.pack('>I', hsn)
         return self
-    
+
     def get_msid_cpin_pin(self, hsn, tsn):
         self.append_token(OPAL_TOKEN.CALL)
         self.append_token_uid(OPAL_UID.C_PIN_MSID)
@@ -329,6 +329,36 @@ class Command(object):
         self.buf[20:] = struct.pack('>I', tsn)
         self.buf[24:] = struct.pack('>I', hsn)
         return self
+
+    def get_locking_sp_lifecycle(self, hsn, tsn):
+        self.append_token(OPAL_TOKEN.CALL)
+        self.append_token_uid(OPAL_UID.LOCKINGSP)
+        self.append_token_method(OPAL_METHOD.GET)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.STARTCOLUMN,
+                               OPAL_TOKEN.LIFECYCLE,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.ENDCOLUMN,
+                               OPAL_TOKEN.LIFECYCLE,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST,
+                               OPAL_TOKEN.ENDLIST)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
+        return self
+
+    def activate(self, hsn, tsn):
+        self.append_token(OPAL_TOKEN.CALL)
+        self.append_token_uid(OPAL_UID.LOCKINGSP)
+        self.append_token_method(OPAL_METHOD.ACTIVATE)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.ENDLIST)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
+        return self
     
     def end_session(self, hsn, tsn):
         self.append_u8(OPAL_TOKEN.ENDOFSESSION)
@@ -340,9 +370,9 @@ class Command(object):
         self.append_token(OPAL_TOKEN.CALL)
         self.append_token_uid(OPAL_UID.SMUID)
         self.append_token_method(OPAL_METHOD.PROPERTIES)
-        self.append_token_list(OPAL_TOKEN.STARTLIST, 
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
                                OPAL_TOKEN.STARTNAME,
-                               0)   #host properties list
+                               0)  # host properties list
         self.append_token(OPAL_TOKEN.STARTLIST)
 
         for k in host_properties:
@@ -354,10 +384,10 @@ class Command(object):
         self.append_token(OPAL_TOKEN.ENDLIST)
         self.append_token(OPAL_TOKEN.ENDNAME)
         self.append_token(OPAL_TOKEN.ENDLIST)
-        
+
         return self
 
-    
+
 class Response(object):
     def __init__(self, nvme0, comid=1):
         self.nvme0 = nvme0
@@ -368,13 +398,15 @@ class Response(object):
         self.nvme0.security_receive(self.buf, self.comid).waitdone()
         logging.debug(self.buf.dump(512))
         return self
-    
+
     def level0_discovery(self):
+        comid = 0
         total_length, ver, _ = struct.unpack('>IIQ', self.buf[:16])
         total_length += 4
         offset = 48
         while offset < total_length:
-            feature, version, length = struct.unpack('>HBB', self.buf[offset:offset+4])
+            feature, version, length = struct.unpack(
+                '>HBB', self.buf[offset:offset+4])
             version >>= 4
             length += 4
 
@@ -382,10 +414,11 @@ class Response(object):
             if feature == 0x0303 or \
                feature == 0x0302:
                 # pyrite 2, or pyrite 1
-                comid, = struct.unpack('>H', self.buf[offset+4:offset+6])
-                
+                comid = struct.unpack('>H', self.buf[offset+4:offset+6])[0]
+
             offset += length
         assert offset == total_length
+        assert comid, "no pyrite feature found"
         return comid
 
     def start_session(self):
@@ -396,15 +429,18 @@ class Response(object):
     def get_c_pin_msid(self):
         length = struct.unpack(">B", self.buf[0x3d:0x3e])[0]
         return self.buf[0x3e:0x3e+length]
+    
+    def get_locking_sp_lifecycle(self):
+        return
 
-
+    
 def test_properties(nvme0):
     host_properties = {
         b"MaxComPacketSize": 4096,
         b"MaxPacketSize": 4076,
-        b"MaxIndTokenSize": 4040, 
-        b"MaxPackets": 1, 
-        b"MaxSubPackets": 1, 
+        b"MaxIndTokenSize": 4040,
+        b"MaxPackets": 1,
+        b"MaxSubPackets": 1,
         b"MaxMethods": 1,
     }
     comid = Response(nvme0).receive().level0_discovery()
@@ -413,8 +449,11 @@ def test_properties(nvme0):
     Command(nvme0, comid).properties(host_properties).send()
     Response(nvme0, comid).receive()
 
+
+def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
+    #subsystem.power_cycle()
+    #nvme0.reset()
     
-def test_take_ownership_and_revert_tper(nvme0, new_passwd=b'123456'):
     comid = Response(nvme0).receive().level0_discovery()
 
     Command(nvme0, comid).start_anybody_adminsp_session(0x65).send()
@@ -430,7 +469,16 @@ def test_take_ownership_and_revert_tper(nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
-    
+
+    Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
+    hsn, tsn = Response(nvme0, comid).receive().start_session()
+    Command(nvme0, comid).get_locking_sp_lifecycle(hsn, tsn).send()
+    Response(nvme0, comid).receive().get_locking_sp_lifecycle()
+    Command(nvme0, comid).activate(hsn, tsn).send()
+    Response(nvme0, comid).receive()
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    Response(nvme0, comid).receive()
+
     Command(nvme0, comid).start_adminsp_session(0x69, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).revert_tper(hsn, tsn).send()
