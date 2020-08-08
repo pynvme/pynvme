@@ -580,8 +580,11 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
 
     # revert
+    orig_timeout = nvme0.timeout
+    nvme0.timeout = 100000
     Command(nvme0, comid).start_adminsp_session(0x69, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).revert_tper(hsn, tsn).send()
     Response(nvme0, comid).receive()
     # No "end session" for revert tper
+    nvme0.timeout = orig_timeout
