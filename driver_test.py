@@ -442,8 +442,9 @@ def test_ioworker_is_running(nvme0n1):
     assert b.running == True
     logging.info("PASS")
 
-    time.sleep(1)
+    time.sleep(2)
     assert a.running == False
+    logging.info("PASS")
     assert b.running == True
     logging.info("PASS")
 
