@@ -164,6 +164,8 @@ cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
         logging.warning("AER triggered, dword0: 0x%x, status1: 0x%x" %
                         (arg.cdw0, arg.status1))
         warnings.warn("AER notification is triggered: 0x%x" % arg.cdw0)
+        global _aer_triggered
+        _aer_triggered = True
     else:
         assert arg.cdw0 == 0
 
@@ -861,6 +863,7 @@ cdef class Controller(object):
     cdef Buffer hmb_buf
     cdef unsigned int _timeout
     cdef object nvme_init_func
+    cdef object aer_cb_func
 
     def __cinit__(self, pcie, nvme_init_func=None):
         assert type(pcie) is Pcie or type(pcie) is Tcp
@@ -871,6 +874,7 @@ cdef class Controller(object):
         self.pcie = pcie
         self._timeout = _cTIMEOUT*1000
         self.nvme_init_func = nvme_init_func
+        self.aer_cb_func = None
 
         # register timeout callback
         d.nvme_register_timeout_cb(self.pcie._ctrlr, timeout_driver_cb, self._timeout)
@@ -1099,6 +1103,8 @@ cdef class Controller(object):
         global _reentry_flag
         assert _reentry_flag is False, "cannot re-entry waitdone() functions which may be caused by waitdone in callback functions, %d" % _reentry_flag
         _reentry_flag = True
+        global _aer_triggered
+        _aer_triggered = False
 
         logging.debug("to reap %d admin commands" % expected)
         # some admin commands need long timeout limit, like: format,
@@ -1124,6 +1130,10 @@ cdef class Controller(object):
         assert reaped >= expected, \
             "not reap the exact completions! reaped %d, expected %d" % (reaped, expected)
         _reentry_flag = False
+
+        if _aer_triggered:
+            # send one more aer, and process one more command in lieu of aer completion
+            self.aer(cb=self.aer_cb_func).waitdone()
         return _latest_cqe_cdw0
 
     def abort(self, cid, sqid=0, cb=None):
@@ -1511,6 +1521,7 @@ cdef class Controller(object):
             self (Controller)
         """
 
+        self.aer_cb_func = cb
         self.send_admin_raw(None, 0xc,
                             nsid=0,
                             cdw10=0,

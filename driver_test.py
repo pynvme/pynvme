@@ -111,7 +111,6 @@ def test_init_nvme_customerized(pcie, repeat):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(aerl)
 
     for i in range(aerl):
         nvme0.aer()
@@ -120,7 +119,6 @@ def test_init_nvme_customerized(pcie, repeat):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(10):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(aerl)
 
     for i in range(aerl):
         nvme0.aer()
@@ -129,9 +127,8 @@ def test_init_nvme_customerized(pcie, repeat):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(10):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(aerl)
-
-    qpair.delete()
+        qpair.delete()
+        
     nvme0.reset()
     nvme0n1.ioworker(time=1).start().close()
     nvme0n1.close()
@@ -408,7 +405,6 @@ def test_latest_cid(nvme0, nvme0n1, qpair, buf):
 
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         nvme0.abort(nvme0.latest_cid).waitdone()
-    nvme0.waitdone()
 
     nvme0n1.read(qpair, buf, 0, 8)
     nvme0.abort(qpair.latest_cid).waitdone()
@@ -1327,8 +1323,6 @@ def test_sanitize_operations_basic(nvme0, nvme0n1, buf, subsystem):
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
 
     # check sanitize status
     nvme0.getlogpage(0x81, buf, 20).waitdone()
@@ -1356,8 +1350,6 @@ def test_sanitize_operations_powercycle(nvme0, nvme0n1, buf, subsystem):
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
 
     # check sanitize status
     nvme0.getlogpage(0x81, buf, 20).waitdone()
@@ -2115,7 +2107,6 @@ def test_aer_cb_mixed_with_admin_commands(nvme0, buf):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(2)
 
     # no more aer: in pytest way
     with pytest.raises(TimeoutError):
@@ -2143,7 +2134,6 @@ def test_aer_mixed_with_admin_commands(nvme0, buf):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(1)
 
     # no more aer
     with pytest.raises(TimeoutError):
@@ -2169,7 +2159,6 @@ def test_abort_aer_commands(nvme0):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(aerl)
 
 
 def test_ioworker_maximum(nvme0n1):

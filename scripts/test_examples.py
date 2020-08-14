@@ -597,10 +597,7 @@ def test_aer_with_multiple_sanitize(nvme0, nvme0n1, buf):  #L8
                 progress = buf.data(1, 0)*100//0xffff
                 logging.info("%d%%" % progress)
 
-        nvme0.waitdone()
-        nvme0.aer()
-
-
+                
 def test_read_write_mixed_verify(nvme0n1, verify):  #L1
     with nvme0n1.ioworker(io_size=8, lba_align=8,
                           region_start=0, region_end=256,
