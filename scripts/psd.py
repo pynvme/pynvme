@@ -761,7 +761,7 @@ def test_invalid_sq_doorbell(nvme0):
     # wait for the controller to respond the error
     time.sleep(0.1)
     with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
-        nvme0.waitdone()
+        nvme0.getfeatures(7).waitdone()
     sq1.delete()
     cq.delete()
     
