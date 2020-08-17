@@ -156,13 +156,14 @@ cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
     arg = <_cpl*>cpl  # no qa
 
     # filter aer completion at SQ deletion
-    if (arg.status1>>1) == 8:
+    sct_sc = (arg.status1>>1) & 0x7ff
+    if sct_sc == 8:
         return
 
-    if (arg.status1>>1) != 7:
+    if sct_sc != 7 and sct_sc != 0x0105:
         # not raise warning when aborted
-        logging.warning("AER triggered, dword0: 0x%x, status1: 0x%x" %
-                        (arg.cdw0, arg.status1))
+        logging.warning("AER triggered, dword0: 0x%x, sct/sc: 0x%x" %
+                        (arg.cdw0, sct_sc))
         warnings.warn("AER notification is triggered: 0x%x" % arg.cdw0)
         global _aer_triggered
         _aer_triggered = True
@@ -1521,7 +1522,8 @@ cdef class Controller(object):
             self (Controller)
         """
 
-        self.aer_cb_func = cb
+        if cb:
+            self.aer_cb_func = cb
         self.send_admin_raw(None, 0xc,
                             nsid=0,
                             cdw10=0,
