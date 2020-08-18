@@ -114,7 +114,7 @@ set_dsm_range
 
    Buffer.set_dsm_range(index, lba, lba_count, attr)
 
-set dsm ranges in the buffer, for dsm/deallocation (a.ka trim) commands
+set dsm ranges in the buffer, for dsm/deallocation (a.k.a. trim) commands
 
 **Parameters**
 
@@ -136,12 +136,12 @@ Controller class. Prefer to use fixture "nvme0" in test scripts.
 **Parameters**
 
 
-* **addr (bytes)**\ : the bus/device/function address of the DUT, for example:                       b'01:00.0' (PCIe BDF address),                        b'127.0.0.1' (TCP IP address).
+* **pcie (Pcie)**\ : Pcie object, or Tcp object for NVMe TCP targets
 * **nvme_init_func (callable, bool, None)**\ : True: no nvme init process, None: default process, callable: user defined process function
 
 **Example**
 
-.. code-block:: python
+.. code-block:: shell
 
        >>> n = Controller(Pcie('01:00.0'))
        >>> hex(n[0])     # CAP register
@@ -247,15 +247,6 @@ get the name of the admin command
 Returns
     (str): the command name
 
-disable_hmb
-^^^^^^^^^^^
-
-.. code-block:: python
-
-   Controller.disable_hmb()
-
-disable HMB function
-
 downfw
 ^^^^^^
 
@@ -292,15 +283,6 @@ device self test (DST) admin command
 
 Returns
     self (Controller)
-
-enable_hmb
-^^^^^^^^^^
-
-.. code-block:: python
-
-   Controller.enable_hmb()
-
-enable HMB function
 
 format
 ^^^^^^
@@ -889,12 +871,12 @@ Each ioworker can run upto 24 hours.
 
 * **io_size (short, range, list, dict)**\ : IO size, unit is LBA. It can be a fixed size, or a range or list of size, or specify ratio in the dict if they are not evenly distributed. 1base. Default: 8, 4K
 * **lba_step (short)**\ : valid only for sequential read/write, jump to next LBA by the step. Default: None, same as io_size, continous IO.
-* **lba_align (short)**\ : IO alignment, unit is LBA. Default: None: same as io_size when it < 4K, or it is 4K
+* **lba_align (short)**\ : IO alignment, unit is LBA. Default: None: means 1 lba.
 * **lba_random (int, bool)**\ : percentage of radom io, or True if sending IO with all random starting LBA. Default: True
 * **read_percentage (int)**\ : sending read/write mixed IO, 0 means write only, 100 means read only. Default: 100. Obsoloted by op_percentage
 * **op_percentage (dict)**\ : opcode of commands sent in ioworker, and their percentage. Output: real io counts sent in ioworker. Default: None, fall back to read_percentage
 * **time (int)**\ : specified maximum time of the IOWorker in seconds, up to 1000*3600. Default:0, means no limit
-* **qdepth (int)**\ : queue depth of the Qpair created by the IOWorker, up to 1024. 1base. Default: 64
+* **qdepth (int)**\ : queue depth of the Qpair created by the IOWorker, up to 1024. 1base value. Default: 64
 * **region_start (long)**\ : sending IO in the specified LBA region, start. Default: 0
 * **region_end (long)**\ : sending IO in the specified LBA region, end but not include. Default: 0xffff_ffff_ffff_ffff
 * **iops (int)**\ : specified maximum IOPS. IOWorker throttles the sending IO speed. Default: 0, means no limit
@@ -1123,7 +1105,7 @@ Pcie class to access PCIe configuration and memory space
 **Parameters**
 
 
-* **nvme (Controller)**\ : the nvme controller object of that subsystem
+* **addr (str)**\ : BDF address of PCIe device
 
 aspm
 ^^^^
@@ -1355,7 +1337,7 @@ shutdown_notify
 
    Subsystem.shutdown_notify(abrupt)
 
-notify nvme subsystem a shutdown event through register cc.chn
+notify nvme subsystem a shutdown event through register cc.shn
 
 **Parameters**
 
@@ -1393,3 +1375,18 @@ lock or unlock the range for the user
 
 
 * **state (int)**\ : the lock state. 1: readonly, 2: rwlock, 4: unlock. default: 2
+
+Tcp
+---
+
+.. code-block:: python
+
+   Tcp()
+
+Tcp class for NVMe TCP target
+
+**Parameters**
+
+
+* **addr (str)**\ : IP address of TCP target
+* **port (int)**\ : the port number of TCP target. Default: 4420

@@ -15,7 +15,8 @@ def test_precondition_format(pcie, nvme0, nvme0n1, subsystem):
 
 def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     region_end = 256*1000*1000  # 1GB
-
+    qdepth = min(1024, 1+(nvme0.cap&0xffff))
+    
     # get the unsafe shutdown count
     def power_cycle_count():
         buf = d.Buffer(4096)
@@ -33,13 +34,13 @@ def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     cmdlog_list = [None]*1000
     with nvme0n1.ioworker(io_size=256,
                           lba_random=True,
-                          read_percentage=30, 
-                          region_end=256*1000*1000,
+                          read_percentage=30,
+                          region_end=region_end,
                           time=30,
-                          qdepth=1024, 
+                          qdepth=qdepth, 
                           output_cmdlog_list=cmdlog_list):
         # sudden power loss before the ioworker end
-        time.sleep(5)
+        time.sleep(10)
         subsystem.poweroff()
 
     # power on and reset controller
@@ -50,7 +51,7 @@ def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     # verify data in cmdlog_list
     logging.info(cmdlog_list[-10:])
     read_buf = d.Buffer(256*512)
-    qpair = d.Qpair(nvme0, 1024)
+    qpair = d.Qpair(nvme0, 10)
     for cmd in cmdlog_list:
         slba = cmd[0]
         nlba = cmd[1]
@@ -105,6 +106,9 @@ class quarch_power:
 @pytest.mark.parametrize("repeat", range(10))
 def test_quarch_dirty_power_cycle_multiple(pciaddr, nvme0, repeat):
     device_list = {
+        "0000:06:00.0": # pynvme's software-defined power cycle
+        (None,
+         None),  
         "0000:3d:00.0": # pynvme's software-defined power cycle
         (None,
          None),  

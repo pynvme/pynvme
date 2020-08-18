@@ -51,8 +51,9 @@ def test_ioworker_jedec_enterprise_workload_4k(nvme0n1):
 
     
 def test_replay_jedec_client_trace(nvme0, nvme0n1):
+    mdts = min(nvme0.mdts, 64*1024) # upto 64K IO
     q = d.Qpair(nvme0, 1024)
-    buf = d.Buffer(256*512, "write", 100, 0xbeef) # upto 128K
+    buf = d.Buffer(mdts, "write", 100, 0xbeef)
     trim_buf = d.Buffer(4096)
     batch = 0
     counter = 0
@@ -62,7 +63,6 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
     with zipfile.ZipFile("scripts/stress/MasterTrace_128GB-SSD.zip") as z:
         for s in z.open("Client_128_GB_Master_Trace.txt"):
             l = str(s)[7:-5]
-            #logging.info(l)
 
             if l[0] == 'h':
                 # flush
@@ -75,7 +75,7 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
                 if op == 'e':
                     # write
                     while nlba:
-                        n = min(nlba, 256)
+                        n = min(nlba, mdts//512)
                         nvme0n1.write(q, buf, slba, n)
                         counter += 1
                         slba += n
@@ -86,13 +86,13 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
                     nvme0n1.dsm(q, trim_buf, 1)
                     counter += 1
                 else:
-                    logging.info(l)
+                    logging.error(l)
 
             # reap in batch for better efficiency
             if counter > 100:
                 q.waitdone(counter)
                 if batch % 1000 == 0:
-                    logging.info("replay batch %d" % (batch//1000))
+                    logging.info("replay progress: %d" % (batch//1000))
                 batch += 1
                 counter = 0
 

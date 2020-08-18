@@ -97,7 +97,7 @@ void* buffer_init(size_t bytes, uint64_t *phys_addr,
   {
     return NULL;
   }
-  
+
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "buffer: alloc ptr at %p, size %ld\n",
                 buf, bytes);
 
@@ -300,7 +300,7 @@ static void crc32_clear(struct spdk_nvme_ns *ns,
   if (crc_table != NULL && lba*sizeof(uint32_t) < ns->table_size)
   {
     assert(ns->table_size != 0);
-    
+
     // clear crc table if it exists and cover the lba range
     if (lba*sizeof(uint32_t)+len > ns->table_size)
     {
@@ -727,7 +727,7 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   {
     return;
   }
-  
+
   assert(cpl != NULL);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "cmd completed, cid %d\n", log_entry->cpl.cid);
 
@@ -799,7 +799,7 @@ void cmdlog_add_cmd(struct spdk_nvme_qpair* qpair, struct nvme_request* req)
 
   // keep the latest cid for inqury by scripts later
   log_table->latest_cid = req->cmd.cid;
-  
+
   if (log_entry->req != NULL)
   {
     // this entry is overlapped before command complete
@@ -1250,7 +1250,7 @@ uint16_t qpair_get_latest_cid(struct spdk_nvme_qpair* q,
                               struct spdk_nvme_ctrlr* c)
 {
   struct cmd_log_table_t* log_table;
-  
+
   if (q == NULL)
   {
     q = c->adminq;
@@ -1385,7 +1385,7 @@ int ns_refresh(struct spdk_nvme_ns *ns, uint32_t id,
 {
   int ret = 0;
   crc_table_t* crc_table = (crc_table_t*)ns->crc_table;
-  
+
   if (crc_table != NULL)
   {
     assert(ns->table_size != 0);
@@ -1432,7 +1432,7 @@ int nvme_set_ns(struct spdk_nvme_ctrlr *ctrlr)
 
   // pynvme: test device has no namespace, something wrong
   if (nn == 0) {
-    SPDK_ERRLOG("controller has 0 namespaces\n");
+    SPDK_ERRLOG("controller has no namespace\n");
     return -1;
   }
 
@@ -1477,8 +1477,8 @@ int ns_cmd_io(uint8_t opcode,
               uint32_t io_flags,
               spdk_nvme_cmd_cb cb_fn,
               void* cb_arg,
-              unsigned int dword13, 
-              unsigned int dword14, 
+              unsigned int dword13,
+              unsigned int dword14,
               unsigned int dword15)
 {
   struct spdk_nvme_cmd cmd;
@@ -1559,45 +1559,6 @@ int ns_fini(struct spdk_nvme_ns* ns)
 }
 
 
-////module: tcg
-///////////////////////////////
-void* tcg_dev_init(struct spdk_nvme_ctrlr* ctrlr)
-{
-  return spdk_opal_init_dev(ctrlr);
-}
-
-void tcg_dev_close(void* dev)
-{
-  spdk_opal_close(dev);
-}
-
-int tcg_take_ownership(void* dev, const char* passwd)
-{
-  int ret = spdk_opal_cmd_take_ownership(dev, (char*)passwd);
-
-  if (ret == 0)
-  {
-    return spdk_opal_cmd_activate_locking_sp(dev, passwd);
-  }
-
-  return ret;
-}
-
-int tcg_revert_tper(void* dev, const char* passwd)
-{
-  return spdk_opal_cmd_revert_tper(dev, passwd);
-}
-
-int tcg_set_passwd(void* dev, int user, const char* new_passwd, const char* old_passwd)
-{
-  return spdk_opal_cmd_set_new_passwd(dev, user, new_passwd, old_passwd, false);
-}
-
-int tcg_lock_unlock(void* dev, int user, int state, int range, const char* passwd)
-{
-  return spdk_opal_cmd_lock_unlock(dev, user, state, range, passwd);
-}
-
 ////module: log
 ///////////////////////////////
 
@@ -1647,6 +1608,7 @@ char* log_buf_dump(const char* header, const void* buf, size_t len, size_t base)
 void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
 {
   struct cmd_log_table_t* cmdlog = qpair->pynvme_cmdlog;
+  struct cmd_log_entry_t* table = cmdlog->table;
   uint16_t qid = qpair->id;
   uint32_t dump_count = count;
   uint32_t seq = 0;
@@ -1654,6 +1616,7 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
 
   // print cmdlog from tail to head
   assert(cmdlog != NULL);
+  assert(table != NULL);
   index = cmdlog->tail_index;
 
   if (count == 0 || count > CMD_LOG_DEPTH)
@@ -1677,26 +1640,33 @@ void log_cmd_dump(struct spdk_nvme_qpair* qpair, size_t count)
     index -= 1;
 
     // no timeval, empty slot, not print
-    struct timeval tv = cmdlog->table[index].time_cmd;
+    struct timeval tv = table[index].time_cmd;
     if (timercmp(&tv, &(struct timeval){0}, >))
     {
       struct tm* time;
       char tmbuf[128];
 
       //cmd part
-      tv = cmdlog->table[index].time_cmd;
+      tv = table[index].time_cmd;
       time = localtime(&tv.tv_sec);
       strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
       SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, tv.tv_usec);
-      spdk_nvme_qpair_print_command(qpair, &cmdlog->table[index].cmd);
+      spdk_nvme_qpair_print_command(qpair, &table[index].cmd);
 
       //cpl part
-      tv.tv_usec = cmdlog->table[index].cpl_latency_us;
-      timeradd(&cmdlog->table[index].time_cmd, &tv, &tv);
-      time = localtime(&tv.tv_sec);
-      strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
-      SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, tv.tv_usec);
-      spdk_nvme_qpair_print_completion(qpair, &cmdlog->table[index].cpl);
+      if (table[index].cpl_latency_us != 0)
+      {
+        // a completed command, display its cpl cdws
+        struct timeval time_cpl = (struct timeval){0};
+        time_cpl.tv_usec = table[index].cpl_latency_us;
+        timeradd(&tv, &time_cpl, &time_cpl);
+
+        //get the string of cpl date/time
+        time = localtime(&time_cpl.tv_sec);
+        strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", time);
+        SPDK_NOTICELOG("index %d, %s.%06ld\n", index, tmbuf, time_cpl.tv_usec);
+        spdk_nvme_qpair_print_completion(qpair, &table[index].cpl);
+      }
     }
   }
 }
@@ -2136,7 +2106,7 @@ int driver_init(void)
 
   // at least 4-core system
   assert(get_nprocs() >= 4);
-  
+
   // get the shared memory group id among primary and secondary processes
   sprintf(buf, "/var/run/dpdk/spdk%d", getppid());
   if (stat(buf, &sb) == 0 && S_ISDIR(sb.st_mode))
@@ -2230,4 +2200,18 @@ void driver_srand(unsigned int seed)
 uint32_t driver_io_qpair_count(struct spdk_nvme_ctrlr* ctrlr)
 {
   return spdk_nvme_io_qpair_count(ctrlr);
+}
+
+bool driver_no_secondary(struct spdk_nvme_ctrlr* ctrlr)
+{
+  return spdk_nvme_secondary_process_nonexist(ctrlr);
+}
+
+void driver_init_num_queues(struct spdk_nvme_ctrlr* ctrlr, uint32_t cdw0)
+{
+  struct spdk_nvme_cpl cpl;
+
+  memset(&cpl, 0, sizeof(cpl));
+  cpl.cdw0 = cdw0;
+  return spdk_nvme_ctrlr_get_num_queues_done(ctrlr, &cpl);
 }

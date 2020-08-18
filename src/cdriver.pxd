@@ -66,6 +66,7 @@ cdef extern from "driver.h":
         unsigned short lba_random
         unsigned short read_percentage
         signed short lba_step
+        bint lba_step_valid
         unsigned int iops
         unsigned long io_count
         unsigned int seconds
@@ -202,10 +203,6 @@ cdef extern from "driver.h":
 
     void driver_srand(unsigned int seed)
     unsigned int driver_io_qpair_count(ctrlr* c)
+    bint driver_no_secondary(ctrlr* c)
+    void driver_init_num_queues(ctrlr* c, unsigned int cdw0)
 
-    void* tcg_dev_init(ctrlr* c)
-    void tcg_dev_close(void* dev)
-    int tcg_take_ownership(void* dev, const char* passwd)
-    int tcg_revert_tper(void* dev, const char* passwd)
-    int tcg_set_passwd(void* dev, int user, const char* new_passwd, const char* old_passwd)
-    int tcg_lock_unlock(void* dev, int user, int state, int range, const char* passwd)

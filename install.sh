@@ -48,10 +48,11 @@ fi
 git submodule update --init spdk
 cd spdk && git submodule update --init dpdk
 cd .. && sudo ./spdk/scripts/pkgdep.sh
+sudo python3 -m pip install --upgrade pip
 sudo python3 -m pip install -r requirements.txt
 
 # checkout pynvme code in SPDK and DPDK
-cd spdk && git checkout pynvme_1.9
+cd spdk && git checkout pynvme_1.9.1
 cd dpdk && git checkout pynvme_1.9
 cd .. && ./configure --without-isal
 cd ..
@@ -62,7 +63,6 @@ make                                         # compile pynvme
 
 # quick test after compile
 make setup
-sudo ./identify_nvme
 make test TESTS=scripts/test_examples.py::test_hello_world
 
 echo "pynvme install done."

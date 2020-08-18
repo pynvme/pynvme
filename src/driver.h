@@ -111,6 +111,7 @@ typedef struct ioworker_args
   unsigned short lba_random;
   unsigned short read_percentage;
   signed short lba_step;
+  bool lba_step_valid;
   unsigned int iops;
   unsigned long io_count;
   unsigned int seconds;
@@ -158,6 +159,8 @@ extern uint64_t driver_config(uint64_t cfg_word);
 extern uint64_t driver_config_read(void);
 extern void driver_srand(unsigned int seed);
 extern uint32_t driver_io_qpair_count(struct spdk_nvme_ctrlr* ctrlr);
+extern bool driver_no_secondary(struct spdk_nvme_ctrlr* ctrlr);
+extern void driver_init_num_queues(struct spdk_nvme_ctrlr* ctrlr, uint32_t cdw0);
 
 extern pcie* pcie_init(struct spdk_nvme_ctrlr* ctrlr);
 extern int pcie_cfg_read8(struct spdk_pci_device* pci,
@@ -259,9 +262,3 @@ extern void* intc_lookup_ctrl(struct spdk_nvme_ctrlr* ctrlr);
 extern void timeval_gettimeofday(struct timeval *tv);
 extern uint32_t timeval_to_us(struct timeval* t);
 
-extern void* tcg_dev_init(struct spdk_nvme_ctrlr* ctrlr);
-extern void tcg_dev_close(void* dev);
-extern int tcg_take_ownership(void* dev, const char* passwd);
-extern int tcg_revert_tper(void* dev, const char* passwd);
-extern int tcg_set_passwd(void* dev, int user, const char* new_passwd, const char* old_passwd);
-extern int tcg_lock_unlock(void* dev, int user, int state, int range, const char* passwd);

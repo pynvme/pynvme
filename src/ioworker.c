@@ -245,7 +245,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
     // terminate ioworker when any error happen
     // only keep the first error code
     uint16_t error = ((*(unsigned short*)(&cpl->status))>>1)&0x7ff;
-    SPDK_ERRLOG("ioworker error happen in cpl, error %x\n", error);
+    SPDK_ERRLOG("error happen in cqe status\n");
     gctx->flag_finish = true;
     if (rets->error == 0)
     {
@@ -303,9 +303,7 @@ static inline uint64_t ioworker_send_one_lba_sequential(struct ioworker_args* ar
                 gctx->sequential_lba, args->region_end);
 
   ret = gctx->sequential_lba;
-
-  // region_end is included in IO
-  if (ret > args->region_end)
+  if (ret >= args->region_end)
   {
     ret = args->region_start;
   }
@@ -375,16 +373,26 @@ static inline uint64_t ioworker_send_one_lba(struct ioworker_args* args,
   }
 
   ret = ALIGN_UP(ret, lba_align);
-  if (ret > args->region_end)
+  if (ret >= args->region_end)
   {
-    SPDK_ERRLOG("ret 0x%lx, align 0x%x, end 0x%lx, seq 0x%lx\n",
-                ret, lba_align, args->region_end, gctx->sequential_lba);
+    ret = ALIGN_DOWN(ret-1, lba_align);
+    SPDK_DEBUGLOG(SPDK_LOG_NVME, "ret 0x%lx, align 0x%x, end 0x%lx, seq 0x%lx\n",
+                  ret, lba_align, args->region_end, gctx->sequential_lba);
+    assert(ret < args->region_end);
   }
 
+  // setup for next sequential io
   if (is_random == false)
   {
-    // setup for next sequential io
-    gctx->sequential_lba = ret+args->lba_step;
+    if (args->lba_step_valid)
+    {
+      gctx->sequential_lba = ret+args->lba_step;
+    }
+    else
+    {
+      // no step specified, write in next lba
+      gctx->sequential_lba = ret+lba_count;
+    }
   }
 
   return ret;
@@ -419,6 +427,8 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
                   ios_index,  lba_starting, lba_count, opcode);
   }
 
+  // trancate the tail out of the region
+  lba_count = MIN(lba_count, args->region_end-lba_starting);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba %lu, count %d, align %d, opcode %d\n",
                 ctx, lba_starting, lba_count, lba_align, opcode);
 
@@ -495,6 +505,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
 
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_start = %ld\n", args->lba_start);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_step = %d\n", args->lba_step);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_step_valid = %d\n", args->lba_step_valid);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_size_max = %d\n", args->lba_size_max);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_align_max = %d\n", args->lba_align_max);
   SPDK_DEBUGLOG(SPDK_LOG_NVME, "args.lba_random = %d\n", args->lba_random);
@@ -544,16 +555,15 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     args->seconds = 1000*3600ULL;
   }
   seconds = args->seconds;
-  if (args->region_end > nsze)
-  {
-    args->region_end = nsze;
-  }
 
   //adjust region to start_lba's region, but included here
   args->region_start = ALIGN_UP(args->region_start, args->lba_align_max);
-  args->region_end = args->region_end-args->lba_size_max;
-  args->region_end = ALIGN_DOWN(args->region_end, args->lba_size_max);
-  args->region_end = ALIGN_DOWN(args->region_end, args->lba_align_max);
+  args->region_end = MIN(nsze, args->region_end);
+  // truncate the last io at the region end, so do need to adjust region end
+  //args->region_end = args->region_end-args->lba_size_max;
+  //args->region_end = ALIGN_DOWN(args->region_end, args->lba_size_max);
+  //args->region_end = ALIGN_DOWN(args->region_end, args->lba_align_max);
+
   if (args->lba_start < args->region_start)
   {
     args->lba_start = args->region_start;
@@ -701,6 +711,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
     if ((driver_config_read() & DCFG_IOW_TERM) != 0)
     {
       SPDK_DEBUGLOG(SPDK_LOG_NVME, "force termimate ioworker\n");
+      ret = -7;
       break;
     }
 

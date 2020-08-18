@@ -124,7 +124,7 @@ def verify(nvme0n1):
 def aer():
     assert False, "aer fixture is replaced by admin command nvme0.aer()"
 
-    
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     # execute all other hooks to obtain the report object
