@@ -153,25 +153,23 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
 
 
 cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
+    # hit aer in waitdone, reap another cqe
+    global _aer_waitdone
+    _aer_waitdone = True
+
+    # handle aer cqe
     arg = <_cpl*>cpl  # no qa
-
-    # filter aer completion at SQ deletion
-    sct_sc = (arg.status1>>1) & 0x7ff
-    if sct_sc == 8:
-        return
-
-    if sct_sc != 7 and sct_sc != 0x0105:
-        # not raise warning when aborted
-        logging.warning("AER triggered, dword0: 0x%x, sct/sc: 0x%x" %
-                        (arg.cdw0, sct_sc))
+    sct_sc = (arg.status1>>1)&0x7ff
+    if sct_sc == 0:
+        # for success aer, send one more aer
+        global _aer_resend
+        _aer_resend = True
+        logging.warning("AER triggered, dword0: 0x%x" % arg.cdw0)
         warnings.warn("AER notification is triggered: 0x%x" % arg.cdw0)
-        global _aer_triggered
-        _aer_triggered = True
-    else:
-        assert arg.cdw0 == 0
 
-    # call the callback function of aer command
-    cmd_cb(f, cpl)
+    # aborted due to sq deletion, no need to throw warning message
+    if sct_sc != 8:
+        cmd_cb(f, cpl)
 
 
 cdef class Buffer(object):
@@ -1104,8 +1102,10 @@ cdef class Controller(object):
         global _reentry_flag
         assert _reentry_flag is False, "cannot re-entry waitdone() functions which may be caused by waitdone in callback functions, %d" % _reentry_flag
         _reentry_flag = True
-        global _aer_triggered
-        _aer_triggered = False
+        global _aer_resend
+        global _aer_waitdone
+        _aer_resend = False
+        _aer_waitdone = False
 
         logging.debug("to reap %d admin commands" % expected)
         # some admin commands need long timeout limit, like: format,
@@ -1132,9 +1132,13 @@ cdef class Controller(object):
             "not reap the exact completions! reaped %d, expected %d" % (reaped, expected)
         _reentry_flag = False
 
-        if _aer_triggered:
-            # send one more aer, and process one more command in lieu of aer completion
-            self.aer(cb=self.aer_cb_func).waitdone()
+        if _aer_resend:
+            # send one more aer
+            self.aer(cb=self.aer_cb_func)
+        if _aer_waitdone:
+            # process one more command in lieu of aer completion
+            self.waitdone()
+            
         return _latest_cqe_cdw0
 
     def abort(self, cid, sqid=0, cb=None):

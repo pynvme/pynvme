@@ -2150,7 +2150,8 @@ def test_abort_aer_commands(nvme0):
 
     # ASYNC LIMIT EXCEEDED (01/05)
     with pytest.warns(UserWarning, match="ERROR status: 01/05"):
-        nvme0.aer().waitdone()
+        nvme0.aer()
+        nvme0.getfeatures(7).waitdone()
 
     # no timeout happen on aer
     time.sleep(15)
