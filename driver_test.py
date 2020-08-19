@@ -1766,44 +1766,37 @@ def test_subsystem_shutdown_notify(nvme0, subsystem):
     assert powercycle == get_power_cycles(nvme0)
 
 
-def test_write_fua_latency(nvme0n1, nvme0):
-    buf = d.Buffer(4096)
-    q = d.Qpair(nvme0, 8)
-
+def test_write_fua_latency(nvme0n1, nvme0, qpair, buf):
     now = time.time()
     for i in range(100):
-        nvme0n1.write(q, buf, 0, 8).waitdone()
+        nvme0n1.write(qpair, buf, 0, 8).waitdone()
     non_fua_time = time.time()-now
     logging.info("normal write latency %fs" % non_fua_time)
 
     now = time.time()
     for i in range(100):
         # write with FUA enabled
-        nvme0n1.write(q, buf, 0, 8, 1<<30).waitdone()
+        nvme0n1.write(qpair, buf, 0, 8, 1<<14).waitdone()
     fua_time = time.time()-now
     logging.info("FUA write latency %fs" % fua_time)
-    q.delete()
+    assert non_fua_time < fua_time
+    
 
-
-def test_read_fua_latency(nvme0n1, nvme0):
-    buf = d.Buffer(4096)
-    q = d.Qpair(nvme0, 8)
-
+def test_read_fua_latency(nvme0n1, nvme0, qpair, buf):
     # first time read to load data into SSD buffer
-    nvme0n1.read(q, buf, 0, 8).waitdone()
+    nvme0n1.read(qpair, buf, 0, 8).waitdone()
 
     now = time.time()
     for i in range(10000):
-        nvme0n1.read(q, buf, 0, 8).waitdone()
+        nvme0n1.read(qpair, buf, 0, 8).waitdone()
     non_fua_time = time.time()-now
     logging.info("normal read latency %fs" % non_fua_time)
 
     now = time.time()
     for i in range(10000):
-        nvme0n1.read(q, buf, 0, 8, 1<<30).waitdone()
+        nvme0n1.read(qpair, buf, 0, 8, 1<<14).waitdone()
     fua_time = time.time()-now
     logging.info("FUA read latency %fs" % fua_time)
-    q.delete()
 
 
 def test_write_limited_retry(nvme0n1, nvme0):
