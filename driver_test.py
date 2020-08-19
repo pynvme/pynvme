@@ -249,6 +249,23 @@ def test_expected_dut(nvme0):
     assert "CAZ-82256-Q11" in nvme0.id_data(63, 24, str)
 
 
+def test_read_fua_latency(nvme0n1, nvme0, qpair, buf):
+    # first time read to load data into SSD buffer
+    nvme0n1.read(qpair, buf, 0, 8).waitdone()
+
+    now = time.time()
+    for i in range(10000):
+        nvme0n1.read(qpair, buf, 0, 8).waitdone()
+    non_fua_time = time.time()-now
+    logging.info("normal read latency %fs" % non_fua_time)
+
+    now = time.time()
+    for i in range(10000):
+        nvme0n1.read(qpair, buf, 0, 8, 1<<14).waitdone()
+    fua_time = time.time()-now
+    logging.info("FUA read latency %fs" % fua_time)
+
+
 @pytest.mark.parametrize("repeat", range(2))
 def test_false(nvme0, subsystem, repeat):
     assert False
@@ -1782,28 +1799,8 @@ def test_write_fua_latency(nvme0n1, nvme0, qpair, buf):
     assert non_fua_time < fua_time
     
 
-def test_read_fua_latency(nvme0n1, nvme0, qpair, buf):
-    # first time read to load data into SSD buffer
-    nvme0n1.read(qpair, buf, 0, 8).waitdone()
-
-    now = time.time()
-    for i in range(10000):
-        nvme0n1.read(qpair, buf, 0, 8).waitdone()
-    non_fua_time = time.time()-now
-    logging.info("normal read latency %fs" % non_fua_time)
-
-    now = time.time()
-    for i in range(10000):
-        nvme0n1.read(qpair, buf, 0, 8, 1<<14).waitdone()
-    fua_time = time.time()-now
-    logging.info("FUA read latency %fs" % fua_time)
-
-
-def test_write_limited_retry(nvme0n1, nvme0):
-    buf = d.Buffer(4096)
-    q = d.Qpair(nvme0, 8)
-    nvme0n1.write(q, buf, 0, 8, 1<<31).waitdone()
-    q.delete()
+def test_write_limited_retry(nvme0n1, nvme0, qpair, buf):
+    nvme0n1.write(qpair, buf, 0, 8, 1<<31).waitdone()
 
 
 def test_write_huge_data(nvme0n1, qpair):
