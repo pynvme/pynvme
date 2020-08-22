@@ -286,8 +286,6 @@ def test_sanitize_operations_basic(nvme0, nvme0n1):  #L8
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
 
 
 def test_buffer_read_write(nvme0, nvme0n1):
