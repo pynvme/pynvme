@@ -520,9 +520,9 @@ def test_init_nvme_customerized(pcie):
         # 8. create and identify all namespace
         nvme0.init_ns()
 
-        # 9. set/get num of queues
-        nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
-        nvme0.getfeatures(0x7).waitdone()
+        # 9. set/get num of queues, 2 IO queues
+        nvme0.setfeatures(0x7, cdw11=0x00010001).waitdone()
+        nvme0.init_queues(nvme0.getfeatures(0x7).waitdone())
 
         # 10. send out all aer
         aerl = nvme0.id_data(259)+1
@@ -539,7 +539,12 @@ def test_init_nvme_customerized(pcie):
     nvme0n1 = d.Namespace(nvme0)
     qpair = d.Qpair(nvme0, 10)
     nvme0n1.ioworker(time=1).start().close()
+    qpair2 = d.Qpair(nvme0, 10)
+    with pytest.raises(d.QpairCreationError):
+        qpair3 = d.Qpair(nvme0, 10)
+        
     qpair.delete()
+    qpair2.delete()
     nvme0n1.close()
 
     
@@ -737,10 +742,20 @@ def test_reset_time(pcie):
         nvme0.identify(d.Buffer(4096)).waitdone()
         logging.info(time.time())
 
+        nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
+        nvme0.init_queues(nvme0.getfeatures(0x7).waitdone())
+        
     logging.info("1: nvme init")
     logging.info(time.time())
     nvme0 = d.Controller(pcie, nvme_init_func=nvme_init)
     subsystem = d.Subsystem(nvme0)
+
+    qpair = d.Qpair(nvme0, 10)
+    qpair2 = d.Qpair(nvme0, 10)
+    qpair3 = d.Qpair(nvme0, 10)
+    qpair.delete()
+    qpair2.delete()
+    qpair3.delete()
     
     logging.info("2: nvme reset")
     logging.info(time.time())
