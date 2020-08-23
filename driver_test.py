@@ -86,7 +86,7 @@ def test_init_nvme_customerized(pcie, repeat):
 
         # 9. set/get num of queues
         nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
-        nvme0.getfeatures(0x7).waitdone()
+        nvme0.init_queues(nvme0.getfeatures(0x7).waitdone())
 
         # 10. send out all aer
         aerl = nvme0.id_data(259)+1
