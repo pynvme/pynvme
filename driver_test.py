@@ -3040,13 +3040,13 @@ def test_ioworker_read_and_write_confliction(nvme0n1, nvme0, verify):
 
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
         with nvme0n1.ioworker(io_size=8,
-                              lba_random=True,
-                              region_end=128,
+                              lba_random=0,
+                              region_end=8,
                               read_percentage=0,
                               time=10), \
              nvme0n1.ioworker(io_size=8,
-                              lba_random=True,
-                              region_end=128,
+                              lba_random=50,
+                              region_end=8,
                               read_percentage=100,
                               time=10):
             pass

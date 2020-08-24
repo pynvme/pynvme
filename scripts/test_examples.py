@@ -601,30 +601,6 @@ def test_aer_with_multiple_sanitize(nvme0, nvme0n1, buf):  #L8
                 logging.info("%d%%" % progress)
 
                 
-def test_read_write_mixed_verify(nvme0n1, verify):  #L1
-    with nvme0n1.ioworker(io_size=8, lba_align=8,
-                          region_start=0, region_end=256,
-                          lba_random=True, qdepth=64,
-                          read_percentage=0, time=1):  #L5
-        pass
-    with nvme0n1.ioworker(io_size=8, lba_align=8,
-                          region_start=0, region_end=256,
-                          lba_random=True, qdepth=64,
-                          read_percentage=100, time=1):  #L10
-        pass
-
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):  #L13
-        with nvme0n1.ioworker(io_size=8, lba_align=8,
-                              region_start=0, region_end=256,
-                              lba_random=True, qdepth=64,
-                              read_percentage=0, time=1), \
-             nvme0n1.ioworker(io_size=8, lba_align=8,
-                              region_start=0, region_end=256,
-                              lba_random=True, qdepth=64,
-                              read_percentage=100, time=1):  #L21
-            pass
-
-
 def test_verify_partial_namespace(nvme0):
     region_end=1024*1024*1024//512  # 1GB space
     nvme0n1 = d.Namespace(nvme0, 1, region_end)
