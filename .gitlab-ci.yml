@@ -32,7 +32,7 @@ stress_test:
     - make test TESTS=scripts/tcg.py || exit -1
     - make test TESTS=scripts/stress/dirty_power_cycle_test.py || exit -1
     - make test TESTS=scripts/test_examples.py
-    - cat test_*.log | grep "1 failed, 48 passed" || exit -1
+    - cat test_*.log | grep "1 failed, 49 passed" || exit -1
     - make test
     - cat test_*.log | grep "3 failed, 390 passed" || exit -1
     - make setup memsize=4000
