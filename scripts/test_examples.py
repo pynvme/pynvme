@@ -789,4 +789,32 @@ def test_ioworker_with_temperature(nvme0, nvme0n1, buf):
             from pytemperature import k2c
             logging.info("temperature: %0.2f degreeC" %
                          k2c(ktemp))
+            
+
+def test_ioworker_jedec_enterprise_workload_512(nvme0n1):
+    distribution = [1000]*5 + [200]*15 + [25]*80
+    iosz_distribution = {1: 4,
+                         2: 1,
+                         3: 1,
+                         4: 1,
+                         5: 1,
+                         6: 1,
+                         7: 1,
+                         8: 67,
+                         16: 10,
+                         32: 7,
+                         64: 3,
+                         128: 3}
+
+    output_percentile_latency = dict.fromkeys([99, 99.99, 99.9999])
+    nvme0n1.ioworker(io_size=iosz_distribution,
+                     lba_random=True,
+                     qdepth=128,
+                     distribution = distribution,
+                     read_percentage=0,
+                     ptype=0xbeef, pvalue=100, 
+                     time=30, 
+                     output_percentile_latency=\
+                       output_percentile_latency).start().close()
+    logging.info(output_percentile_latency)
     
