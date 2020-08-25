@@ -155,7 +155,7 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
 cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
     # hit aer in waitdone, reap another cqe
     global _aer_waitdone
-    _aer_waitdone = True
+    _aer_waitdone += 1
 
     # handle aer cqe
     arg = <_cpl*>cpl  # no qa
@@ -163,7 +163,7 @@ cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
     if sct_sc == 0:
         # for success aer, send one more aer
         global _aer_resend
-        _aer_resend = True
+        _aer_resend += 1
         logging.warning("AER triggered, dword0: 0x%x" % arg.cdw0)
         warnings.warn("AER notification is triggered: 0x%x" % arg.cdw0)
 
@@ -1109,8 +1109,8 @@ cdef class Controller(object):
         _reentry_flag = True
         global _aer_resend
         global _aer_waitdone
-        _aer_resend = False
-        _aer_waitdone = False
+        _aer_resend = 0
+        _aer_waitdone = 0
 
         logging.debug("to reap %d admin commands" % expected)
         # some admin commands need long timeout limit, like: format,
@@ -1137,10 +1137,10 @@ cdef class Controller(object):
             "not reap the exact completions! reaped %d, expected %d" % (reaped, expected)
         _reentry_flag = False
 
-        if _aer_resend:
-            # send one more aer
+        for i in range(_aer_resend):
+            # send more aer commands
             self.aer(cb=self.aer_cb_func)
-        if _aer_waitdone:
+        for i in range(_aer_waitdone):
             # process one more command in lieu of aer completion
             self.waitdone()
 
