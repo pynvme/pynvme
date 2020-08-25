@@ -769,3 +769,24 @@ def test_getlogpage_nsid(nvme0, buf, nsid):
     logging.info("model name: %s, nsid %d" % (nvme0.id_data(63, 24, str), nsid))
     nvme0.getlogpage(0xCA, buf, 512, nsid=nsid).waitdone()
     nvme0.getlogpage(0x02, buf, 512, nsid=nsid).waitdone()
+
+
+def test_ioworker_with_temperature(nvme0, nvme0n1, buf):
+    with nvme0n1.ioworker(io_size=256,
+                          time=30,
+                          op_percentage={0:10,  # flush
+                                         2:60,  # read
+                                         9:30}), \
+         nvme0n1.ioworker(io_size=8,
+                          time=30,
+                          op_percentage={0:10,  # flush
+                                         9:10,  # trim
+                                         1:80}):# write
+        for i in range(40):
+            time.sleep(1)
+            nvme0.getlogpage(0x02, buf, 512).waitdone()
+            ktemp = buf.data(2, 1)
+            from pytemperature import k2c
+            logging.info("temperature: %0.2f degreeC" %
+                         k2c(ktemp))
+    
