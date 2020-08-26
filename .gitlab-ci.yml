@@ -38,6 +38,7 @@ stress_test:
     - make setup memsize=4000
     - make nvmt
     - make test TESTS=driver_test_tcp.py || exit -1
+    - make test TESTS=scripts/conformance
     - make setup memsize=0
 
 scripts_test:

@@ -1,5 +1,6 @@
 # pynvme: builds your own tests.
 
+[![Status](https://img.shields.io/gitlab/pipeline/cranechu/pynvme.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 [![Document](https://readthedocs.org/projects/pynvme/badge/?version=latest)](https://pynvme.readthedocs.io)
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/pynvme/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/pynvme/pynvme/releases)
@@ -26,6 +27,7 @@ The pynvme is a python extension module. Users can test NVMe devices intuitively
 * Mirror: [https://gitee.com/pynvme/pynvme](https://gitee.com/pynvme/pynvme)
 * Document: [https://pynvme.readthedocs.io/](https://pynvme.readthedocs.io/)
 * PDF: [https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf](https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf)
+* conformance test suite: [https://github.com/pynvme/conformance](https://github.com/pynvme/conformance)
 * 21天pynvme之旅: [https://github.com/pynvme/pynvme/wiki](https://github.com/pynvme/pynvme/wiki)
 * Presentation: SPDK PRC Summit 2019, Beijing.  
   [02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf)

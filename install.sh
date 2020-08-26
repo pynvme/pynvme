@@ -52,8 +52,8 @@ sudo python3 -m pip install --upgrade pip
 sudo python3 -m pip install -r requirements.txt
 
 # checkout pynvme code in SPDK and DPDK
-cd spdk && git checkout pynvme_1.9.1
-cd dpdk && git checkout pynvme_1.9
+cd spdk && git checkout pynvme_2.0
+cd dpdk && git checkout pynvme_2.0
 cd .. && ./configure --without-isal
 cd ..
 

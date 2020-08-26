@@ -447,6 +447,15 @@ init_ns
 
 used by NVMe init process in scripts
 
+init_queues
+^^^^^^^^^^^
+
+.. code-block:: python
+
+   Controller.init_queues(cdw0)
+
+used by NVMe init process in scripts
+
 mdts
 ^^^^
 
@@ -1343,38 +1352,6 @@ notify nvme subsystem a shutdown event through register cc.shn
 
 
 * **abrupt (bool)**\ : it will be an abrupt shutdown (return immediately) or clean shutdown (wait shutdown completely)
-
-Tcg
----
-
-.. code-block:: python
-
-   Tcg()
-
-TCG class, for opal and pyrite tests
-
-close
-^^^^^
-
-.. code-block:: python
-
-   Tcg.close()
-
-close to explictly release its resources instead of del
-
-lock
-^^^^
-
-.. code-block:: python
-
-   Tcg.lock(passwd, state, user, range)
-
-lock or unlock the range for the user
-
-**Parameters**
-
-
-* **state (int)**\ : the lock state. 1: readonly, 2: rwlock, 4: unlock. default: 2
 
 Tcp
 ---
