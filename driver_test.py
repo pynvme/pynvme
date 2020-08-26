@@ -335,24 +335,6 @@ def test_system_defined_poweron_poweroff(nvme0, nvme0n1):
     test_hello_world(nvme0, nvme0n1, True)
 
 
-def test_system_defined_poweron_poweroff_async(nvme0, nvme0n1, subsystem):
-    cmdlog_list = [None]*1000
-    with nvme0n1.ioworker(io_size=256, lba_random=False,
-                          read_percentage=0, lba_start=0,
-                          qdepth=1024, time=30,
-                          output_cmdlog_list=cmdlog_list):
-        # sudden power loss before the ioworker end
-        time.sleep(10)
-        subsystem.poweroff()
-
-    # power on and reset controller
-    time.sleep(5)
-    subsystem.poweron()
-    time.sleep(1)
-    nvme0.reset()
-    test_hello_world(nvme0, nvme0n1, True)
-
-
 def test_hello_world(nvme0, nvme0n1, verify):
     assert verify
 
