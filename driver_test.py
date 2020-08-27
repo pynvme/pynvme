@@ -371,6 +371,16 @@ def test_create_device_again(nvme0):
         d.Controller(d.Pcie("0000:10:00.0"))
 
 
+def test_qpair_overflow(nvme0, nvme0n1, buf):
+    q = d.Qpair(nvme0, 4)
+    nvme0n1.read(q, buf, 0, 8)
+    nvme0n1.read(q, buf, 8, 8)
+    nvme0n1.read(q, buf, 16, 8)
+    with pytest.raises(AssertionError):
+        nvme0n1.read(q, buf, 24, 8)
+    q.waitdone(3)
+    
+
 @pytest.mark.parametrize("shift", range(1, 8))
 def test_qpair_different_size(nvme0n1, nvme0, shift):
     size = 1 << shift

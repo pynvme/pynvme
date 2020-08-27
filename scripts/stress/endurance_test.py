@@ -50,9 +50,8 @@ def test_ioworker_jedec_enterprise_workload_4k(nvme0n1):
     nvme0n1.format(512)
 
     
-def test_replay_jedec_client_trace(nvme0, nvme0n1):
+def test_replay_jedec_client_trace(nvme0, nvme0n1, qpair):
     mdts = min(nvme0.mdts, 64*1024) # upto 64K IO
-    q = d.Qpair(nvme0, 1024)
     buf = d.Buffer(mdts, "write", 100, 0xbeef)
     trim_buf = d.Buffer(4096)
     batch = 0
@@ -66,7 +65,7 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
 
             if l[0] == 'h':
                 # flush
-                nvme0n1.flush(q)
+                nvme0n1.flush(qpair)
                 counter += 1
             else:
                 op, slba, nlba = l.split()
@@ -76,26 +75,25 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
                     # write
                     while nlba:
                         n = min(nlba, mdts//512)
-                        nvme0n1.write(q, buf, slba, n)
+                        nvme0n1.write(qpair, buf, slba, n)
                         counter += 1
                         slba += n
                         nlba -= n
                 elif op == 's':
                     # trims
                     trim_buf.set_dsm_range(0, slba, nlba)
-                    nvme0n1.dsm(q, trim_buf, 1)
+                    nvme0n1.dsm(qpair, trim_buf, 1)
                     counter += 1
                 else:
                     logging.error(l)
 
             # reap in batch for better efficiency
             if counter > 100:
-                q.waitdone(counter)
+                qpair.waitdone(counter)
                 if batch % 1000 == 0:
                     logging.info("replay progress: %d" % (batch//1000))
                 batch += 1
                 counter = 0
 
-    q.waitdone(counter)
-    q.delete()
+    qpair.waitdone(counter)
     
