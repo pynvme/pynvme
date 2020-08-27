@@ -72,7 +72,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "1.9"
+__version__ = "2.0"
 
 
 # nvme command timeout, it's a warning
@@ -153,22 +153,23 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
 
 
 cdef void aer_cmd_cb(void* f, const d.cpl* cpl):
+    # hit aer in waitdone, reap another cqe
+    global _aer_waitdone
+    _aer_waitdone += 1
+
+    # handle aer cqe
     arg = <_cpl*>cpl  # no qa
-
-    # filter aer completion at SQ deletion
-    if (arg.status1>>1) == 8:
-        return
-
-    if (arg.status1>>1) != 7:
-        # not raise warning when aborted
-        logging.warning("AER triggered, dword0: 0x%x, status1: 0x%x" %
-                        (arg.cdw0, arg.status1))
+    sct_sc = (arg.status1>>1)&0x7ff
+    if sct_sc == 0:
+        # for success aer, send one more aer
+        global _aer_resend
+        _aer_resend += 1
+        logging.warning("AER triggered, dword0: 0x%x" % arg.cdw0)
         warnings.warn("AER notification is triggered: 0x%x" % arg.cdw0)
-    else:
-        assert arg.cdw0 == 0
 
-    # call the callback function of aer command
-    cmd_cb(f, cpl)
+    # aborted due to sq deletion, no need to throw warning message
+    if sct_sc != 8:
+        cmd_cb(f, cpl)
 
 
 cdef class Buffer(object):
@@ -501,7 +502,7 @@ cdef class Subsystem(object):
 
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
         self._nvme[0x20] = 0x4e564d65  # "NVMe"
-        
+
         # notify ioworker to terminate, and wait all IO Qpair closed
         pcie = self._nvme.pcie
         pcie._driver_cleanup()
@@ -712,9 +713,9 @@ cdef class Pcie(object):
 
     def flr(self):
         bdf = self._bdf.decode('utf-8')
-        
+
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/reset" 2> /dev/null' % bdf, shell=True)
-        
+
         # notify ioworker to terminate, and wait all IO Qpair closed
         self._driver_cleanup()
         self._bind_driver(None)
@@ -725,7 +726,7 @@ cdef class Pcie(object):
         self._bind_driver('uio_pci_generic')
         logging.info("reset controller to use it after function level reset")
         return True
-        
+
     def reset(self):  # pcie
         """reset this pcie device with hot reset
 
@@ -803,7 +804,7 @@ cdef class Pcie(object):
         pmcsr =  self.register(pmcsr_addr, 4)
         self.__setitem__(pmcsr_addr, (pmcsr&0xfc)|state)
 
-        
+
 class Tcp(Pcie):
     """Tcp class for NVMe TCP target
 
@@ -861,6 +862,7 @@ cdef class Controller(object):
     cdef Buffer hmb_buf
     cdef unsigned int _timeout
     cdef object nvme_init_func
+    cdef object aer_cb_func
 
     def __cinit__(self, pcie, nvme_init_func=None):
         assert type(pcie) is Pcie or type(pcie) is Tcp
@@ -871,6 +873,7 @@ cdef class Controller(object):
         self.pcie = pcie
         self._timeout = _cTIMEOUT*1000
         self.nvme_init_func = nvme_init_func
+        self.aer_cb_func = None
 
         # register timeout callback
         d.nvme_register_timeout_cb(self.pcie._ctrlr, timeout_driver_cb, self._timeout)
@@ -929,14 +932,14 @@ cdef class Controller(object):
                     # second try fail: error
                     raise NvmeEnumerateError("init namespaces failed")
 
+            # 8. set/get num of queues
+            logging.debug("init number of queues")
+            nvme0.setfeatures(0x7, cdw11=0xfffefffe).waitdone()
+            cdw0 = nvme0.getfeatures(0x7).waitdone()
+            nvme0.init_queues(cdw0)
+
             # 9. send first aer cmd
             nvme0.aer()
-
-        # 8. set/get num of queues
-        logging.debug("init number of queues")
-        nvme0.setfeatures(0x7, cdw11=0xfffefffe).waitdone()
-        cdw0 = nvme0.getfeatures(0x7).waitdone()
-        d.driver_init_num_queues(nvme0.pcie._ctrlr, cdw0)
 
     @property
     def latest_cid(self):
@@ -1028,6 +1031,11 @@ cdef class Controller(object):
 
         return d.nvme_set_ns(self.pcie._ctrlr)
 
+    def init_queues(self, cdw0):
+        """used by NVMe init process in scripts"""
+
+        return d.driver_init_num_queues(self.pcie._ctrlr, cdw0)
+
     def cmdlog(self, count=0):
         """print recent commands and their completions.
 
@@ -1099,6 +1107,10 @@ cdef class Controller(object):
         global _reentry_flag
         assert _reentry_flag is False, "cannot re-entry waitdone() functions which may be caused by waitdone in callback functions, %d" % _reentry_flag
         _reentry_flag = True
+        global _aer_resend
+        global _aer_waitdone
+        _aer_resend = 0
+        _aer_waitdone = 0
 
         logging.debug("to reap %d admin commands" % expected)
         # some admin commands need long timeout limit, like: format,
@@ -1124,6 +1136,14 @@ cdef class Controller(object):
         assert reaped >= expected, \
             "not reap the exact completions! reaped %d, expected %d" % (reaped, expected)
         _reentry_flag = False
+
+        for i in range(_aer_resend):
+            # send more aer commands
+            self.aer(cb=self.aer_cb_func)
+        for i in range(_aer_waitdone):
+            # process one more command in lieu of aer completion
+            self.waitdone()
+
         return _latest_cqe_cdw0
 
     def abort(self, cid, sqid=0, cb=None):
@@ -1511,6 +1531,8 @@ cdef class Controller(object):
             self (Controller)
         """
 
+        if cb:
+            self.aer_cb_func = cb
         self.send_admin_raw(None, 0xc,
                             nsid=0,
                             cdw10=0,

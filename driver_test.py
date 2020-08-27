@@ -86,7 +86,7 @@ def test_init_nvme_customerized(pcie, repeat):
 
         # 9. set/get num of queues
         nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
-        nvme0.getfeatures(0x7).waitdone()
+        nvme0.init_queues(nvme0.getfeatures(0x7).waitdone())
 
         # 10. send out all aer
         aerl = nvme0.id_data(259)+1
@@ -111,7 +111,6 @@ def test_init_nvme_customerized(pcie, repeat):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(aerl)
 
     for i in range(aerl):
         nvme0.aer()
@@ -120,7 +119,6 @@ def test_init_nvme_customerized(pcie, repeat):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(10):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(aerl)
 
     for i in range(aerl):
         nvme0.aer()
@@ -129,9 +127,8 @@ def test_init_nvme_customerized(pcie, repeat):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(10):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(aerl)
-
-    qpair.delete()
+        qpair.delete()
+        
     nvme0.reset()
     nvme0n1.ioworker(time=1).start().close()
     nvme0n1.close()
@@ -249,6 +246,23 @@ def test_expected_dut(nvme0):
     assert "CAZ-82256-Q11" in nvme0.id_data(63, 24, str)
 
 
+def test_read_fua_latency(nvme0n1, nvme0, qpair, buf):
+    # first time read to load data into SSD buffer
+    nvme0n1.read(qpair, buf, 0, 8).waitdone()
+
+    now = time.time()
+    for i in range(10000):
+        nvme0n1.read(qpair, buf, 0, 8).waitdone()
+    non_fua_time = time.time()-now
+    logging.info("normal read latency %fs" % non_fua_time)
+
+    now = time.time()
+    for i in range(10000):
+        nvme0n1.read(qpair, buf, 0, 8, 1<<14).waitdone()
+    fua_time = time.time()-now
+    logging.info("FUA read latency %fs" % fua_time)
+
+
 @pytest.mark.parametrize("repeat", range(2))
 def test_false(nvme0, subsystem, repeat):
     assert False
@@ -321,24 +335,6 @@ def test_system_defined_poweron_poweroff(nvme0, nvme0n1):
     test_hello_world(nvme0, nvme0n1, True)
 
 
-def test_system_defined_poweron_poweroff_async(nvme0, nvme0n1, subsystem):
-    cmdlog_list = [None]*1000
-    with nvme0n1.ioworker(io_size=256, lba_random=False,
-                          read_percentage=0, lba_start=0,
-                          qdepth=1024, time=30,
-                          output_cmdlog_list=cmdlog_list):
-        # sudden power loss before the ioworker end
-        time.sleep(10)
-        subsystem.poweroff()
-
-    # power on and reset controller
-    time.sleep(5)
-    subsystem.poweron()
-    time.sleep(1)
-    nvme0.reset()
-    test_hello_world(nvme0, nvme0n1, True)
-
-
 def test_hello_world(nvme0, nvme0n1, verify):
     assert verify
 
@@ -375,6 +371,16 @@ def test_create_device_again(nvme0):
         d.Controller(d.Pcie("0000:10:00.0"))
 
 
+def test_qpair_overflow(nvme0, nvme0n1, buf):
+    q = d.Qpair(nvme0, 4)
+    nvme0n1.read(q, buf, 0, 8)
+    nvme0n1.read(q, buf, 8, 8)
+    nvme0n1.read(q, buf, 16, 8)
+    with pytest.raises(AssertionError):
+        nvme0n1.read(q, buf, 24, 8)
+    q.waitdone(3)
+    
+
 @pytest.mark.parametrize("shift", range(1, 8))
 def test_qpair_different_size(nvme0n1, nvme0, shift):
     size = 1 << shift
@@ -391,7 +397,6 @@ def test_latest_cid(nvme0, nvme0n1, qpair, buf):
 
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         nvme0.abort(nvme0.latest_cid).waitdone()
-    nvme0.waitdone()
 
     nvme0n1.read(qpair, buf, 0, 8)
     nvme0.abort(qpair.latest_cid).waitdone()
@@ -1310,8 +1315,6 @@ def test_sanitize_operations_basic(nvme0, nvme0n1, buf, subsystem):
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
 
     # check sanitize status
     nvme0.getlogpage(0x81, buf, 20).waitdone()
@@ -1339,8 +1342,6 @@ def test_sanitize_operations_powercycle(nvme0, nvme0n1, buf, subsystem):
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
 
     # check sanitize status
     nvme0.getlogpage(0x81, buf, 20).waitdone()
@@ -1766,51 +1767,24 @@ def test_subsystem_shutdown_notify(nvme0, subsystem):
     assert powercycle == get_power_cycles(nvme0)
 
 
-def test_write_fua_latency(nvme0n1, nvme0):
-    buf = d.Buffer(4096)
-    q = d.Qpair(nvme0, 8)
-
+def test_write_fua_latency(nvme0n1, nvme0, qpair, buf):
     now = time.time()
     for i in range(100):
-        nvme0n1.write(q, buf, 0, 8).waitdone()
+        nvme0n1.write(qpair, buf, 0, 8).waitdone()
     non_fua_time = time.time()-now
     logging.info("normal write latency %fs" % non_fua_time)
 
     now = time.time()
     for i in range(100):
         # write with FUA enabled
-        nvme0n1.write(q, buf, 0, 8, 1<<30).waitdone()
+        nvme0n1.write(qpair, buf, 0, 8, 1<<14).waitdone()
     fua_time = time.time()-now
     logging.info("FUA write latency %fs" % fua_time)
-    q.delete()
+    assert non_fua_time < fua_time
+    
 
-
-def test_read_fua_latency(nvme0n1, nvme0):
-    buf = d.Buffer(4096)
-    q = d.Qpair(nvme0, 8)
-
-    # first time read to load data into SSD buffer
-    nvme0n1.read(q, buf, 0, 8).waitdone()
-
-    now = time.time()
-    for i in range(10000):
-        nvme0n1.read(q, buf, 0, 8).waitdone()
-    non_fua_time = time.time()-now
-    logging.info("normal read latency %fs" % non_fua_time)
-
-    now = time.time()
-    for i in range(10000):
-        nvme0n1.read(q, buf, 0, 8, 1<<30).waitdone()
-    fua_time = time.time()-now
-    logging.info("FUA read latency %fs" % fua_time)
-    q.delete()
-
-
-def test_write_limited_retry(nvme0n1, nvme0):
-    buf = d.Buffer(4096)
-    q = d.Qpair(nvme0, 8)
-    nvme0n1.write(q, buf, 0, 8, 1<<31).waitdone()
-    q.delete()
+def test_write_limited_retry(nvme0n1, nvme0, qpair, buf):
+    nvme0n1.write(qpair, buf, 0, 8, 1<<31).waitdone()
 
 
 def test_write_huge_data(nvme0n1, qpair):
@@ -2125,7 +2099,6 @@ def test_aer_cb_mixed_with_admin_commands(nvme0, buf):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(2)
 
     # no more aer: in pytest way
     with pytest.raises(TimeoutError):
@@ -2153,7 +2126,6 @@ def test_aer_mixed_with_admin_commands(nvme0, buf):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(1)
 
     # no more aer
     with pytest.raises(TimeoutError):
@@ -2170,7 +2142,8 @@ def test_abort_aer_commands(nvme0):
 
     # ASYNC LIMIT EXCEEDED (01/05)
     with pytest.warns(UserWarning, match="ERROR status: 01/05"):
-        nvme0.aer().waitdone()
+        nvme0.aer()
+        nvme0.getfeatures(7).waitdone()
 
     # no timeout happen on aer
     time.sleep(15)
@@ -2179,7 +2152,6 @@ def test_abort_aer_commands(nvme0):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(aerl)
 
 
 def test_ioworker_maximum(nvme0n1):
@@ -3060,13 +3032,13 @@ def test_ioworker_read_and_write_confliction(nvme0n1, nvme0, verify):
 
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
         with nvme0n1.ioworker(io_size=8,
-                              lba_random=True,
-                              region_end=128,
+                              lba_random=0,
+                              region_end=8,
                               read_percentage=0,
                               time=10), \
              nvme0n1.ioworker(io_size=8,
-                              lba_random=True,
-                              region_end=128,
+                              lba_random=50,
+                              region_end=8,
                               read_percentage=100,
                               time=10):
             pass

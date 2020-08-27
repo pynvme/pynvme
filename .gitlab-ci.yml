@@ -26,11 +26,19 @@ stress_test:
   only:
     - schedules
   script:
+    - make test TESTS=scripts/test_utilities.py::test_powercycle_by_sleep || exit -1
+    - make test TESTS=scripts/psd.py || exit -1
+    - make test TESTS=scripts/zns.py || exit -1
+    - make test TESTS=scripts/tcg.py || exit -1
+    - make test TESTS=scripts/stress/dirty_power_cycle_test.py || exit -1
+    - make test TESTS=scripts/test_examples.py
+    - cat test_*.log | grep "1 failed, 49 passed" || exit -1
     - make test
     - cat test_*.log | grep "3 failed, 390 passed" || exit -1
     - make setup memsize=4000
     - make nvmt
-    - make test TESTS=driver_test_tcp.py
+    - make test TESTS=driver_test_tcp.py || exit -1
+    - make test TESTS=scripts/conformance
     - make setup memsize=0
 
 scripts_test:

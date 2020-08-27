@@ -286,8 +286,6 @@ def test_sanitize_operations_basic(nvme0, nvme0n1):  #L8
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
 
 
 def test_buffer_read_write(nvme0, nvme0n1):
@@ -522,9 +520,9 @@ def test_init_nvme_customerized(pcie):
         # 8. create and identify all namespace
         nvme0.init_ns()
 
-        # 9. set/get num of queues
-        nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
-        nvme0.getfeatures(0x7).waitdone()
+        # 9. set/get num of queues, 2 IO queues
+        nvme0.setfeatures(0x7, cdw11=0x00010001).waitdone()
+        nvme0.init_queues(nvme0.getfeatures(0x7).waitdone())
 
         # 10. send out all aer
         aerl = nvme0.id_data(259)+1
@@ -541,7 +539,12 @@ def test_init_nvme_customerized(pcie):
     nvme0n1 = d.Namespace(nvme0)
     qpair = d.Qpair(nvme0, 10)
     nvme0n1.ioworker(time=1).start().close()
+    qpair2 = d.Qpair(nvme0, 10)
+    with pytest.raises(d.QpairCreationError):
+        qpair3 = d.Qpair(nvme0, 10)
+        
     qpair.delete()
+    qpair2.delete()
     nvme0n1.close()
 
     
@@ -597,34 +600,7 @@ def test_aer_with_multiple_sanitize(nvme0, nvme0n1, buf):  #L8
                 progress = buf.data(1, 0)*100//0xffff
                 logging.info("%d%%" % progress)
 
-        nvme0.waitdone()
-        nvme0.aer()
-
-
-def test_read_write_mixed_verify(nvme0n1, verify):  #L1
-    with nvme0n1.ioworker(io_size=8, lba_align=8,
-                          region_start=0, region_end=256,
-                          lba_random=True, qdepth=64,
-                          read_percentage=0, time=1):  #L5
-        pass
-    with nvme0n1.ioworker(io_size=8, lba_align=8,
-                          region_start=0, region_end=256,
-                          lba_random=True, qdepth=64,
-                          read_percentage=100, time=1):  #L10
-        pass
-
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):  #L13
-        with nvme0n1.ioworker(io_size=8, lba_align=8,
-                              region_start=0, region_end=256,
-                              lba_random=True, qdepth=64,
-                              read_percentage=0, time=1), \
-             nvme0n1.ioworker(io_size=8, lba_align=8,
-                              region_start=0, region_end=256,
-                              lba_random=True, qdepth=64,
-                              read_percentage=100, time=1):  #L21
-            pass
-
-
+                
 def test_verify_partial_namespace(nvme0):
     region_end=1024*1024*1024//512  # 1GB space
     nvme0n1 = d.Namespace(nvme0, 1, region_end)
@@ -742,10 +718,20 @@ def test_reset_time(pcie):
         nvme0.identify(d.Buffer(4096)).waitdone()
         logging.info(time.time())
 
+        nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
+        nvme0.init_queues(nvme0.getfeatures(0x7).waitdone())
+        
     logging.info("1: nvme init")
     logging.info(time.time())
     nvme0 = d.Controller(pcie, nvme_init_func=nvme_init)
     subsystem = d.Subsystem(nvme0)
+
+    qpair = d.Qpair(nvme0, 10)
+    qpair2 = d.Qpair(nvme0, 10)
+    qpair3 = d.Qpair(nvme0, 10)
+    qpair.delete()
+    qpair2.delete()
+    qpair3.delete()
     
     logging.info("2: nvme reset")
     logging.info(time.time())
@@ -783,3 +769,52 @@ def test_getlogpage_nsid(nvme0, buf, nsid):
     logging.info("model name: %s, nsid %d" % (nvme0.id_data(63, 24, str), nsid))
     nvme0.getlogpage(0xCA, buf, 512, nsid=nsid).waitdone()
     nvme0.getlogpage(0x02, buf, 512, nsid=nsid).waitdone()
+
+
+def test_ioworker_with_temperature(nvme0, nvme0n1, buf):
+    with nvme0n1.ioworker(io_size=256,
+                          time=30,
+                          op_percentage={0:10,  # flush
+                                         2:60,  # read
+                                         9:30}), \
+         nvme0n1.ioworker(io_size=8,
+                          time=30,
+                          op_percentage={0:10,  # flush
+                                         9:10,  # trim
+                                         1:80}):# write
+        for i in range(40):
+            time.sleep(1)
+            nvme0.getlogpage(0x02, buf, 512).waitdone()
+            ktemp = buf.data(2, 1)
+            from pytemperature import k2c
+            logging.info("temperature: %0.2f degreeC" %
+                         k2c(ktemp))
+            
+
+def test_ioworker_jedec_enterprise_workload_512(nvme0n1):
+    distribution = [1000]*5 + [200]*15 + [25]*80
+    iosz_distribution = {1: 4,
+                         2: 1,
+                         3: 1,
+                         4: 1,
+                         5: 1,
+                         6: 1,
+                         7: 1,
+                         8: 67,
+                         16: 10,
+                         32: 7,
+                         64: 3,
+                         128: 3}
+
+    output_percentile_latency = dict.fromkeys([99, 99.99, 99.9999])
+    nvme0n1.ioworker(io_size=iosz_distribution,
+                     lba_random=True,
+                     qdepth=128,
+                     distribution = distribution,
+                     read_percentage=0,
+                     ptype=0xbeef, pvalue=100, 
+                     time=30, 
+                     output_percentile_latency=\
+                       output_percentile_latency).start().close()
+    logging.info(output_percentile_latency)
+    

@@ -23,9 +23,9 @@ def test_ioworker_jedec_enterprise_workload_512(nvme0n1):
     nvme0n1.ioworker(io_size=iosz_distribution,
                      lba_random=True,
                      qdepth=128,
-                     distribution = distribution,
+                     distribution=distribution,
                      read_percentage=0,
-                     ptype=0xbeef, pvalue=100, 
+                     ptype=0xbeef, pvalue=100,
                      time=12*3600).start().close()
 
 
@@ -41,32 +41,31 @@ def test_ioworker_jedec_enterprise_workload_4k(nvme0n1):
     nvme0n1.ioworker(io_size=iosz_distribution,
                      lba_random=True,
                      qdepth=128,
-                     distribution = distribution,
+                     distribution=distribution,
                      read_percentage=0,
-                     ptype=0xbeef, pvalue=100, 
+                     ptype=0xbeef, pvalue=100,
                      time=12*3600).start().close()
 
     # change back to 512B LBA format
     nvme0n1.format(512)
 
-    
-def test_replay_jedec_client_trace(nvme0, nvme0n1):
-    mdts = min(nvme0.mdts, 64*1024) # upto 64K IO
-    q = d.Qpair(nvme0, 1024)
+
+def test_replay_jedec_client_trace(nvme0, nvme0n1, qpair):
+    mdts = min(nvme0.mdts, 64*1024)  # upto 64K IO
     buf = d.Buffer(mdts, "write", 100, 0xbeef)
-    trim_buf = d.Buffer(4096)
+    trim_buf_list = [d.Buffer(16)]*1024
     batch = 0
     counter = 0
 
     nvme0n1.format(512)
-    
+
     with zipfile.ZipFile("scripts/stress/MasterTrace_128GB-SSD.zip") as z:
         for s in z.open("Client_128_GB_Master_Trace.txt"):
             l = str(s)[7:-5]
 
             if l[0] == 'h':
                 # flush
-                nvme0n1.flush(q)
+                nvme0n1.flush(qpair)
                 counter += 1
             else:
                 op, slba, nlba = l.split()
@@ -76,26 +75,25 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1):
                     # write
                     while nlba:
                         n = min(nlba, mdts//512)
-                        nvme0n1.write(q, buf, slba, n)
+                        nvme0n1.write(qpair, buf, slba, n)
                         counter += 1
                         slba += n
                         nlba -= n
                 elif op == 's':
                     # trims
+                    trim_buf = trim_buf_list[counter]
                     trim_buf.set_dsm_range(0, slba, nlba)
-                    nvme0n1.dsm(q, trim_buf, 1)
+                    nvme0n1.dsm(qpair, trim_buf, 1)
                     counter += 1
                 else:
                     logging.error(l)
 
             # reap in batch for better efficiency
             if counter > 100:
-                q.waitdone(counter)
+                qpair.waitdone(counter)
                 if batch % 1000 == 0:
                     logging.info("replay progress: %d" % (batch//1000))
                 batch += 1
                 counter = 0
 
-    q.waitdone(counter)
-    q.delete()
-    
+    qpair.waitdone(counter)
