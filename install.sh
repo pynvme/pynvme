@@ -46,16 +46,16 @@ fi
 
 # get depended source code and software
 git submodule update --init spdk
-cd spdk && git submodule update --init dpdk
-cd .. && sudo ./spdk/scripts/pkgdep.sh
+cd spdk && git submodule update --init dpdk && cd ..
+cd script && git submodule update --init conformance && cd ..
+sudo ./spdk/scripts/pkgdep.sh
 sudo python3 -m pip install --upgrade pip
 sudo python3 -m pip install -r requirements.txt
 
-# checkout pynvme code in SPDK and DPDK
+# checkout and config pynvme code in SPDK and DPDK
 cd spdk && git checkout pynvme_2.0
-cd dpdk && git checkout pynvme_2.0
-cd .. && ./configure --without-isal
-cd ..
+cd dpdk && git checkout pynvme_2.0 && cd ..
+./configure --without-isal && cd ..
 
 # compile
 make spdk                                    # compile SPDK
