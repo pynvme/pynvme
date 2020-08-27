@@ -23,9 +23,9 @@ def test_ioworker_jedec_enterprise_workload_512(nvme0n1):
     nvme0n1.ioworker(io_size=iosz_distribution,
                      lba_random=True,
                      qdepth=128,
-                     distribution = distribution,
+                     distribution=distribution,
                      read_percentage=0,
-                     ptype=0xbeef, pvalue=100, 
+                     ptype=0xbeef, pvalue=100,
                      time=12*3600).start().close()
 
 
@@ -41,24 +41,24 @@ def test_ioworker_jedec_enterprise_workload_4k(nvme0n1):
     nvme0n1.ioworker(io_size=iosz_distribution,
                      lba_random=True,
                      qdepth=128,
-                     distribution = distribution,
+                     distribution=distribution,
                      read_percentage=0,
-                     ptype=0xbeef, pvalue=100, 
+                     ptype=0xbeef, pvalue=100,
                      time=12*3600).start().close()
 
     # change back to 512B LBA format
     nvme0n1.format(512)
 
-    
+
 def test_replay_jedec_client_trace(nvme0, nvme0n1, qpair):
-    mdts = min(nvme0.mdts, 64*1024) # upto 64K IO
+    mdts = min(nvme0.mdts, 64*1024)  # upto 64K IO
     buf = d.Buffer(mdts, "write", 100, 0xbeef)
-    trim_buf = d.Buffer(4096)
+    trim_buf_list = [d.Buffer(16)]*1024
     batch = 0
     counter = 0
 
     nvme0n1.format(512)
-    
+
     with zipfile.ZipFile("scripts/stress/MasterTrace_128GB-SSD.zip") as z:
         for s in z.open("Client_128_GB_Master_Trace.txt"):
             l = str(s)[7:-5]
@@ -81,6 +81,7 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1, qpair):
                         nlba -= n
                 elif op == 's':
                     # trims
+                    trim_buf = trim_buf_list[counter]
                     trim_buf.set_dsm_range(0, slba, nlba)
                     nvme0n1.dsm(qpair, trim_buf, 1)
                     counter += 1
@@ -96,4 +97,3 @@ def test_replay_jedec_client_trace(nvme0, nvme0n1, qpair):
                 counter = 0
 
     qpair.waitdone(counter)
-    
