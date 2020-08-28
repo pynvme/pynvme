@@ -47,7 +47,7 @@ fi
 # get depended source code and software
 git submodule update --init spdk
 cd spdk && git submodule update --init dpdk && cd ..
-cd script && git submodule update --init conformance && cd ..
+cd scripts && git submodule update --init conformance && cd ..
 sudo ./spdk/scripts/pkgdep.sh
 sudo python3 -m pip install --upgrade pip
 sudo python3 -m pip install -r requirements.txt
