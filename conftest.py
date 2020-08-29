@@ -96,6 +96,7 @@ def nvme0n1(nvme0):
 @pytest.fixture(scope="function")
 def qpair(nvme0):
     num_of_entry = (nvme0.cap & 0xffff) + 1
+    num_of_entry = min(1024, num_of_entry)
     ret = d.Qpair(nvme0, num_of_entry)
     yield ret
     ret.delete()
