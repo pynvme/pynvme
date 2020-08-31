@@ -229,7 +229,7 @@ When a command timeout happens, pynvme notifies user scripts in two ways. First,
 Asynchronous Event Request
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-AER is a special NVMe admin command. It is not applicable to timeout setting. In default NVMe initialization process, pynvme sends only one AER command for those unexpected AER events during the test. However, scripts can replace this default initializaiton process with which sends more AER commands. When one AER completed during the test, a warning is raised, and scripts have to call one more `waitdone` and send one more AER command. Scripts can also give a callback function to any AER command which is the same as the usual command.
+AER is a special NVMe admin command. It is not applicable to timeout setting. In default NVMe initialization process, pynvme sends only one AER command for those unexpected AER events during the test. However, scripts can replace this default initializaiton process with which sends more AER commands or none. When one AER is completed, a warning is raised. Pynvme driver internally calls `waitdone` to reap this AER's CQE, and send one more AER command. Scripts can also give callback functions for AER commands as the usual commands.
 
 Here is an example of AER with sanitize operations. 
 
@@ -253,12 +253,8 @@ Here is an example of AER with sanitize operations.
                   nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
                   progress = buf.data(1, 0)*100//0xffff
                   logging.info("%d%%" % progress)
-                   
-          nvme0.waitdone()  # reap one more CQE for completed AER
-          nvme0.aer()  # send one more AER for the next sanitize operation
 
-
-AER completion is triggered when sanitize operation is finished. We can find the UserWarning for the AER notification in the test log below. The first AER command is sent by pynvme initialization process, while the remaining AER commands are sent by user scripts. 
+AER completion is triggered when sanitize operation is finished. We can find the UserWarning for the AER notification in the test log below. The first AER command is sent by pynvme initialization process, while the remaining AER commands are sent by pynvme driver internally.
 
 .. code-block:: shell
    :emphasize-lines: 15, 18, 21
