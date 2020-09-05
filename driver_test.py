@@ -1697,6 +1697,25 @@ def test_pcie_reset(nvme0, pcie, nvme0n1):
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
     
+def test_pcie_reset_user_fn(nvme0, pcie, nvme0n1):
+    def get_power_cycles(nvme0):
+        buf = d.Buffer(512)
+        nvme0.getlogpage(2, buf, 512).waitdone()
+        ret = buf.data(115, 112)
+        logging.info("power cycles: %d" % ret)
+        return ret
+
+    def print_fn():
+        logging.info("here")
+        
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+    powercycle = get_power_cycles(nvme0)
+    pcie.reset(print_fn)
+    nvme0.reset()
+    assert powercycle == get_power_cycles(nvme0)
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+
+    
 def _test_pcie_flr_reset(nvme0, pcie, nvme0n1):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
