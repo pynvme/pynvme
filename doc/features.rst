@@ -234,7 +234,6 @@ AER is a special NVMe admin command. It is not applicable to timeout setting. In
 Here is an example of AER with sanitize operations. 
 
 .. code-block:: python
-   :emphasize-lines: 19-20
 
    def test_aer_with_multiple_sanitize(nvme0, nvme0n1, buf):  #L8
       if nvme0.id_data(331, 328) == 0:  #L9
