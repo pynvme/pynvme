@@ -240,8 +240,8 @@ def test_jsonrpc_list_qpairs(pciaddr):
 def test_expected_dut(nvme0):
     logging.info("0x%x" % nvme0.id_data(1, 0))
     logging.info("0x%x" % nvme0.id_data(3, 2))
-    logging.info(nvme0.id_data(23, 4, str))
     logging.info(nvme0.id_data(63, 24, str))
+    logging.info(nvme0.id_data(71, 64, str))
     assert nvme0.id_data(1, 0) == 0x14a4
     assert "CAZ-82256-Q11" in nvme0.id_data(63, 24, str)
 

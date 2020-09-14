@@ -683,6 +683,7 @@ def test_jsonrpc_list_qpairs(pciaddr):
     
 def test_powercycle_with_qpair(nvme0, nvme0n1, buf, subsystem):
     qpair = d.Qpair(nvme0, 16)
+    nvme0n1.write(qpair, buf, 0).waitdone()
     nvme0n1.read(qpair, buf, 0).waitdone()
 
     # delete qpair before power cycle, and then reset controller, recreate qpair
@@ -746,6 +747,7 @@ def test_reset_time(pcie):
 
 @pytest.mark.parametrize("ps", range(5))
 def test_power_state_transition_latency(pcie, nvme0, nvme0n1, qpair, buf, ps):
+    nvme0n1.write(qpair, buf, 0, 8).waitdone()
     orig_ps = nvme0.getfeatures(0x2).waitdone()
 
     latency_list = []

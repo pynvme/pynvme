@@ -461,7 +461,7 @@ def test_send_single_cmd(nvme0):
     sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
 
     # first cmd, invalid namespace
-    sq[0] = [8] + [0]*15
+    sq[0] = [4] + [0]*15
     sq.tail = 1
     time.sleep(0.1)
     status = (cq[0][3]>>17)&0x7ff
@@ -476,7 +476,7 @@ def test_send_cmd_2sq_1cq(nvme0):
     sq1 = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
     sq2 = IOSQ(nvme0, 2, 16, PRP(), cqid=1)
 
-    cdw = SQE(8, 0, 0)
+    cdw = SQE(4, 0, 0)
     cdw.nsid = 1  # namespace id
     cdw.cid = 222
     sq1[0] = cdw
@@ -521,7 +521,7 @@ def test_send_cmd_different_qdepth(nvme0, qdepth):
     # once again: first cmd, invalid namespace
     for i in range(qdepth*3 + 3):
         index = (i+1)%qdepth
-        sq[index-1] = [8, 1] + [0]*14
+        sq[index-1] = [4, 1] + [0]*14
         sq.tail = index
         time.sleep(0.01)
         assert (cq[index-1][3]>>17) == 0
@@ -575,8 +575,6 @@ def test_psd_write_2sq_1cq_prp_list(nvme0):
 
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         sq_invalid = IOSQ(nvme0, 5, 64*1024, PRP(4096*1024), cqid=1)
-    with pytest.warns(UserWarning, match="ERROR status: 01/02"):
-        sq_invalid = IOSQ(nvme0, 6, 64*1024, PRP(4096*1024), cqid=1)
 
     # IO command templates: opcode and namespace
     write_cmd = SQE(1, 1)
