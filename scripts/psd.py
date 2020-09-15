@@ -471,67 +471,6 @@ def test_send_single_cmd(nvme0):
     cq.delete()
 
 
-def test_send_cmd_2sq_1cq(nvme0):
-    cq = IOCQ(nvme0, 1, 10, PRP())
-    sq1 = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
-    sq2 = IOSQ(nvme0, 2, 16, PRP(), cqid=1)
-
-    cdw = SQE(4, 0, 0)
-    cdw.nsid = 1  # namespace id
-    cdw.cid = 222
-    sq1[0] = cdw
-
-    sqe = SQE(*cdw)
-    assert sqe[1] == 1
-    sqe.cid = 111
-    sq2[0] = sqe
-    sq2.tail = 1
-    time.sleep(0.1)
-    sq1.tail = 1
-    time.sleep(0.1)
-
-    cqe = CQE(cq[0])
-    assert cqe.sct == 0
-    assert cqe.sc == 0
-    assert cqe.sqid == 2
-    assert cqe.sqhd == 1
-    assert cqe.p == 1
-    assert cqe.cid == 111
-
-    cqe = CQE(cq[1])
-    assert cqe.sct == 0
-    assert cqe.sc == 0
-    assert cqe.sqid == 1
-    assert cqe.sqhd == 1
-    assert cqe.p == 1
-    assert cqe.cid == 222
-
-    cq.head = 2
-
-    sq1.delete()
-    sq2.delete()
-    cq.delete()
-
-
-@pytest.mark.parametrize("qdepth", [7, 2, 3, 4, 5, 10, 16, 17, 31])
-def test_send_cmd_different_qdepth(nvme0, qdepth):
-    cq = IOCQ(nvme0, 3, qdepth, PRP())
-    sq = IOSQ(nvme0, 3, qdepth, PRP(), cqid=3)
-
-    # once again: first cmd, invalid namespace
-    for i in range(qdepth*3 + 3):
-        index = (i+1)%qdepth
-        sq[index-1] = [4, 1] + [0]*14
-        sq.tail = index
-        time.sleep(0.01)
-        assert (cq[index-1][3]>>17) == 0
-        assert (cq[index-1][2]&0xffff) == index
-        cq.head = index
-
-    sq.delete()
-    cq.delete()
-
-
 @pytest.mark.parametrize("count", [1, 2, 8, 500, 512])
 def test_prp_and_prp_list(count):
     l = PRPList()
@@ -562,8 +501,51 @@ def test_prp_and_prp_list_invalid():
     with pytest.raises(AssertionError):
         l[512] = Buffer()
 
+        
+@pytest.mark.parametrize("qdepth", [7, 2, 3, 4, 5, 10, 16, 17, 31])
+def test_send_cmd_different_qdepth(nvme0, qdepth):
+    cq = IOCQ(nvme0, 4, qdepth, PRP())
+    sq = IOSQ(nvme0, 4, qdepth, PRP(), cqid=4)
 
-def test_psd_write_2sq_1cq_prp_list(nvme0):
+    # once again: first cmd, invalid namespace
+    for i in range(qdepth*3 + 3):
+        index = (i+1)%qdepth
+        sq[index-1] = [0, 1] + [0]*14
+        sq.tail = index
+        time.sleep(0.01)
+        assert (cq[index-1][3]>>17) == 0
+        assert (cq[index-1][2]&0xffff) == index
+        cq.head = index
+
+    sq.delete()
+    cq.delete()
+    
+
+def test_send_cmd_2sq_1cq(nvme0):
+    cq = IOCQ(nvme0, 1, 10, PRP())
+    sq1 = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
+    sq2 = IOSQ(nvme0, 2, 16, PRP(), cqid=1)
+
+    cdw = SQE(0, 0, 0)
+    cdw.nsid = 1  # namespace id
+    cdw.cid = 222
+    sq1[0] = cdw
+
+    sqe = SQE(*cdw)
+    assert sqe[1] == 1
+    sqe.cid = 111
+    sq2[0] = sqe
+    sq2.tail = 1
+    time.sleep(0.1)
+    sq1.tail = 1
+    time.sleep(0.1)
+
+    sq1.delete()
+    sq2.delete()
+    cq.delete()
+
+        
+def test_psd_write_2sq_1cq_prp_list(nvme0, subsystem):
     # cqid: 1, PC, depth: 120
     cq = IOCQ(nvme0, 1, 120, PRP(4096))
 
@@ -572,9 +554,6 @@ def test_psd_write_2sq_1cq_prp_list(nvme0):
     sq3 = IOSQ(nvme0, 3, 16, PRP(), cqid=1)
     # sqid: 5, depth: 100, so need 2 pages of memory
     sq5 = IOSQ(nvme0, 5, 64*64, PRP(4096*64), cqid=1)
-
-    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
-        sq_invalid = IOSQ(nvme0, 5, 64*1024, PRP(4096*1024), cqid=1)
 
     # IO command templates: opcode and namespace
     write_cmd = SQE(1, 1)
@@ -595,7 +574,7 @@ def test_psd_write_2sq_1cq_prp_list(nvme0):
 
     # write in sq5, lba5-lba16, 2 page, non aligned
     w2 = SQE(*write_cmd)
-    buf1 = PRP(ptype=32, pvalue=0xbbbbbbbb)
+    buf1 = PRP(ptype=32, pvalue=0xbbbbbbbd)
     buf1.offset = 2048
     w2.prp1 = buf1
     w2.prp2 = PRP(ptype=32, pvalue=0xcccccccc)
@@ -637,7 +616,7 @@ def test_psd_write_2sq_1cq_prp_list(nvme0):
     # verify read data
     while cq[2].p == 0: pass
     cq.head = 3
-    assert read_buf[0].data(0xfff, 0xffc) == 0xbbbbbbbb
+    assert read_buf[0].data(0xfff, 0xffc) == 0xbbbbbbbd
     assert read_buf[2].data(3, 0) == 0xcccccccc
     assert read_buf[2].data(0x1ff, 0x1fc) == 0xcccccccc
 
@@ -806,3 +785,5 @@ def test_write_read_verify(nvme0, nvme0n1):
         assert buf_list[cq[i].cid][0] == cq[i].cid
     sq.delete()
     cq.delete()
+
+
