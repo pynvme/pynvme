@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pynvme",
-    version="2.0.2",
+    version="2.0.3",
     author="Crane Chu",
     author_email="cranechu@gmail.com",
     description="builds your own tests.",
@@ -52,7 +52,8 @@ setuptools.setup(
           'scripts/conformance/01_admin/sanitize_test.py',
           'scripts/conformance/01_admin/mi_test.py',
           'scripts/conformance/01_admin/features_test.py',
-          'scripts/conformance/01_admin/logpage_test.py']),
+          'scripts/conformance/01_admin/logpage_test.py'
+          ]),
         ('pynvme/scripts/conformance/02_nvm',
          ['scripts/conformance/02_nvm/compare_test.py',
           'scripts/conformance/02_nvm/flush_test.py',
@@ -61,20 +62,28 @@ setuptools.setup(
           'scripts/conformance/02_nvm/deallocate_test.py',
           'scripts/conformance/02_nvm/write_test.py',
           'scripts/conformance/02_nvm/verify_test.py',
-          'scripts/conformance/02_nvm/write_zeroes_test.py']),
+          'scripts/conformance/02_nvm/write_zeroes_test.py'
+          ]),
         ('pynvme/scripts/conformance/03_features',
-         ['scripts/conformance/03_features/write_protect_test.py',
+         ['scripts/conformance/03_features/hmb_test.py',
+          'scripts/conformance/03_features/write_protect_test.py',
           'scripts/conformance/03_features/power_management_test.py',
-          'scripts/conformance/03_features/reset_test.py']),
+          'scripts/conformance/03_features/reset_test.py'
+          ]),
         ('pynvme/scripts/conformance/04_registers',
          ['scripts/conformance/04_registers/controller_test.py',
           'scripts/conformance/04_registers/power_test.py',
-          'scripts/conformance/04_registers/pcie_test.py']), 
+          'scripts/conformance/04_registers/pcie_test.py'
+          ]), 
         ('pynvme/scripts/conformance/05_controller',
          ['scripts/conformance/05_controller/sq_cq_test.py',
           'scripts/conformance/05_controller/sqe_cqe_test.py',
           'scripts/conformance/05_controller/interrupt_test.py',
           'scripts/conformance/05_controller/prp_test.py',
-          'scripts/conformance/05_controller/arbitration_test.py']),
-    ]
+          'scripts/conformance/05_controller/arbitration_test.py'
+          ]),
+        ('pynvme/scripts/conformance/06_tcg',
+         ['scripts/conformance/06_tcg/use_case_test.py'
+          ]),
+        ]
 )
