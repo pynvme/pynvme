@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pynvme",
-    version="2.0.3",
+    version="2.0.5",
     author="Crane Chu",
     author_email="cranechu@gmail.com",
     description="builds your own tests.",
@@ -35,6 +35,7 @@ setuptools.setup(
           'src/setup.sh']),
         ('pynvme/scripts',
          ['scripts/psd.py',
+          'scripts/tcg.py',
           'scripts/test_examples.py',
           'scripts/test_utilities.py']),
         ('pynvme/scripts/stress',
