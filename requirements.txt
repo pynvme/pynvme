@@ -8,6 +8,7 @@ psutil
 pyyaml
 pytest
 pytest-cov
+pytest-excel
 pytemperature
 pydoc-markdown==2.1.3
 PySimpleGUI

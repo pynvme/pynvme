@@ -48,7 +48,7 @@ all: clean
 
 clean:
 	cd src; make clean
-	- sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* a.out nvme.so nvme.*.so dist pynvme.egg-info build
+	- sudo rm -rf  __pycache__ .pytest_cache cov_report .coverage.* a.out nvme.so nvme.*.so dist pynvme.egg-info build report.xls
 	- sudo sh -c 'find . | grep -E "(__pycache__|\.pyc|\.pyo$$)" | xargs rm -rf'
 
 spdk:
@@ -104,7 +104,7 @@ tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=ioat --exclude=snippets --exclude=env --exclude=doc
 
 pytest: info
-	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -v -r Efsx
+	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -v -r Efsx --excelreport=report.xls --verbose
 
 test:
 	- rm test_${pciaddr}.log

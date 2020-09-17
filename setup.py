@@ -22,7 +22,11 @@ setuptools.setup(
         "Operating System :: POSIX :: Linux",
     ],
     python_requires='>=3.5',
-    install_requires=['pytest', 'pytemperature', 'pylspci', 'quarchpy'],
+    install_requires=['pytest',
+                      'pytest-excel'
+                      'pylspci',
+                      'quarchpy',
+                      'pytemperature'],
     data_files=[
         ('pynvme',
          ['nvme.so',
