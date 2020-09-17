@@ -240,8 +240,8 @@ def test_jsonrpc_list_qpairs(pciaddr):
 def test_expected_dut(nvme0):
     logging.info("0x%x" % nvme0.id_data(1, 0))
     logging.info("0x%x" % nvme0.id_data(3, 2))
-    logging.info(nvme0.id_data(23, 4, str))
     logging.info(nvme0.id_data(63, 24, str))
+    logging.info(nvme0.id_data(71, 64, str))
     assert nvme0.id_data(1, 0) == 0x14a4
     assert "CAZ-82256-Q11" in nvme0.id_data(63, 24, str)
 
@@ -1692,6 +1692,25 @@ def test_pcie_reset(nvme0, pcie, nvme0n1):
     nvme0n1.ioworker(io_size=2, time=2).start().close()
     powercycle = get_power_cycles(nvme0)
     pcie.reset()
+    nvme0.reset()
+    assert powercycle == get_power_cycles(nvme0)
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+
+    
+def test_pcie_reset_user_fn(nvme0, pcie, nvme0n1):
+    def get_power_cycles(nvme0):
+        buf = d.Buffer(512)
+        nvme0.getlogpage(2, buf, 512).waitdone()
+        ret = buf.data(115, 112)
+        logging.info("power cycles: %d" % ret)
+        return ret
+
+    def print_fn():
+        logging.info("here")
+        
+    nvme0n1.ioworker(io_size=2, time=2).start().close()
+    powercycle = get_power_cycles(nvme0)
+    pcie.reset(print_fn)
     nvme0.reset()
     assert powercycle == get_power_cycles(nvme0)
     nvme0n1.ioworker(io_size=2, time=2).start().close()

@@ -1892,8 +1892,8 @@ rpc_get_iostat(struct spdk_jsonrpc_request *request,
                const struct spdk_json_val *params)
 {
   struct spdk_json_write_ctx *w;
-  uint32_t iops = 0;
-  uint32_t bw = 0;
+  uint64_t iops = 0;
+  uint64_t bw = 0;
 
   w = spdk_jsonrpc_begin_result(request);
   if (w == NULL)

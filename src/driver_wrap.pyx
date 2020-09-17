@@ -727,7 +727,7 @@ cdef class Pcie(object):
         logging.info("reset controller to use it after function level reset")
         return True
 
-    def reset(self):  # pcie
+    def reset(self, rst_fn=None):  # pcie
         """reset this pcie device with hot reset
 
         Notice
@@ -746,13 +746,16 @@ cdef class Pcie(object):
         self._bind_driver(None)
         subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null' % bdf, shell=True)
 
-        # hot reset by TS1 TS2
-        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL 2> /dev/null' % port, shell=True)
-        bc = int(ret.strip(), 16)
-        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL=0x%x 2> /dev/null' % (port, bc|0x40), shell=True)
-        time.sleep(0.01)
-        ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL=0x%x 2> /dev/null' % (port, bc), shell=True)
-        time.sleep(0.5)
+        if rst_fn:
+            rst_fn()
+        else:
+            # hot reset by TS1 TS2
+            ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL 2> /dev/null' % port, shell=True)
+            bc = int(ret.strip(), 16)
+            ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL=0x%x 2> /dev/null' % (port, bc|0x40), shell=True)
+            time.sleep(0.01)
+            ret = subprocess.check_output('setpci -s %s BRIDGE_CONTROL=0x%x 2> /dev/null' % (port, bc), shell=True)
+            time.sleep(0.5)
 
         # config spdk driver
         self._rescan()
