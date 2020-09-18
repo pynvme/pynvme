@@ -34,7 +34,7 @@ stress_test:
     - make test TESTS=scripts/test_examples.py
     - cat test_*.log | grep "1 failed, 49 passed" || exit -1
     - make test
-    - cat test_*.log | grep "3 failed, 391 passed" || exit -1
+    - cat test_*.log | grep "3 failed, 392 passed" || exit -1
     - make setup memsize=4000
     - make nvmt
     - make test TESTS=driver_test_tcp.py || exit -1

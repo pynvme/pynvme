@@ -43,6 +43,7 @@
 
 # python package
 import os
+import gc
 import sys
 import time
 import glob
@@ -1949,7 +1950,7 @@ cdef class Namespace(object):
                  region_start=0, region_end=0xffffffffffffffff,
                  iops=0, io_count=0, lba_start=0, qprio=0,
                  distribution=None, ptype=0xbeef, pvalue=100,
-                 io_sequence=None,
+                 io_sequence=None, fw_debug=False, 
                  output_io_per_second=None,
                  output_percentile_latency=None,
                  output_cmdlog_list=None):
@@ -2055,7 +2056,7 @@ cdef class Namespace(object):
                          lba_start, lba_step, io_size,
                          lba_align, lba_random, region_start, region_end,
                          op_percentage, iops, io_count, time, qdepth, qprio,
-                         distribution, pvalue, ptype, io_sequence,
+                         distribution, pvalue, ptype, io_sequence, fw_debug, 
                          output_io_per_second,
                          output_percentile_latency,
                          output_cmdlog_list)
@@ -2373,7 +2374,7 @@ class _IOWorker(object):
                  lba_start, lba_step, lba_size,
                  lba_align, lba_random, region_start, region_end,
                  op_percentage, iops, io_count, time, qdepth, qprio,
-                 distribution, pvalue, ptype, io_sequence,
+                 distribution, pvalue, ptype, io_sequence, fw_debug, 
                  output_io_per_second,
                  output_percentile_latency,
                  output_cmdlog_list):
@@ -2391,7 +2392,7 @@ class _IOWorker(object):
                                      op_percentage,
                                      iops, io_count, time, qdepth, qprio,
                                      distribution, pvalue, ptype,
-                                     io_sequence,
+                                     io_sequence, fw_debug, 
                                      output_io_per_second,
                                      output_percentile_latency,
                                      output_cmdlog_list))
@@ -2400,6 +2401,7 @@ class _IOWorker(object):
         self.output_cmdlog_list = output_cmdlog_list
         self.op_counter = op_percentage
         self.p.daemon = True
+        self.fw_debug = fw_debug
 
     def start(self):
         """Start the worker's process"""
@@ -2503,6 +2505,12 @@ class _IOWorker(object):
                            (os.getpid(), childpid)):
             os.remove(f)
 
+        if self.fw_debug and error:
+            # assert and stop test when ioworker fail in debug mode
+            logging.info("force terminate with ioworker error %d" % error)
+            gc.collect()
+            os._exit(error)
+            
         return rets
 
     def iops_consistency(self, slowest_percentage=99.9):
@@ -2527,7 +2535,7 @@ class _IOWorker(object):
                   lba_start, lba_step, lba_size, lba_align, lba_random,
                   region_start, region_end, op_percentage,
                   iops, io_count, seconds, qdepth, qprio,
-                  distribution, pvalue, ptype, io_sequence,
+                  distribution, pvalue, ptype, io_sequence, fw_debug, 
                   output_io_per_second,
                   output_percentile_latency,
                   output_cmdlog_list):
@@ -2732,32 +2740,33 @@ class _IOWorker(object):
                 while not rqueue.empty():
                     time.sleep(1)
 
-            with locker:
-                # close resources in right order
-                if 'qpair' in locals():
-                    # fail fast to delete queue after power loss
-                    orig = nvme0.timeout
-                    if d.driver_config_read() & 0x10:
-                        nvme0.timeout = 10
-                        # backup BAR and remap to another memory
-                        d.nvme_bar_remap(nvme0.pcie._ctrlr)
+            if not fw_debug or not error:
+                with locker:
+                    # close resources in right order
+                    if 'qpair' in locals():
+                        # fail fast to delete queue after power loss
+                        orig = nvme0.timeout
+                        if d.driver_config_read() & 0x10:
+                            nvme0.timeout = 10
+                            # backup BAR and remap to another memory
+                            d.nvme_bar_remap(nvme0.pcie._ctrlr)
 
-                    try:
-                        qpair.delete()
-                    except:
-                        pass
+                        try:
+                            qpair.delete()
+                        except:
+                            pass
 
-                    # use original timeout
-                    if d.driver_config_read() & 0x10:
-                        nvme0.timeout = orig
-                        # use original BAR
-                        d.nvme_bar_recover(nvme0.pcie._ctrlr)
+                        # use original timeout
+                        if d.driver_config_read() & 0x10:
+                            nvme0.timeout = orig
+                            # use original BAR
+                            d.nvme_bar_recover(nvme0.pcie._ctrlr)
 
-                if 'nvme0n1' in locals():
-                    nvme0n1.close()
+                    if 'nvme0n1' in locals():
+                        nvme0n1.close()
 
-                if 'pcie' in locals():
-                    pcie.close()
+                    if 'pcie' in locals():
+                        pcie.close()
 
             if args.io_sequence:
                 PyMem_Free(args.io_sequence)
@@ -2789,7 +2798,7 @@ class _IOWorker(object):
             if args.op_counter:
                 PyMem_Free(args.op_counter)
 
-            import gc; gc.collect()
+            gc.collect()
 
 
 def srand(seed):

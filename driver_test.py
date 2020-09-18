@@ -3666,3 +3666,19 @@ def test_issue65(nvme0, nvme0n1, subsystem):
     subsystem.poweron()
     nvme0.reset()
 
+    
+def test_ioworker_invalid_io_size_fw_debug_mode(nvme0, nvme0n1):
+    # format to clear all data before test
+    nvme0n1.format(512)
+
+    assert nvme0.mdts//512 == 256
+    nvme0n1.ioworker(io_size=nvme0.mdts//512, lba_align=64,
+                     lba_random=False, qdepth=4, fw_debug=True, 
+                     read_percentage=100, time=2).start().close()
+
+    with pytest.warns(UserWarning, match="ioworker device"):
+        nvme0n1.ioworker(io_size=nvme0.mdts//512+1, lba_align=64,
+                         lba_random=False, qdepth=4,
+                         read_percentage=100, time=2).start().close()
+
+
