@@ -37,10 +37,10 @@ def test_sanitize(nvme0: d.Controller, buf):
     if nvme0.id_data(331, 328) == 0:
         pytest.skip("sanitize operation is not supported")
 
-    import PySimpleGUI as sg
+    #import PySimpleGUI as sg
 
     logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
-    sg.OneLineProgressMeter('sanitize progress', 0, 100, 'progress', orientation='h')
+    #sg.OneLineProgressMeter('sanitize progress', 0, 100, 'progress', orientation='h')
     nvme0n1 = d.Namespace(nvme0, 1, 128*1000*1000//4)
     nvme0.sanitize().waitdone()  # sanitize clears namespace
 
@@ -50,7 +50,7 @@ def test_sanitize(nvme0: d.Controller, buf):
         time.sleep(1)
         nvme0.getlogpage(0x81, buf, 20).waitdone()
         progress = buf.data(1, 0)*100//0xffff
-        sg.OneLineProgressMeter('sanitize progress', progress, 100, 'progress', orientation='h')
+        #sg.OneLineProgressMeter('sanitize progress', progress, 100, 'progress', orientation='h')
         logging.info("%d%%" % progress)
 
     nvme0n1.close()
