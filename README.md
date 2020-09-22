@@ -35,13 +35,14 @@ The pynvme is a python extension module. Users can test NVMe devices intuitively
 
 * Web: [https://pynvme.readthedocs.io/](https://pynvme.readthedocs.io/)
 * PDF: [https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf](https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf)
-* 21天pynvme之旅: [https://github.com/pynvme/pynvme/wiki](https://github.com/pynvme/pynvme/wiki)
+* 简介: [link](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/pynvme_flyer.pdf)
+* 21天pynvme之旅: [link](https://github.com/pynvme/pynvme/wiki)
 
 ### Presentation
 
 * Introduction: [pynvme builds your own tests.](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/pynvme_builds_your_own_tests.pdf)
-* SPDK PRC Summit 2019, Beijing.  
-  [02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf)
+* SPDK PRC Summit 2019, Beijing. Why SSD Developers Need Pynvme and Why Pynvme Needs SPDK. [pdf](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf), [video](https://www.youtube.com/watch?v=Zg-vliodKx0).
+* SDC2020. Pynvme: an Open, Fast and Extensible NVMe SSD Test Tool. [pdf](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/pynvme_chu_sdc2020.pdf), [video](https://www.youtube.com/watch?v=Yoru7vzVyL8).
   
 ## Contact
 For more technical support and consultation, please send email to: cranechu@gmail.com

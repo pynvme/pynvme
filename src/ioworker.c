@@ -245,7 +245,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
     // terminate ioworker when any error happen
     // only keep the first error code
     uint16_t error = ((*(unsigned short*)(&cpl->status))>>1)&0x7ff;
-    SPDK_ERRLOG("error happen in cqe status\n");
+    SPDK_ERRLOG("error happen in cqe status: 0x%04x\n", error);
     gctx->flag_finish = true;
     if (rets->error == 0)
     {
