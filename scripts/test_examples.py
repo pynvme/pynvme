@@ -8,8 +8,8 @@ import nvme as d
 # intuitive, spec, qpair, vscode, debug, cmdlog, assert
 def test_hello_world(nvme0, nvme0n1, qpair):
     # prepare data buffer and IO queue
-    read_buf = d.Buffer(512)
-    write_buf = d.Buffer(512)
+    read_buf = d.Buffer()
+    write_buf = d.Buffer()
     write_buf[10:21] = b'hello world'
 
     # send write and read command
