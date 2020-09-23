@@ -2299,6 +2299,25 @@ cdef class Namespace(object):
         assert ret == 0, "error in submitting read write commands: %d" % ret
         return ret
 
+    def zns_mgmt_receive(self, qpair, buf, slba=0, dwords=None, extended=True, state=0, partial=True, cb=None):
+        if dwords is None:  dwords = len(buf)<<2  # the same size of buffer
+        assert dwords > 0, "cannot read empty data"
+        
+        self.send_io_raw(qpair, buf, 0x7a, self._nsid,
+                         slba&0xffffffff, slba>>32,
+                         dwords-1,
+                         (partial<<16)+(state<<8)+extended, 0, 0, 
+                         cmd_cb, <void*>cb)
+        return qpair
+    
+    def zns_mgmt_send(self, qpair, buf, slba=0, action=0, all=False, cb=None):
+        self.send_io_raw(qpair, buf, 0x79, self._nsid,
+                         slba&0xffffffff, slba>>32,
+                         0, 
+                         (all<<8)+action, 0, 0, 
+                         cmd_cb, <void*>cb)
+        return qpair
+    
     def send_cmd(self, opcode, qpair, buf=None, nsid=1,
                  cdw10=0, cdw11=0, cdw12=0,
                  cdw13=0, cdw14=0, cdw15=0,

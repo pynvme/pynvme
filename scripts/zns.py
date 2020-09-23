@@ -41,21 +41,42 @@ from nvme import *
 
 
 class Zone(object):
-    def __init__(self, zns, slba, size, capacity):
-        assert capacity <= size
-        self._size = size
-        self._ns = zns
-        self.type = 1  #Sequential Write Required
-        self.state = 0
-        self.wpointer = 0
+    def __init__(self, qpair, ns, slba):
+        self._qpair = qpair
+        self._ns = ns
+        self._buf = Buffer()
         self.slba = slba
-        self.capacity = capacity
-        self.extension = False
-        self.recommended_reset = False
-        self.recommended_finish = False
-        self.finished_by_controller = False
-        
 
+    def _mgmt_receive(self):
+        self._ns.zns_mgmt_receive(self._qpair, self._buf, self.slba).waitdone()
+        assert self._buf.data(64) == 2
+        assert self._buf.data(87, 80) == self.slba
+        return self._buf
+
+    @property
+    def state(self):
+        return self._mgmt_receive().data(1+64)>>4
+
+    @property
+    def action(self):
+        return 0
+    
+    @action.setter
+    def action(self, action):
+        self._ns.zns_mgmt_send(self._qpair, self._buf, self.slba, action).waitdone()
+    
+    @property
+    def attributes(self):
+        return self._mgmt_receive().data(2+64)
+        
+    @property
+    def capacity(self):
+        return self._mgmt_receive().data(15+64, 8+64)
+    
+    @property
+    def wpointer(self):
+        return self._mgmt_receive().data(31+64, 24+64)
+    
     def write(self, qpair, buf, offset, lba_count=1, io_flags=0, 
               dword13=0, dword14=0, dword15=0, cb=None):
         return self._ns.write(qpair, buf, self.slba+offset, lba_count,
