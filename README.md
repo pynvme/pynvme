@@ -1,11 +1,11 @@
+<img src="https://github.com/pynvme/pynvme/raw/master/doc/logo.jpg" width="256" align="right" />
+
 # pynvme: builds your own tests.
 
 [![Status](https://img.shields.io/gitlab/pipeline/cranechu/pynvme.svg)](https://gitlab.com/cranechu/pynvme/pipelines)
 [![Document](https://readthedocs.org/projects/pynvme/badge/?version=latest)](https://pynvme.readthedocs.io)
 [![License](https://img.shields.io/github/license/cranechu/pynvme.svg)](https://github.com/pynvme/pynvme/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/cranechu/pynvme.svg)](https://github.com/pynvme/pynvme/releases)
-
-<img src="https://github.com/pynvme/pynvme/raw/master/doc/logo.jpg" width="210" align="right" />
 
 Pynvme is an user-space NVMe test driver with Python API. It is an open, fast, and extensible solution for SSD developers and test engineers to build their own tests intuitively.
 
