@@ -1,7 +1,7 @@
 pynvme: builds your own tests.
 ==============================
 
-Pynvme is an user-space PCIe/NVMe test driver with Python API. It is an open, fast, and extensible solution for SSD developers and test engineers to build their own tests intuitively.
+Pynvme is an user-space NVMe test driver with Python API. It is an open, fast, and extensible solution for SSD developers and test engineers to build their own tests intuitively.
 
 **Quick Start in 3 Steps!**
 

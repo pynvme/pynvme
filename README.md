@@ -7,7 +7,7 @@
 
 <img src="https://github.com/pynvme/pynvme/raw/master/doc/logo.jpg" width="210" align="right" />
 
-The pynvme is a python extension module. Users can test NVMe devices intuitively in Python scripts. It is designed for NVMe storage developers with performance considered. Integrated with third-party tools (e.g. vscode and pytest), pynvme provides a convenient and professional solution of NVMe testing.
+Pynvme is an user-space NVMe test driver with Python API. It is an open, fast, and extensible solution for SSD developers and test engineers to build their own tests intuitively.
 
 ## Features
 
