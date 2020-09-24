@@ -1,4 +1,4 @@
-<img src="https://github.com/pynvme/pynvme/raw/master/doc/logo.jpg" width="210" align="right" />
+<img src="https://github.com/pynvme/pynvme/raw/master/doc/logo.jpg" width="256" align="right" />
 
 # pynvme: builds your own tests.
 
