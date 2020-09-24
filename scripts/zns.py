@@ -55,13 +55,34 @@ class Zone(object):
 
     @property
     def state(self):
-        return self._mgmt_receive().data(1+64)>>4
+        state_name = {1: 'Empty',
+                      2: 'Implicitly Opened',
+                      3: 'Explicitly Opened',
+                      4: 'Closed',
+                      0xd: 'Read Only',
+                      0xe: 'Full',
+                      0xf: 'Offline'}
+        s = self._mgmt_receive().data(1+64)>>4
+        return state_name[s] if s in state_name else 'Reserved'
 
-    @property
-    def action(self):
-        return 0
-    
-    @action.setter
+    def close(self):
+        self.action(1)
+        
+    def finish(self):
+        self.action(2)
+        
+    def open(self):
+        self.action(3)
+        
+    def reset(self):
+        self.action(4)
+
+    def offline(self):
+        self.action(5)
+        
+    def set_descriptor_extension(self):
+        self.action(0x10)
+        
     def action(self, action):
         self._ns.zns_mgmt_send(self._qpair, self._buf, self.slba, action).waitdone()
     
@@ -76,6 +97,10 @@ class Zone(object):
     @property
     def wpointer(self):
         return self._mgmt_receive().data(31+64, 24+64)
+
+    def __repr__(self):
+        return "zone slba 0x%x, state %s, capacity 0x%x, write pointer 0x%x" % \
+            (self.slba, self.state, self.capacity, self.wpointer)
     
     def write(self, qpair, buf, offset, lba_count=1, io_flags=0, 
               dword13=0, dword14=0, dword15=0, cb=None):
@@ -132,12 +157,12 @@ def test_zns_framework(nvme0, nvme0n1):
 
 def test_zns_write(nvme0n1, buf, qpair):
     nvme0n1.format(512)
-    zone = Zone(nvme0n1, 1024, 1024, 1000)
+    zone = Zone(qpair, nvme0n1, 0)
     nvme0n1.write(qpair, buf, 0, 8).waitdone()
     zone.write(qpair, buf, 0, 8).waitdone()
     zone.write(qpair, buf, 8, 8).waitdone()
-    nvme0n1.read(qpair, buf, 1024, 8).waitdone()
-    assert buf.data(3, 0) == 1024
+    nvme0n1.read(qpair, buf, 0, 8).waitdone()
+    assert buf.data(3, 0) == 0
     zone.read(qpair, buf, 16).waitdone()
     assert buf.data(3, 0) == 0
     
@@ -149,9 +174,9 @@ def test_zns_write(nvme0n1, buf, qpair):
 
 
 def test_zns_multiple_ioworker(nvme0n1):
-    zone1 = Zone(nvme0n1, 1024, 1024, 1000)
-    zone2 = Zone(nvme0n1, 2048, 1024, 900)
-    zone3 = Zone(nvme0n1, 4096, 4096, 4096)
+    zone1 = Zone(nvme0n1, 0x08000)
+    zone2 = Zone(nvme0n1, 0x10000)
+    zone3 = Zone(nvme0n1, 0x18000)
     w1 = zone1.ioworker(io_size=3, offset_start=0, io_count=2000).start()
     w2 = zone2.ioworker(io_size=8, offset_start=10, lba_random=False, read_percentage=100).start()
     w3 = zone3.ioworker(io_size=16).start()
