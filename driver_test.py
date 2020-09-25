@@ -62,38 +62,38 @@ def test_init_nvme_back_compatibility(pciaddr, repeat):
 @pytest.mark.parametrize("repeat", range(2))
 def test_init_nvme_customerized(pcie, repeat):
     def nvme_init(nvme0):
-        # 2. disable cc.en and wait csts.rdy to 0
+        # 1. disable cc.en and wait csts.rdy to 0
         nvme0[0x14] = 0
         while not (nvme0[0x1c]&0x1) == 0: pass
 
-        # 3. set admin queue registers
+        # 2. set admin queue registers
         nvme0.init_adminq()
 
-        # 4. set register cc
+        # 3. set register cc
         nvme0[0x14] = 0x00460000
 
-        # 5. enable cc.en
+        # 4. enable cc.en
         nvme0[0x14] = 0x00460001
 
-        # 6. wait csts.rdy to 1
+        # 5. wait csts.rdy to 1
         while not (nvme0[0x1c]&0x1) == 1: pass
 
-        # 7. identify controller
+        # 6. identify controller
         nvme0.identify(d.Buffer(4096)).waitdone()
 
-        # 8. create and identify all namespace
+        # 7. create and identify all namespaces
         nvme0.init_ns()
 
-        # 9. set/get num of queues
+        # 8. set/get num of queues
         nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
         nvme0.init_queues(nvme0.getfeatures(0x7).waitdone())
 
-        # 10. send out all aer
+        # 9. send out all aer
         aerl = nvme0.id_data(259)+1
         for i in range(aerl):
             nvme0.aer()
 
-    # 1. set pcie registers
+    # initialize pcie registers
     pcie.aspm = 0
 
     # create controller with user defined init process
