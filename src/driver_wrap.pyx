@@ -2300,7 +2300,7 @@ cdef class Namespace(object):
         return ret
 
     def zns_mgmt_receive(self, qpair, buf, slba=0, dwords=None, extended=True, state=0, partial=True, cb=None):
-        if dwords is None:  dwords = len(buf)<<2  # the same size of buffer
+        if dwords is None:  dwords = len(buf)>>2  # the same size of buffer
         assert dwords > 0, "cannot read empty data"
         
         self.send_io_raw(qpair, buf, 0x7a, self._nsid,
