@@ -39,6 +39,9 @@ if [ -s /etc/redhat-release ]; then
 elif [ -f /etc/debian_version ]; then
     # ubuntu
     sudo apt install -y python3-setuptools python3-dev python3-pip python3-tk
+elif [ -f /etc/SUSE-brand ]; then
+    # SUSE
+    sudo zypper install -y python3-setuptools python3-devel python3-pip python3-tk
 else
     echo "unknown system type."
     exit 1
