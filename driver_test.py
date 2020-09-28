@@ -3028,17 +3028,18 @@ def test_io_conflict(nvme0, nvme0n1, buf, verify):
     qpair.delete()
 
 
-@pytest.mark.parametrize("repeat", range(2))
-def test_ioworker_trim_rw_without_confliction(nvme0n1, verify, repeat):
+def test_ioworker_trim_rw_without_confliction(nvme0n1, verify):
     assert verify
 
     nvme0n1.format(512)
 
-    r = nvme0n1.ioworker(io_size=12,
-                         time=30,
+    r = nvme0n1.ioworker(io_size=256,
+                         lba_align=512,
                          lba_random=True,
-                         region_end=128,
-                         op_percentage={2: 40, 9: 30, 1: 30}).start().close()
+                         region_end=0x1000,
+                         qdepth=64, 
+                         time=100,
+                         op_percentage={2: 40, 1: 20, 8: 20, 9: 20}).start().close()
     logging.info(r)
 
 

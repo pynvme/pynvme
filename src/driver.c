@@ -434,10 +434,10 @@ bool crc32_lock_lba(struct nvme_request* req)
   {
     void* buf = req->payload.contig_or_cb_arg;
     struct spdk_nvme_dsm_range *ranges = (struct spdk_nvme_dsm_range*)buf;
-    unsigned int count = (uint8_t)req->cmd.cdw10;
-    bool locked;
+    unsigned int count = (uint8_t)req->cmd.cdw10+1;
+    bool locked = true;
 
-    for (unsigned int i=0; i<count+1; i++)
+    for (unsigned int i=0; i<count; i++)
     {
       locked = crc32_check_lock_bits(ns, ns->crc_table,
                                      ranges[i].starting_lba,
@@ -498,14 +498,13 @@ void crc32_unlock_lba(struct nvme_request* req)
                         (uint16_t)req->cmd.cdw12+1,
                         false);
   }
-
-  if (req->cmd.opc == 9)      //dsm
+  else if (req->cmd.opc == 9)      //dsm
   {
     void* buf = req->payload.contig_or_cb_arg;
     struct spdk_nvme_dsm_range *ranges = (struct spdk_nvme_dsm_range*)buf;
-    unsigned int count = (uint8_t)req->cmd.cdw10;
+    unsigned int count = (uint8_t)req->cmd.cdw10+1;
 
-    for (unsigned int i=0; i<count+1; i++)
+    for (unsigned int i=0; i<count; i++)
     {
       // unlock each LBA
       crc32_set_lock_bits(ns, ns->crc_table,
@@ -513,6 +512,10 @@ void crc32_unlock_lba(struct nvme_request* req)
                           ranges[i].length,
                           false);
     }
+  }
+  else
+  {
+    
   }
 }
 

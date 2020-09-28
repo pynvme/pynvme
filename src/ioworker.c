@@ -429,7 +429,7 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
 
   // trancate the tail out of the region
   lba_count = MIN(lba_count, args->region_end-lba_starting);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba %lu, count %d, align %d, opcode %d\n",
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "one io: ctx %p, lba 0x%lx, count %d, align %d, opcode %d\n",
                 ctx, lba_starting, lba_count, lba_align, opcode);
 
   assert(ctx->data_buf != NULL);
