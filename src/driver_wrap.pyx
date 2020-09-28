@@ -73,7 +73,7 @@ cimport cdriver as d
 
 # module informatoin
 __author__ = "Crane Chu"
-__version__ = "2.0"
+__version__ = "2.1.0"
 
 
 # nvme command timeout, it's a warning
@@ -401,7 +401,6 @@ cdef class Subsystem(object):
         """
 
         pcie = self._nvme.pcie
-        pcie.power_state = 3  # d3hot
         bdf = pcie._bdf.decode('utf-8')
 
         # cut power supply immediately without any delay
@@ -501,6 +500,7 @@ cdef class Subsystem(object):
             logging.warning("the controller does not supprt NSSR")
             return False
 
+        # nssr.nssrc: nvme subsystem reset
         logging.debug("nvme subsystem reset by NSSR.NSSRC")
         self._nvme[0x20] = 0x4e564d65  # "NVMe"
 

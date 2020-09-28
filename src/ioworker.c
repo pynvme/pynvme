@@ -245,7 +245,7 @@ static void ioworker_one_cb(void* ctx_in, const struct spdk_nvme_cpl *cpl)
     // terminate ioworker when any error happen
     // only keep the first error code
     uint16_t error = ((*(unsigned short*)(&cpl->status))>>1)&0x7ff;
-    SPDK_ERRLOG("error happen in cqe status: 0x%04x\n", error);
+    SPDK_ERRLOG("ioworker error happen in cpl, error 0x%04x\n", error);
     gctx->flag_finish = true;
     if (rets->error == 0)
     {
@@ -723,7 +723,7 @@ int ioworker_entry(struct spdk_nvme_ns* ns,
       ioworker_add_cpu_time(&now, &cpu_time);
     }
 
-    // pynvme: retry one queued request for LBA confliction
+    // retry one queued request for LBA confliction
     if (!STAILQ_EMPTY(&qpair->queued_req))
     {
       struct nvme_request *req = STAILQ_FIRST(&qpair->queued_req);

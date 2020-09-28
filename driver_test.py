@@ -1305,7 +1305,7 @@ def test_sanitize_operations_basic(nvme0, nvme0n1, buf, subsystem):
         pytest.skip("sanitize operation is not supported")  #L10
 
     logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
-    nvme0.sanitize().waitdone()  #L13
+    nvme0.sanitize().waitdone() 
 
     # check sanitize status in log page
     with pytest.warns(UserWarning, match="AER notification is triggered"):

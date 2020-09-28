@@ -1774,6 +1774,12 @@ io_opc_name(uint8_t opc)
       return "Reservation Release";
     case SPDK_NVME_OPC_FABRIC:
       return "Fabrics Connect";
+    case SPDK_NVME_OPC_ZONE_MANAGEMENT_SEND:
+      return "Zone Management Send";
+    case SPDK_NVME_OPC_ZONE_MANAGEMENT_RECEIVE:
+      return "Zone Management Receive";
+    case SPDK_NVME_OPC_ZONE_APPEND:
+      return "Zone Management Append";
     default:
       if (opc >= 0x80) {
         return "Vendor specific";

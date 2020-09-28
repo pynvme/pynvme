@@ -860,8 +860,8 @@ ioworker
                       read_percentage, op_percentage, time, qdepth,
                       region_start, region_end, iops, io_count, lba_start,
                       qprio, distribution, ptype, pvalue, io_sequence,
-                      output_io_per_second, output_percentile_latency,
-                      output_cmdlog_list)
+                      fw_debug, output_io_per_second,
+                      output_percentile_latency, output_cmdlog_list)
 
 workers sending different read/write IO on different CPU cores.
 
@@ -1193,7 +1193,7 @@ reset
 
 .. code-block:: python
 
-   Pcie.reset()
+   Pcie.reset(rst_fn)
 
 reset this pcie device with hot reset
 
