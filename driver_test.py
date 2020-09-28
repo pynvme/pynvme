@@ -468,6 +468,27 @@ def test_ioworker_is_running(nvme0n1):
     logging.info("PASS")
 
 
+def test_ioworker_last_truncated_io(nvme0n1):
+    cmdlog_list = [None]*6
+    nvme0n1.ioworker(io_size=8,
+                     lba_random=False,
+                     io_count=6,
+                     region_end=40,
+                     qdepth=2,
+                     output_cmdlog_list=cmdlog_list).start().close()
+    assert cmdlog_list[5][0] == 0
+    assert cmdlog_list[5][1] == 8
+
+    nvme0n1.ioworker(io_size=8,
+                     lba_random=False,
+                     io_count=6,
+                     region_end=41,
+                     qdepth=2,
+                     output_cmdlog_list=cmdlog_list).start().close()
+    assert cmdlog_list[5][0] == 40
+    assert cmdlog_list[5][1] == 1
+    
+    
 def test_ioworker_sequential_unfixed_iosize(nvme0n1):
     cmdlog_list = [None]*1000
     io_size_list = [1, 3, 8, 30, 64, 100, 128, 200, 256]
