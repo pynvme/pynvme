@@ -42,6 +42,7 @@ from nvme import *
 
 class Zone(object):
     def __init__(self, qpair, ns, slba):
+        logging.debug("create zone at 0x%x" % slba)
         self._qpair = qpair
         self._ns = ns
         self._buf = Buffer()
