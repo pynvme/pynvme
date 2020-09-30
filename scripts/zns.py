@@ -105,11 +105,13 @@ class Zone(object):
     
     def write(self, qpair, buf, offset, lba_count=1, io_flags=0, 
               dword13=0, dword14=0, dword15=0, cb=None):
+        logging.debug("write offset 0x%x" % offset)
         return self._ns.write(qpair, buf, self.slba+offset, lba_count,
                               io_flags, dword13, dword14, dword15, cb)
 
     def read(self, qpair, buf, offset, lba_count=1, io_flags=0, 
              dword13=0, dword14=0, dword15=0, cb=None):
+        logging.debug("read offset 0x%x" % offset)
         return self._ns.read(qpair, buf, self.slba+offset, lba_count,
                              io_flags, dword13, dword14, dword15, cb)
 
