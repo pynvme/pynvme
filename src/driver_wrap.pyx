@@ -1300,7 +1300,7 @@ cdef class Controller(object):
         self.send_admin_raw(buf, 0x2,
                             nsid=nsid,
                             cdw10=((dwords & 0xffff) << 16) + lid,
-                            cdw11=dwords >> 16,
+                            cdw11=(dwords>>16) & 0xffff,
                             cdw12=offset,
                             cdw13=offset >> 32,
                             cdw14=0,
