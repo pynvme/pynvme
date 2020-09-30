@@ -19,3 +19,5 @@ cov_report
 gdbcmds
 env
 spdk
+zns_check.py
+
