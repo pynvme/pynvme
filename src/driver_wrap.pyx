@@ -1174,7 +1174,7 @@ cdef class Controller(object):
                             cb_arg=<void*>cb)
         return self
 
-    def identify(self, buf, nsid=0, cns=1, cb=None):
+    def identify(self, buf, nsid=0, cns=1, cntid=0, csi=0, nvmsetid=0, cb=None):
         """identify admin command
 
         # Parameters
@@ -1191,8 +1191,8 @@ cdef class Controller(object):
 
         self.send_admin_raw(buf, 0x6,
                             nsid=nsid,
-                            cdw10=cns,
-                            cdw11=0,
+                            cdw10=(cntid << 16) | cns,
+                            cdw11=(csi << 24) | nvmsetid,
                             cdw12=0,
                             cdw13=0,
                             cdw14=0,
