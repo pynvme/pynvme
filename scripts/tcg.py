@@ -233,7 +233,7 @@ class Command(object):
 
     def append_token_list(self, *val_list):
         for val in val_list:
-            self.append_u8(val)
+            self.append_u8(int(val))
 
     def append_token_atom(self, atom):
         if type(atom) == int:
@@ -401,12 +401,79 @@ class Command(object):
         self.append_token_atom(nlb)
         self.append_token_list(OPAL_TOKEN.ENDNAME,
                                OPAL_TOKEN.STARTNAME,
-                               OPAL_TOKEN.READLOCKENABLED, 
-                               OPAL_TOKEN.TRUE, 
+                               OPAL_TOKEN.READLOCKENABLED,
+                               OPAL_TOKEN.TRUE,
                                OPAL_TOKEN.ENDNAME,
                                OPAL_TOKEN.STARTNAME,
-                               OPAL_TOKEN.WRITELOCKENABLED, 
-                               OPAL_TOKEN.TRUE, 
+                               OPAL_TOKEN.WRITELOCKENABLED,
+                               OPAL_TOKEN.TRUE,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
+        return self
+
+    def gen_new_key(self, hsn, tsn, range, prev_data):
+        uid_data = [0]*8  # TODO
+        
+        self.append_token(OPAL_TOKEN.CALL)
+        self.append_u8(0xa0+len(uid_data))
+        self.append_token_list(*uid_data)
+        self.append_token_method(OPAL_METHOD.GENKEY)
+        self.append_token_list(OPAL_TOKEN.STARTLIST, OPAL_TOKEN.ENDLIST)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
+        return self
+
+    def get_active_key(self, hsn, tsn, range):
+        range_uid = opal_uid_table[OPAL_UID.LOCKINGRANGE_GLOBAL][:]
+        if range:  # not global
+            range_uid[5] = 3
+            range_uid[7] = range
+
+        self.append_token(OPAL_TOKEN.CALL)
+        self.append_u8(0xa0+len(range_uid))
+        self.append_token_list(*range_uid)
+        self.append_token_method(OPAL_METHOD.GET)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.STARTCOLUMN,
+                               OPAL_TOKEN.ACTIVEKEY,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.ENDCOLUMN,
+                               OPAL_TOKEN.ACTIVEKEY,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST,
+                               OPAL_TOKEN.ENDLIST)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
+        return self
+
+    def lock_unlock_range(self, hsn, tsn, range, rlock, wlock):
+        range_uid = opal_uid_table[OPAL_UID.LOCKINGRANGE_GLOBAL][:]
+        if range:  # not global
+            range_uid[5] = 3
+            range_uid[7] = range
+
+        self.append_token(OPAL_TOKEN.CALL)
+        self.append_u8(0xa0+len(range_uid))
+        self.append_token_list(*range_uid)
+        self.append_token_method(OPAL_METHOD.SET)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.VALUES,
+                               OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.READLOCKED,
+                               rlock,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.WRITELOCKED,
+                               wlock,
                                OPAL_TOKEN.ENDNAME,
                                OPAL_TOKEN.ENDLIST,
                                OPAL_TOKEN.ENDNAME,
@@ -423,7 +490,6 @@ class Command(object):
         auth_ref_uid = opal_uid_table[OPAL_UID.HALF_AUTHORITY_OBJ_REF][:4]
         boolean_ace_uid = opal_uid_table[OPAL_UID.HALF_BOOLEAN_ACE][:4]
 
-
         self.append_token(OPAL_TOKEN.CALL)
         self.append_u8(0xa0+len(range_uid))
         self.append_token_list(*range_uid)
@@ -436,7 +502,7 @@ class Command(object):
                                OPAL_TOKEN.BOOLEAN_EXPR,
                                OPAL_TOKEN.STARTLIST,
                                OPAL_TOKEN.STARTNAME)
-        
+
         self.append_u8(0xa0+len(auth_ref_uid))
         self.append_token_list(*auth_ref_uid)
         self.append_u8(0xa0+len(user_uid))
@@ -459,7 +525,7 @@ class Command(object):
         self.buf[20:] = struct.pack('>I', tsn)
         self.buf[24:] = struct.pack('>I', hsn)
         return self
-        
+
     def enable_user(self, hsn, tsn, user_id):
         self.append_token(OPAL_TOKEN.CALL)
         self.append_token_uid(OPAL_UID.USER1)  # TODO
@@ -590,12 +656,15 @@ class Response(object):
 
     def get_c_pin_msid(self):
         length = struct.unpack(">B", self.buf[0x3c:0x3d])[0]
-        length = length&0xf
+        length = length & 0xf
         return self.buf[0x3d:0x3d+length]
 
     def get_locking_sp_lifecycle(self):
         return
 
+    def get_active_key(self):
+        return
+    
 
 def test_properties(nvme0):
     host_properties = {
@@ -614,8 +683,8 @@ def test_properties(nvme0):
 
 
 def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
-    #subsystem.power_cycle()
-    #nvme0.reset()
+    subsystem.power_cycle()
+    nvme0.reset()
 
     comid = Response(nvme0).receive().level0_discovery()
 
@@ -653,7 +722,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).setup_range(hsn, tsn, 1, 0, 128).send()
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
-    Response(nvme0, comid).receive()    
+    Response(nvme0, comid).receive()
 
     logging.info("enable user")
     Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
@@ -683,6 +752,24 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).start_auth_session(0x66, 1, b"654321").send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).set_new_passwd(hsn, tsn, 1, b"111111").send()
+    Response(nvme0, comid).receive()
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    Response(nvme0, comid).receive()
+
+    logging.info("unlock range")
+    Command(nvme0, comid).start_auth_session(0x66, 1, b"111111").send()
+    hsn, tsn = Response(nvme0, comid).receive().start_session()
+    Command(nvme0, comid).lock_unlock_range(hsn, tsn, 1, False, True).send()
+    Response(nvme0, comid).receive()
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    Response(nvme0, comid).receive()
+
+    logging.info("erase range")
+    Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
+    hsn, tsn = Response(nvme0, comid).receive().start_session()
+    Command(nvme0, comid).get_active_key(hsn, tsn, 1).send()
+    prev_data = Response(nvme0, comid).receive().get_active_key()
+    Command(nvme0, comid).gen_new_key(hsn, tsn, 1, prev_data).send()
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
