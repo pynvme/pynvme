@@ -380,7 +380,7 @@ class Command(object):
 
     def setup_range(self, hsn, tsn, range, slba, nlb):
         range_uid = opal_uid_table[OPAL_UID.LOCKINGRANGE_GLOBAL][:]
-        if range:
+        if range:  # not global
             range_uid[5] = 3
             range_uid[7] = range
 
@@ -414,7 +414,52 @@ class Command(object):
         self.buf[20:] = struct.pack('>I', tsn)
         self.buf[24:] = struct.pack('>I', hsn)
         return self
-    
+
+    def add_user_to_range(self, hsn, tsn, user, range, passwd, can_write):
+        user_uid = opal_uid_table[OPAL_UID.USER1][:]
+        user_uid[7] = user
+        range_uid = opal_uid_table[OPAL_UID.LOCKINGRANGE_ACE_RDLOCKED+can_write][:]
+        range_uid[7] = range
+        auth_ref_uid = opal_uid_table[OPAL_UID.HALF_AUTHORITY_OBJ_REF][:4]
+        boolean_ace_uid = opal_uid_table[OPAL_UID.HALF_BOOLEAN_ACE][:4]
+
+
+        self.append_token(OPAL_TOKEN.CALL)
+        self.append_u8(0xa0+len(range_uid))
+        self.append_token_list(*range_uid)
+        self.append_token_method(OPAL_METHOD.SET)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.VALUES,
+                               OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.BOOLEAN_EXPR,
+                               OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME)
+        
+        self.append_u8(0xa0+len(auth_ref_uid))
+        self.append_token_list(*auth_ref_uid)
+        self.append_u8(0xa0+len(user_uid))
+        self.append_token_list(*user_uid)
+        self.append_token_list(OPAL_TOKEN.ENDNAME, OPAL_TOKEN.STARTNAME)
+        self.append_u8(0xa0+len(auth_ref_uid))
+        self.append_token_list(*auth_ref_uid)
+        self.append_u8(0xa0+len(user_uid))
+        self.append_token_list(*user_uid)
+        self.append_token_list(OPAL_TOKEN.ENDNAME, OPAL_TOKEN.STARTNAME)
+        self.append_u8(0xa0+len(boolean_ace_uid))
+        self.append_token_list(*boolean_ace_uid)
+        self.append_token_list(OPAL_TOKEN.TRUE,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
+        return self
+        
     def enable_user(self, hsn, tsn, user_id):
         self.append_token(OPAL_TOKEN.CALL)
         self.append_token_uid(OPAL_UID.USER1)  # TODO
@@ -610,10 +655,18 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()    
 
-    # enable user
-    Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
+    logging.info("enable user")
+    Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).enable_user(hsn, tsn, 1).send()
+    Response(nvme0, comid).receive()
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    Response(nvme0, comid).receive()
+
+    logging.info("add user to range, rwlock")
+    Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
+    hsn, tsn = Response(nvme0, comid).receive().start_session()
+    Command(nvme0, comid).add_user_to_range(hsn, tsn, 1, 1, new_passwd, True).send()
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
