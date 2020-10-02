@@ -210,6 +210,14 @@ class Command(object):
         self.buf[self.pos:] = struct.pack('>H', val)
         self.pos += 2
 
+    def append_u32(self, val):
+        self.buf[self.pos:] = struct.pack('>I', val)
+        self.pos += 4
+
+    def append_u64(self, val):
+        self.buf[self.pos:] = struct.pack('>Q', val)
+        self.pos += 8
+
     def append_token(self, token):
         self.append_u8(token)
 
@@ -240,9 +248,14 @@ class Command(object):
                 # short: 2-byte int
                 self.append_u8(0x82)
                 self.append_u16(atom)
+            elif atom < 0x100000000:
+                # medium: 4-byte int
+                self.append_u8(0x84)
+                self.append_u32(atom)
             else:
-                # TODO: medium and long atom
-                assert False
+                # long: 8-byte int
+                self.append_u8(0x88)
+                self.append_u64(atom)
         else:
             assert type(atom) == bytes
             if len(atom) < 16:
@@ -365,6 +378,43 @@ class Command(object):
         self.buf[24:] = struct.pack('>I', hsn)
         return self
 
+    def setup_range(self, hsn, tsn, range, slba, nlb):
+        range_uid = opal_uid_table[OPAL_UID.LOCKINGRANGE_GLOBAL][:]
+        if range:
+            range_uid[5] = 3
+            range_uid[7] = range
+
+        self.append_token(OPAL_TOKEN.CALL)
+        self.append_u8(0xa0+len(range_uid))
+        self.append_token_list(*range_uid)
+        self.append_token_method(OPAL_METHOD.SET)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.VALUES,
+                               OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.RANGESTART)
+        self.append_token_atom(slba)
+        self.append_token_list(OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.RANGELENGTH)
+        self.append_token_atom(nlb)
+        self.append_token_list(OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.READLOCKENABLED, 
+                               OPAL_TOKEN.TRUE, 
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.WRITELOCKENABLED, 
+                               OPAL_TOKEN.TRUE, 
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
+        return self
+    
     def enable_user(self, hsn, tsn, user_id):
         self.append_token(OPAL_TOKEN.CALL)
         self.append_token_uid(OPAL_UID.USER1)  # TODO
@@ -463,7 +513,7 @@ class Response(object):
 
     def receive(self):
         self.nvme0.security_receive(self.buf, self.comid).waitdone()
-        logging.debug(self.buf.dump(128))
+        logging.debug(self.buf.dump(256))
         return self
 
     def level0_discovery(self):
@@ -489,13 +539,14 @@ class Response(object):
         return comid
 
     def start_session(self):
-        hsn = struct.unpack(">I", self.buf[0x4d:0x51])
-        tsn = struct.unpack(">I", self.buf[0x52:0x56])
+        hsn = struct.unpack(">H", self.buf[0x4d:0x4f])
+        tsn = struct.unpack(">H", self.buf[0x50:0x52])
         return hsn[0], tsn[0]
 
     def get_c_pin_msid(self):
-        length = struct.unpack(">B", self.buf[0x3d:0x3e])[0]
-        return self.buf[0x3e:0x3e+length]
+        length = struct.unpack(">B", self.buf[0x3c:0x3d])[0]
+        length = length&0xf
+        return self.buf[0x3d:0x3d+length]
 
     def get_locking_sp_lifecycle(self):
         return
@@ -518,20 +569,22 @@ def test_properties(nvme0):
 
 
 def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
-    # subsystem.power_cycle()
-    # nvme0.reset()
+    #subsystem.power_cycle()
+    #nvme0.reset()
 
     comid = Response(nvme0).receive().level0_discovery()
 
     # take ownership
     Command(nvme0, comid).start_anybody_adminsp_session(0x65).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
+    logging.info("hsn 0x%x, tsn 0x%x" % (hsn, tsn))
     Command(nvme0, comid).get_msid_cpin_pin(hsn, tsn).send()
     password = Response(nvme0, comid).receive().get_c_pin_msid()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
     # set password
+    logging.info(password)
     Command(nvme0, comid).start_adminsp_session(0x66, password).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).set_sid_cpin_pin(hsn, tsn, new_passwd).send()
@@ -548,6 +601,14 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
+
+    logging.info("setup range")
+    Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
+    hsn, tsn = Response(nvme0, comid).receive().start_session()
+    Command(nvme0, comid).setup_range(hsn, tsn, 1, 0, 128).send()
+    Response(nvme0, comid).receive()
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    Response(nvme0, comid).receive()    
 
     # enable user
     Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
