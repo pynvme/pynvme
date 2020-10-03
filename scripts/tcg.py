@@ -621,10 +621,62 @@ class Response(object):
         self.nvme0 = nvme0
         self.comid = comid
         self.buf = Buffer(2048, "TCG Response Buffer")
+        self.parsed = []
 
     def receive(self):
         self.nvme0.security_receive(self.buf, self.comid).waitdone()
         logging.debug(self.buf.dump(256))
+
+        def _parse_token(ptr, len, bytes):
+            if bytes:
+                # byte sequence
+                self.parsed.append(self.buf[ptr+1:ptr+1+len])
+            else:
+                # int
+                if len == 2:
+                    pattern = ">H"
+                elif len == 4:
+                    pattern = ">I"
+                else:
+                    logging.info(len)
+                    assert False
+                l = struct.unpack(pattern, self.buf[ptr+1:ptr+1+len])
+                self.parsed.append(l[0])
+        
+        # parse the buffer
+        ptr = 0x38
+        while ptr < 0x38+self.buf.data(0x37):
+            ch = self.buf.data(ptr)
+
+            if ch == 0xf2:  # name start
+                ptr += 1
+            if ch in range(0x80):
+                #tiny
+                self.parsed.append(ch)
+            if ch in range(0x80, 0xc0, 1):
+                # short atom
+                _len = ch&0xf
+                _parse_token(ptr, _len, ch&0x20)
+                ptr += _len
+            if ch in range(0xc0, 0xe0, 1):
+                # medium
+                _len = ((ch&7)<<8)+self.buf.data(ptr+1)
+                ptr += 1
+                _parse_token(ptr, _len, ch&0x10)
+                ptr += _len
+            if ch in range(0xe0, 0xe4, 1):
+                # medium
+                _len = self.buf.data(ptr+1, ptr+4)
+                ptr += 3
+                _parse_token(ptr, _len, ch&0x2)
+                ptr += _len
+                
+            ptr += 1
+
+        # TODO: check status
+        logging.debug(self.parsed)
+        #if len(self.parsed) >= 3:
+        #    assert self.parsed[-3] == 0
         return self
 
     def level0_discovery(self):
@@ -650,14 +702,12 @@ class Response(object):
         return comid
 
     def start_session(self):
-        hsn = struct.unpack(">H", self.buf[0x4d:0x4f])
-        tsn = struct.unpack(">H", self.buf[0x50:0x52])
-        return hsn[0], tsn[0]
+        return self.parsed[2], self.parsed[3]
 
     def get_c_pin_msid(self):
         length = struct.unpack(">B", self.buf[0x3c:0x3d])[0]
         length = length & 0xf
-        return self.buf[0x3d:0x3d+length]
+        return self.parsed[0]
 
     def get_locking_sp_lifecycle(self):
         return
@@ -688,17 +738,16 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
 
     comid = Response(nvme0).receive().level0_discovery()
 
-    # take ownership
+    logging.info("test: take ownership")
     Command(nvme0, comid).start_anybody_adminsp_session(0x65).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
-    logging.info("hsn 0x%x, tsn 0x%x" % (hsn, tsn))
+    logging.debug("hsn 0x%x, tsn 0x%x" % (hsn, tsn))
     Command(nvme0, comid).get_msid_cpin_pin(hsn, tsn).send()
     password = Response(nvme0, comid).receive().get_c_pin_msid()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    # set password
-    logging.info(password)
+    logging.info("test: set password")
     Command(nvme0, comid).start_adminsp_session(0x66, password).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).set_sid_cpin_pin(hsn, tsn, new_passwd).send()
@@ -706,7 +755,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    # activate locking sp
+    logging.info("test: activate locking sp")
     Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).get_locking_sp_lifecycle(hsn, tsn).send()
@@ -716,7 +765,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    logging.info("setup range")
+    logging.info("test: setup range")
     Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).setup_range(hsn, tsn, 1, 0, 128).send()
@@ -724,7 +773,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    logging.info("enable user")
+    logging.info("test: enable user")
     Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).enable_user(hsn, tsn, 1).send()
@@ -732,7 +781,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    logging.info("add user to range, rwlock")
+    logging.info("test: add user to range, rwlock")
     Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).add_user_to_range(hsn, tsn, 1, 1, new_passwd, True).send()
@@ -740,7 +789,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    # change passwd
+    logging.info("test: change passwd")
     Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).set_new_passwd(hsn, tsn, 1, b"654321").send()
@@ -748,7 +797,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    # user session
+    logging.info("test: user session")
     Command(nvme0, comid).start_auth_session(0x66, 1, b"654321").send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).set_new_passwd(hsn, tsn, 1, b"111111").send()
@@ -756,7 +805,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    logging.info("unlock range")
+    logging.info("test: unlock range")
     Command(nvme0, comid).start_auth_session(0x66, 1, b"111111").send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).lock_unlock_range(hsn, tsn, 1, False, True).send()
@@ -764,7 +813,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    logging.info("erase range")
+    logging.info("test: erase range")
     Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).get_active_key(hsn, tsn, 1).send()
@@ -774,13 +823,13 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    # auth admin session
+    logging.info("test: auth admin session")
     Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    # revert
+    logging.info("test: revert")
     orig_timeout = nvme0.timeout
     nvme0.timeout = 100000
     Command(nvme0, comid).start_adminsp_session(0x69, new_passwd).send()
