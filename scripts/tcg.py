@@ -623,7 +623,7 @@ class Response(object):
         self.buf = Buffer(2048, "TCG Response Buffer")
         self.parsed = []
 
-    def receive(self):
+    def receive(self, check_status=True):
         self.nvme0.security_receive(self.buf, self.comid).waitdone()
         logging.debug(self.buf.dump(256))
 
@@ -645,26 +645,25 @@ class Response(object):
         
         # parse the buffer
         ptr = 0x38
-        while ptr < 0x38+self.buf.data(0x37):
+        _size = struct.unpack(">H", self.buf[0x36:0x38])[0]
+        while ptr < 0x38+_size:
             ch = self.buf.data(ptr)
 
-            if ch == 0xf2:  # name start
-                ptr += 1
-            if ch in range(0x80):
+            if ch < 0x80:
                 #tiny
                 self.parsed.append(ch)
-            if ch in range(0x80, 0xc0, 1):
+            elif ch >= 0x80 and ch < 0xc0:
                 # short atom
                 _len = ch&0xf
                 _parse_token(ptr, _len, ch&0x20)
                 ptr += _len
-            if ch in range(0xc0, 0xe0, 1):
+            elif ch >= 0xc0 and ch < 0xe0:
                 # medium
                 _len = ((ch&7)<<8)+self.buf.data(ptr+1)
                 ptr += 1
                 _parse_token(ptr, _len, ch&0x10)
                 ptr += _len
-            if ch in range(0xe0, 0xe4, 1):
+            elif ch >= 0xe0 and ch < 0xe4:
                 # medium
                 _len = self.buf.data(ptr+1, ptr+4)
                 ptr += 3
@@ -673,10 +672,10 @@ class Response(object):
                 
             ptr += 1
 
-        # TODO: check status
+        # check status
         logging.debug(self.parsed)
-        #if len(self.parsed) >= 3:
-        #    assert self.parsed[-3] == 0
+        if check_status and len(self.parsed) >= 3:
+            assert self.parsed[-3] == 0
         return self
 
     def level0_discovery(self):
@@ -707,7 +706,7 @@ class Response(object):
     def get_c_pin_msid(self):
         length = struct.unpack(">B", self.buf[0x3c:0x3d])[0]
         length = length & 0xf
-        return self.parsed[0]
+        return self.parsed[1]
 
     def get_locking_sp_lifecycle(self):
         return
@@ -725,21 +724,21 @@ def test_properties(nvme0):
         b"MaxSubPackets": 1,
         b"MaxMethods": 1,
     }
-    comid = Response(nvme0).receive().level0_discovery()
+    comid = Response(nvme0).receive(False).level0_discovery()
     Command(nvme0, comid).properties().send()
-    Response(nvme0, comid).receive()
+    Response(nvme0, comid).receive(False)
     Command(nvme0, comid).properties(host_properties).send()
-    Response(nvme0, comid).receive()
+    Response(nvme0, comid).receive(False)
 
 
 def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
-    subsystem.power_cycle()
-    nvme0.reset()
+    #subsystem.power_cycle()
+    #nvme0.reset()
 
     comid = Response(nvme0).receive().level0_discovery()
 
     logging.info("test: take ownership")
-    Command(nvme0, comid).start_anybody_adminsp_session(0x65).send()
+    Command(nvme0, comid).start_anybody_adminsp_session(0x69).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     logging.debug("hsn 0x%x, tsn 0x%x" % (hsn, tsn))
     Command(nvme0, comid).get_msid_cpin_pin(hsn, tsn).send()
@@ -748,7 +747,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
 
     logging.info("test: set password")
-    Command(nvme0, comid).start_adminsp_session(0x66, password).send()
+    Command(nvme0, comid).start_adminsp_session(0x69, password).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).set_sid_cpin_pin(hsn, tsn, new_passwd).send()
     Response(nvme0, comid).receive()
@@ -756,7 +755,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
 
     logging.info("test: activate locking sp")
-    Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
+    Command(nvme0, comid).start_adminsp_session(0x69, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).get_locking_sp_lifecycle(hsn, tsn).send()
     Response(nvme0, comid).receive().get_locking_sp_lifecycle()
@@ -766,7 +765,7 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
 
     logging.info("test: setup range")
-    Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
+    Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).setup_range(hsn, tsn, 1, 0, 128).send()
     Response(nvme0, comid).receive()
@@ -774,23 +773,15 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
 
     logging.info("test: enable user")
-    Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
+    Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).enable_user(hsn, tsn, 1).send()
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    logging.info("test: add user to range, rwlock")
-    Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
-    hsn, tsn = Response(nvme0, comid).receive().start_session()
-    Command(nvme0, comid).add_user_to_range(hsn, tsn, 1, 1, new_passwd, True).send()
-    Response(nvme0, comid).receive()
-    Command(nvme0, comid).end_session(hsn, tsn).send(False)
-    Response(nvme0, comid).receive()
-
     logging.info("test: change passwd")
-    Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
+    Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).set_new_passwd(hsn, tsn, 1, b"654321").send()
     Response(nvme0, comid).receive()
@@ -798,36 +789,38 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     Response(nvme0, comid).receive()
 
     logging.info("test: user session")
-    Command(nvme0, comid).start_auth_session(0x66, 1, b"654321").send()
+    Command(nvme0, comid).start_auth_session(0x69, 1, b"654321").send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
     Command(nvme0, comid).set_new_passwd(hsn, tsn, 1, b"111111").send()
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    logging.info("test: unlock range")
-    Command(nvme0, comid).start_auth_session(0x66, 1, b"111111").send()
+    logging.info("test: add user to range, rwlock")
+    Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
-    Command(nvme0, comid).lock_unlock_range(hsn, tsn, 1, False, True).send()
+    Command(nvme0, comid).add_user_to_range(hsn, tsn, 1, 1, new_passwd, True).send()
     Response(nvme0, comid).receive()
     Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Response(nvme0, comid).receive()
 
-    logging.info("test: erase range")
-    Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
-    hsn, tsn = Response(nvme0, comid).receive().start_session()
-    Command(nvme0, comid).get_active_key(hsn, tsn, 1).send()
-    prev_data = Response(nvme0, comid).receive().get_active_key()
-    Command(nvme0, comid).gen_new_key(hsn, tsn, 1, prev_data).send()
-    Response(nvme0, comid).receive()
-    Command(nvme0, comid).end_session(hsn, tsn).send(False)
-    Response(nvme0, comid).receive()
+    # logging.info("test: unlock range")
+    # Command(nvme0, comid).start_auth_session(0x69, 1, b"111111").send()
+    # hsn, tsn = Response(nvme0, comid).receive().start_session()
+    # Command(nvme0, comid).lock_unlock_range(hsn, tsn, 1, False, True).send()
+    # Response(nvme0, comid).receive()
+    # Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    # Response(nvme0, comid).receive()
 
-    logging.info("test: auth admin session")
-    Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
-    hsn, tsn = Response(nvme0, comid).receive().start_session()
-    Command(nvme0, comid).end_session(hsn, tsn).send(False)
-    Response(nvme0, comid).receive()
+    # logging.info("test: erase range")
+    # Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
+    # hsn, tsn = Response(nvme0, comid).receive().start_session()
+    # Command(nvme0, comid).get_active_key(hsn, tsn, 1).send()
+    # prev_data = Response(nvme0, comid).receive().get_active_key()
+    # Command(nvme0, comid).gen_new_key(hsn, tsn, 1, prev_data).send()
+    # Response(nvme0, comid).receive()
+    # Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    # Response(nvme0, comid).receive()
 
     logging.info("test: revert")
     orig_timeout = nvme0.timeout
