@@ -414,7 +414,7 @@ identify
 
 .. code-block:: python
 
-   Controller.identify(buf, nsid, cns, cb)
+   Controller.identify(buf, nsid, cns, cntid, csi, nvmsetid, cb)
 
 identify admin command
 
