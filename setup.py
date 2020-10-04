@@ -23,7 +23,7 @@ setuptools.setup(
     ],
     python_requires='>=3.5',
     install_requires=['pytest',
-                      'pytest-excel'
+                      'pytest-excel',
                       'pylspci',
                       'quarchpy',
                       'pytemperature'],
