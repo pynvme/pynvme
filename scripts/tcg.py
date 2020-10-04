@@ -528,7 +528,7 @@ class Command(object):
     def enable_user(self, hsn, tsn, user_id):
         user_uid = opal_uid_table[OPAL_UID.USER1][:]
         user_uid[7] = user_id
-        
+
         self.append_token(OPAL_TOKEN.CALL)
         self.append_u8(0xa0+len(user_uid))
         self.append_token_list(*user_uid)
@@ -645,7 +645,7 @@ class Response(object):
                     assert False
                 l = struct.unpack(pattern, self.buf[ptr+1:ptr+1+len])
                 self.parsed.append(l[0])
-        
+
         # parse the buffer
         ptr = 0x38
         _size = struct.unpack(">H", self.buf[0x36:0x38])[0]
@@ -653,26 +653,26 @@ class Response(object):
             ch = self.buf.data(ptr)
 
             if ch < 0x80:
-                #tiny
+                # tiny
                 self.parsed.append(ch)
             elif ch >= 0x80 and ch < 0xc0:
                 # short atom
-                _len = ch&0xf
-                _parse_token(ptr, _len, ch&0x20)
+                _len = ch & 0xf
+                _parse_token(ptr, _len, ch & 0x20)
                 ptr += _len
             elif ch >= 0xc0 and ch < 0xe0:
                 # medium
-                _len = ((ch&7)<<8)+self.buf.data(ptr+1)
+                _len = ((ch & 7) << 8)+self.buf.data(ptr+1)
                 ptr += 1
-                _parse_token(ptr, _len, ch&0x10)
+                _parse_token(ptr, _len, ch & 0x10)
                 ptr += _len
             elif ch >= 0xe0 and ch < 0xe4:
                 # medium
                 _len = self.buf.data(ptr+1, ptr+4)
                 ptr += 3
-                _parse_token(ptr, _len, ch&0x2)
+                _parse_token(ptr, _len, ch & 0x2)
                 ptr += _len
-                
+
             ptr += 1
 
         # check status
@@ -714,7 +714,7 @@ class Response(object):
 
     def get_active_key(self):
         return self.parsed[1]
-    
+
 
 def test_properties(nvme0):
     host_properties = {
@@ -733,14 +733,14 @@ def test_properties(nvme0):
 
 
 def test_tcg_all_basic_function(subsystem, nvme0, nvme0n1, qpair, buf, new_passwd=b'123456'):
-    #subsystem.power_cycle()
-    #nvme0.reset()
-    
+    # subsystem.power_cycle()
+    # nvme0.reset()
+
     nvme0n1.write(qpair, buf, 0).waitdone()
     nvme0n1.write(qpair, buf, 128).waitdone()
     nvme0n1.read(qpair, buf, 0).waitdone()
     nvme0n1.read(qpair, buf, 128).waitdone()
-    
+
     comid = Response(nvme0).receive().level0_discovery()
 
     logging.info("test: take ownership")
@@ -881,7 +881,7 @@ def test_tcg_all_basic_function(subsystem, nvme0, nvme0n1, qpair, buf, new_passw
     logging.info(buf.dump(16))
     nvme0n1.read(qpair, buf, 128).waitdone()
     logging.info(buf.dump(16))
-    
+
     logging.info("test: erase range")
     Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
     hsn, tsn = Response(nvme0, comid).receive().start_session()
@@ -909,4 +909,3 @@ def test_tcg_all_basic_function(subsystem, nvme0, nvme0n1, qpair, buf, new_passw
     logging.info(buf.dump(16))
     nvme0n1.read(qpair, buf, 128).waitdone()
     logging.info(buf.dump(16))
-
