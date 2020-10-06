@@ -744,7 +744,7 @@ def test_tcg_user_range(subsystem, nvme0, nvme0n1, qpair, buf, new_passwd=b'1234
     nvme0n1.read(qpair, buf, 0).waitdone()
     nvme0n1.read(qpair, buf, 128).waitdone()
 
-    comid = Response(nvme0).receive().level0_discovery()
+    comid = Response(nvme0).receive(False).level0_discovery()
 
     logging.info("test: take ownership")
     Command(nvme0, comid).start_anybody_adminsp_session(0x69).send()
@@ -923,7 +923,7 @@ def test_tcg_admin_global(subsystem, nvme0, nvme0n1, qpair, buf, new_passwd=b'12
     nvme0n1.read(qpair, buf, 0).waitdone()
     nvme0n1.read(qpair, buf, 128).waitdone()
 
-    comid = Response(nvme0).receive().level0_discovery()
+    comid = Response(nvme0).receive(False).level0_discovery()
 
     logging.info("test: take ownership")
     Command(nvme0, comid).start_anybody_adminsp_session(0x69).send()
