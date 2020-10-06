@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pynvme",
-    version="2.1.1",
+    version="2.1.3",
     author="Crane Chu",
     author_email="cranechu@gmail.com",
     description="builds your own tests.",
