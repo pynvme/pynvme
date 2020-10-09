@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pynvme",
-    version="2.1.3",
+    version="2.1.5",
     author="Crane Chu",
     author_email="cranechu@gmail.com",
     description="builds your own tests.",
@@ -24,6 +24,7 @@ setuptools.setup(
     python_requires='>=3.5',
     install_requires=['pytest',
                       'pytest-excel',
+                      'libpci',
                       'pylspci',
                       'quarchpy',
                       'pytemperature'],
@@ -44,6 +45,14 @@ setuptools.setup(
           'scripts/test_utilities.py']),
         ('pynvme/scripts/stress',
          ['scripts/stress/dirty_power_cycle_test.py']),
+        ('pynvme/scripts/performance',
+         ['scripts/performance/1_fresh_perf_test.py',
+          'scripts/performance/2_init_time_test.py',
+          'scripts/performance/3_steady_perf_test.py',
+          'scripts/performance/4_nvme_cmd_test.py',
+          'scripts/performance/5_generate_report_test.py',
+          'scripts/performance/report_template.xlsx'
+          ]),
         ('pynvme/include/spdk',
          ['include/spdk/pci_ids.h']),
         ('pynvme/scripts/conformance/01_admin',

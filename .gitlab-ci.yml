@@ -15,7 +15,7 @@ checkin_test:
   only:
     - pushes
   script:
-    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob --pciaddr=3d:00.0
+    - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue_fob --pciaddr=06:00.0
     - make setup memsize=4000
     - make nvmt
     - sudo python3 -B -m pytest driver_test.py::test_ioworker_iops_multiple_queue[1] --pciaddr=127.0.0.1
@@ -26,15 +26,15 @@ stress_test:
   only:
     - schedules
   script:
-    - make test TESTS=scripts/test_utilities.py::test_powercycle_by_sleep || exit -1
-    - make test TESTS=scripts/psd.py || exit -1
-    - make test TESTS=scripts/stress/dirty_power_cycle_test.py || exit -1
-    - make test TESTS=scripts/test_examples.py || exit -1
-    - make test
+    - make test TESTS=scripts/test_utilities.py::test_powercycle_by_sleep --pciaddr=06:00.0 || exit -1
+    - make test TESTS=scripts/psd.py --pciaddr=06:00.0 || exit -1
+    - make test TESTS=scripts/stress/dirty_power_cycle_test.py --pciaddr=06:00.0 || exit -1
+    - make test TESTS=scripts/test_examples.py --pciaddr=06:00.0 || exit -1
+    - make test --pciaddr=06:00.0
     - make setup memsize=4000
     - make nvmt
-    - make test TESTS=driver_test_tcp.py || exit -1
-    - make test TESTS=scripts/conformance
+    - make test TESTS=driver_test_tcp.py --pciaddr=127.0.0.1 || exit -1
+    - make test TESTS=scripts/conformance --pciaddr=06:00.0
     - make setup memsize=0
 
 scripts_test:
