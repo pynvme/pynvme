@@ -13,6 +13,7 @@ pytemperature
 pydoc-markdown==2.1.3
 PySimpleGUI
 py-cpuinfo
+pylspci
 openpyxl
 pyserial==2.7
 quarchpy

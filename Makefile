@@ -54,7 +54,7 @@ clean:
 spdk:
 	cd spdk; make clean; ./configure --enable-debug --enable-log-bt --enable-werror --disable-tests --without-ocf --without-vhost --without-virtio --without-pmdk --without-vpp --without-rbd --without-isal; make -j8; cd ..
 
-doc:
+doc: all
 	pydocmd simple nvme++ > api.md
 	m2r api.md
 	mv api.rst doc
@@ -96,7 +96,7 @@ setup: reset
 	- sed -i 's/XXXX:BB:DD.F/${pciaddr}/g' .vscode/settings.json
 	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./src/setup.sh  	# UIO is recommended
 
-pypi:
+pypi: all
 	python3 setup.py sdist
 	python3 -m twine upload dist/*
 
