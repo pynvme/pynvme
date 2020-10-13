@@ -315,7 +315,7 @@ class IOCQ(object):
         status = 0
 
         assert qid < 64*1024 and qid >= 0
-        assert qsize < 64*1024 and qsize > 0
+        assert qsize <= 64*1024 and qsize > 0
 
         def create_io_cq_cpl(cdw0, status1):
             nonlocal status; status = status1>>1
