@@ -1533,6 +1533,11 @@ def test_create_invalid_qpair(nvme0):
         q = d.Qpair(nvme0, 20, prio=1)
 
 
+def test_buffer_zero(buf):
+    with pytest.raises(AssertionError):
+        b = d.Buffer(0)
+
+        
 def test_buffer_data_pattern():
     b = d.Buffer(512, "pattern")
     assert b[0] == 0
