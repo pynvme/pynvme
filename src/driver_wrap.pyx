@@ -267,15 +267,19 @@ cdef class Buffer(object):
 
     @property
     def offset(self):
-        """get the offset of the PRP in bytes"""
-
         return self.offset
 
     @offset.setter
     def offset(self, offset):
-        """set the offset of the PRP in bytes"""
-
         self.offset = offset
+
+    @property
+    def size(self):
+        return self.size
+
+    @size.setter
+    def size(self, size):
+        self.size = size
 
     @property
     def phys_addr(self):
