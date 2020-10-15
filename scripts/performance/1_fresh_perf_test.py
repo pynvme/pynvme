@@ -33,6 +33,7 @@
 # -*- coding: utf-8 -*-
 
 
+import time
 import pytest
 import nvme as d
 
@@ -63,16 +64,20 @@ def do_ioworker(rand, read, ns):
     return iops if rand else iops*io_size*512  # return Bps for seq IO
 
 
-def do_fill_drive(rand, nvme0n1):
+def do_fill_drive(rand, nvme0n1, nvme0):
     io_size = 8 if rand else 128
     ns_size = nvme0n1.id_data(7, 0)
     io_count = ns_size//io_size
     io_per_second = []
     
-    r = nvme0n1.ioworker(io_size=io_size, lba_align=io_size,
+    w = nvme0n1.ioworker(io_size=io_size, lba_align=io_size,
                          lba_random=rand, qdepth=512,
                          io_count=io_count, read_percentage=0,
-                         output_io_per_second=io_per_second).start().close()
+                         output_io_per_second=io_per_second).start()
+    while w.running:
+        nvme0.getfeatures(7).waitdone()
+        time.sleep(1)
+    r = w.close()
 
     if not rand:
         return [iops*io_size*512 for iops in io_per_second]
@@ -128,8 +133,8 @@ def test_1gb_read_write_performance(nvme0n1):
 
 
 # full drive seq write
-def test_fill_drive_first_pass(nvme0n1):
-    io_per_sec = do_fill_drive(seq, nvme0n1)
+def test_fill_drive_first_pass(nvme0, nvme0n1):
+    io_per_sec = do_fill_drive(seq, nvme0n1, nvme0)
     io_per_sec = io_per_sec[:300]
     with open("report.csv", "a") as f:
         for iops in io_per_sec:
@@ -139,7 +144,7 @@ def test_fill_drive_first_pass(nvme0n1):
     
 # random
 def test_fill_drive_random(nvme0n1, nvme0):
-    io_per_sec = do_fill_drive(rand, nvme0n1)
+    io_per_sec = do_fill_drive(rand, nvme0n1, nvme0)
     io_per_sec = io_per_sec[:600]
     with open("report.csv", "a") as f:
         for iops in io_per_sec:

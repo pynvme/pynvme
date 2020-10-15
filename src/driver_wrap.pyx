@@ -2529,7 +2529,8 @@ class _IOWorker(object):
             logging.info("force terminate with ioworker error %d" % error)
             gc.collect()
             os._exit(error)
-            
+
+        logging.debug(rets)
         return rets
 
     def iops_consistency(self, slowest_percentage=99.9):
