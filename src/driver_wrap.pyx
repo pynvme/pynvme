@@ -227,7 +227,8 @@ cdef class Buffer(object):
     """
 
     cdef void* ptr
-    cdef size_t size
+    cdef size_t _size
+    cdef size_t prp_size
     cdef char* name
     cdef unsigned long phys_addr
     cdef unsigned int offset
@@ -244,7 +245,8 @@ cdef class Buffer(object):
         strncpy(self.name, name.encode('ascii'), len(name))
 
         # buffer init
-        self.size = size
+        self._size = size
+        self.prp_size = size
         self.offset = 0
         self.ptr = d.buffer_init(size, &self.phys_addr, ptype, pvalue)
         if self.ptr is NULL:
@@ -275,11 +277,12 @@ cdef class Buffer(object):
 
     @property
     def size(self):
-        return self.size
+        return self.prp_size
 
     @size.setter
     def size(self, size):
-        self.size = size
+        assert size <= self._size, "cannot be larger than physical size"
+        self.prp_size = size
 
     @property
     def phys_addr(self):
@@ -296,10 +299,10 @@ cdef class Buffer(object):
 
         base = 0
         output = self.name.decode('ascii')+'\n'
-        if self.ptr and self.size:
+        if self.ptr and self._size:
             # no size means print the whole buffer
-            if size is None or size > self.size:
-                size = self.size
+            if size is None or size > self._size:
+                size = self._size
 
             while size:
                 length = min(size, 4096)
@@ -331,7 +334,7 @@ cdef class Buffer(object):
             return str(self[byte_begin:byte_end+1], "ascii").rstrip()
 
     def __len__(self):
-        return self.size
+        return self._size
 
     def __repr__(self):
         return '<buffer name: %s>' % str(self.name, "ascii")
@@ -340,7 +343,7 @@ cdef class Buffer(object):
         if isinstance(index, slice):
             return bytes([self[i] for i in range(*index.indices(len(self)))])
         elif isinstance(index, int):
-            if index >= self.size:
+            if index >= self._size:
                 raise IndexError()
             return (<unsigned char*>self.ptr)[index]
         else:
@@ -352,7 +355,7 @@ cdef class Buffer(object):
             for i, d in enumerate(value):
                 self[i+start] = d
         elif isinstance(index, int):
-            if index >= self.size:
+            if index >= self._size:
                 raise IndexError()
             (<unsigned char*>self.ptr)[index] = value
         else:

@@ -53,7 +53,7 @@ def test_init_nvme_back_compatibility(pciaddr, repeat):
     nvme0n1.format(512)
 
     with nvme0n1.ioworker(time=1), \
-         nvme0n1.ioworker(time=1):
+            nvme0n1.ioworker(time=1):
         pass
     nvme0n1.close()
     pcie.close()
@@ -64,7 +64,8 @@ def test_init_nvme_customerized(pcie, repeat):
     def nvme_init(nvme0):
         # 1. disable cc.en and wait csts.rdy to 0
         nvme0[0x14] = 0
-        while not (nvme0[0x1c]&0x1) == 0: pass
+        while not (nvme0[0x1c] & 0x1) == 0:
+            pass
 
         # 2. set admin queue registers
         nvme0.init_adminq()
@@ -76,7 +77,8 @@ def test_init_nvme_customerized(pcie, repeat):
         nvme0[0x14] = 0x00460001
 
         # 5. wait csts.rdy to 1
-        while not (nvme0[0x1c]&0x1) == 1: pass
+        while not (nvme0[0x1c] & 0x1) == 1:
+            pass
 
         # 6. identify controller
         nvme0.identify(d.Buffer(4096)).waitdone()
@@ -128,7 +130,7 @@ def test_init_nvme_customerized(pcie, repeat):
         for i in range(10):
             nvme0.abort(127-i).waitdone()
         qpair.delete()
-        
+
     nvme0.reset()
     nvme0n1.ioworker(time=1).start().close()
     nvme0n1.close()
@@ -258,7 +260,7 @@ def test_read_fua_latency(nvme0n1, nvme0, qpair, buf):
 
     now = time.time()
     for i in range(10000):
-        nvme0n1.read(qpair, buf, 0, 8, 1<<14).waitdone()
+        nvme0n1.read(qpair, buf, 0, 8, 1 << 14).waitdone()
     fua_time = time.time()-now
     logging.info("FUA read latency %fs" % fua_time)
 
@@ -306,7 +308,7 @@ def test_power_and_reset(pcie, nvme0, subsystem):
     nvme0.reset()              # controller reset: CC.EN
     nvme0.getfeatures(7).waitdone()
 
-    
+
 def test_quarch_defined_poweron_poweroff(nvme0):
     import quarchpy
 
@@ -379,7 +381,7 @@ def test_qpair_overflow(nvme0, nvme0n1, buf):
     with pytest.raises(AssertionError):
         nvme0n1.read(q, buf, 24, 8)
     q.waitdone(3)
-    
+
 
 @pytest.mark.parametrize("shift", range(1, 8))
 def test_qpair_different_size(nvme0n1, nvme0, shift):
@@ -427,7 +429,7 @@ def test_controller_reset_redo(nvme0):
     cdw0 = nvme0.getfeatures(7).waitdone()
     assert cdw0 == 0xf000f
 
-    
+
 def test_ioworker_is_running(nvme0n1):
     with nvme0n1.ioworker(io_size=8, time=6) as a:
         for i in range(5):
@@ -440,7 +442,7 @@ def test_ioworker_is_running(nvme0n1):
     assert a.running == True
     assert b.running == True
     logging.info("PASS")
-    
+
     b.start()
     a.start()
     assert a.running == True
@@ -458,7 +460,8 @@ def test_ioworker_is_running(nvme0n1):
     assert b.running == True
     logging.info("PASS")
 
-    while b.running: pass
+    while b.running:
+        pass
     assert a.running == False
     logging.info("PASS")
 
@@ -487,8 +490,8 @@ def test_ioworker_last_truncated_io(nvme0n1):
                      output_cmdlog_list=cmdlog_list).start().close()
     assert cmdlog_list[5][0] == 40
     assert cmdlog_list[5][1] == 1
-    
-    
+
+
 def test_ioworker_sequential_unfixed_iosize(nvme0n1):
     cmdlog_list = [None]*1000
     io_size_list = [1, 3, 8, 30, 64, 100, 128, 200, 256]
@@ -502,7 +505,7 @@ def test_ioworker_sequential_unfixed_iosize(nvme0n1):
         assert cmdlog_list[i][0]+cmdlog_list[i][1] == cmdlog_list[i+1][0]
 
     nvme0n1.ioworker(io_size=7,
-                     lba_align=1, 
+                     lba_align=1,
                      lba_random=False,
                      io_count=len(cmdlog_list),
                      qdepth=2,
@@ -517,29 +520,29 @@ def test_ioworker_with_admin(nvme0, nvme0n1, buf, qpair):
         while time.time()-start_time < 8:
             nvme0.getlogpage(0x02, buf, 512).waitdone()
             nvme0.identify(buf).waitdone()
-            
+
     with nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10):
         start_time = time.time()
         while time.time()-start_time < 15:
             nvme0.getfeatures(7).waitdone()
 
     with nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10), \
-         nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10), \
-         nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10):
+            nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10), \
+            nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10):
         start_time = time.time()
         while time.time()-start_time < 15:
             nvme0.getlogpage(0x02, buf, 512).waitdone()
 
     with nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10), \
-         nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10), \
-         nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10):
+            nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10), \
+            nvme0n1.ioworker(io_size=256, lba_random=False, read_percentage=100, time=10):
         start_time = time.time()
         qpair3 = d.Qpair(nvme0, 10)
         while time.time()-start_time < 15:
             nvme0n1.read(qpair3, buf, 0, 8).waitdone()
         qpair3.delete()
 
-    
+
 def test_ioworker_region_smaller_than_iosize(nvme0n1):
     cmdlog_list = [None]*1000
     nvme0n1.ioworker(io_size=128,
@@ -562,7 +565,7 @@ def test_ioworker_region_smaller_than_iosize(nvme0n1):
     for c in cmdlog_list:
         assert c[0]+c[1] == 100
         assert c[2] == 2
-    
+
 
 def test_ioworker_sequential_region_unaligned_with_iosize(nvme0n1):
     cmdlog_list = [None]*1000
@@ -577,8 +580,8 @@ def test_ioworker_sequential_region_unaligned_with_iosize(nvme0n1):
         else:
             assert c[0] == 128
             assert c[1] == 1
-    
-    
+
+
 def test_ioworker_sequential_region_fill(nvme0n1):
     cmdlog_list = [None]*11
     nvme0n1.ioworker(io_size=8,
@@ -603,34 +606,42 @@ def test_ioworker_sequential_region_fill(nvme0n1):
     assert cmdlog_list[1][1] == 8
     assert cmdlog_list[10][0] == 73
     assert cmdlog_list[10][1] == 4
-    
+
     with pytest.raises(AssertionError):
-        nvme0n1.ioworker(io_size=[8, 64, 128], lba_random=False, region_end=1000).start().close()
+        nvme0n1.ioworker(
+            io_size=[8, 64, 128], lba_random=False, region_end=1000).start().close()
     with pytest.raises(AssertionError):
         nvme0n1.ioworker(io_size=8,
                          lba_random=False,
                          qdepth=2,
                          output_cmdlog_list=cmdlog_list).start().close()
-    
-    
+
+
 def test_ioworker_input_out_of_range(nvme0n1):
     nvme0n1.ioworker(io_size=128, region_end=200, time=1).start().close()
-    nvme0n1.ioworker(io_size=128, region_end=200, qdepth=2, io_count=2).start().close()
+    nvme0n1.ioworker(io_size=128, region_end=200,
+                     qdepth=2, io_count=2).start().close()
     nvme0n1.ioworker(io_size=128, region_end=300, time=1).start().close()
     nvme0n1.ioworker(io_size=8, region_end=100, time=1).start().close()
-    nvme0n1.ioworker(io_size=range(8, 32, 16), region_end=100, time=1).start().close()
+    nvme0n1.ioworker(io_size=range(8, 32, 16),
+                     region_end=100, time=1).start().close()
     nvme0n1.ioworker(io_size=128, region_end=100, time=1).start().close()
     with pytest.raises(AssertionError):
-        nvme0n1.ioworker(io_size=range(8, 128, 8), region_end=100, time=1).start().close()
+        nvme0n1.ioworker(io_size=range(8, 128, 8),
+                         region_end=100, time=1).start().close()
     with pytest.raises(AssertionError):
-        nvme0n1.ioworker(io_size=[8, 64, 128], region_end=100, time=1).start().close()
+        nvme0n1.ioworker(io_size=[8, 64, 128],
+                         region_end=100, time=1).start().close()
     with pytest.raises(AssertionError):
-        nvme0n1.ioworker(io_size={1:1, 128:1}, region_end=100, time=1).start().close()
+        nvme0n1.ioworker(io_size={1: 1, 128: 1},
+                         region_end=100, time=1).start().close()
     nvme0n1.ioworker(io_size=128, region_end=300, time=1).start().close()
-    nvme0n1.ioworker(io_size=range(8, 64, 16), region_end=100, time=1).start().close()
+    nvme0n1.ioworker(io_size=range(8, 64, 16),
+                     region_end=100, time=1).start().close()
     nvme0n1.ioworker(io_size=128, region_end=200, time=1).start().close()
     nvme0n1.ioworker(io_size=128, region_end=256, time=1).start().close()
-    nvme0n1.ioworker(io_size=128, region_start=128, region_end=256, time=1).start().close()
+    nvme0n1.ioworker(io_size=128, region_start=128,
+                     region_end=256, time=1).start().close()
     nvme0n1.ioworker(io_size=128, region_end=128, time=1).start().close()
     nvme0n1.ioworker(io_size=128, region_end=256, time=1).start().close()
     nvme0n1.ioworker(io_size=64, region_end=100, time=1).start().close()
@@ -869,8 +880,10 @@ def test_write_identify_and_verify(nvme0n1, nvme0):
 
 def test_callback_with_whole_cpl(nvme0, nvme0n1, buf, qpair):
     f1 = 0
+
     def cb1(cpl):
-        nonlocal f1; f1 = cpl[0]
+        nonlocal f1
+        f1 = cpl[0]
         logging.info(cpl)
         assert cpl[1] == 0
     nvme0.getfeatures(7, cb=cb1).waitdone()
@@ -884,8 +897,10 @@ def test_callback_with_whole_cpl(nvme0, nvme0n1, buf, qpair):
     nvme0n1.read(qpair, buf, 0, cb=cb2).waitdone()
 
     a1 = 0
+
     def cb1(cdw0, status):
-        nonlocal a1; a1 = cdw0
+        nonlocal a1
+        a1 = cdw0
         logging.info("in 2nd cb1")
     nvme0.getfeatures(7, cb=cb1).waitdone()
     assert a1 == f1
@@ -898,13 +913,17 @@ def test_callback_with_whole_cpl(nvme0, nvme0n1, buf, qpair):
 
 def test_multiple_callbacks(nvme0):
     a1 = 0
+
     def cb1(cdw0, status):
-        nonlocal a1; a1 = 1
+        nonlocal a1
+        a1 = 1
     nvme0.getfeatures(7, cb=cb1)
 
     a2 = 0
+
     def cb2(cdw0, status):
-        nonlocal a2; a2 = 2
+        nonlocal a2
+        a2 = 2
     nvme0.getfeatures(7, cb=cb2)
 
     nvme0.waitdone(2)
@@ -1039,7 +1058,7 @@ def test_write_and_compare(nvme0, nvme0n1):
     q = d.Qpair(nvme0, 8)
     buf = d.Buffer(4096)
 
-    #Check if support compare command
+    # Check if support compare command
     compare_support = nvme0.id_data(521, 520) & 0x1
     if compare_support == 0:
         pytest.skip("Not support compare command!")
@@ -1071,7 +1090,7 @@ def test_dsm_trim_and_read(nvme0, nvme0n1, verify):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
 
-    #Check if support compare command
+    # Check if support compare command
     compare_support = nvme0.id_data(521, 520) & 0x1
     if compare_support == 0:
         pytest.skip("Not support compare command!")
@@ -1135,7 +1154,7 @@ def _test_ioworker_pcie_flr_reset_async(nvme0, nvme0n1, pcie):
         pass
     pcie.flr()
     nvme0.reset()
-    
+
 
 def test_ioworker_subsystem_reset_async(nvme0, nvme0n1, subsystem):
     for i in range(3):
@@ -1174,13 +1193,13 @@ def test_controller_reset_with_ioworkers(nvme0):
     for loop in range(10):
         logging.info(loop)
         with nvme0n1.ioworker(io_size=1, time=100), \
-             nvme0n1.ioworker(io_size=1, time=100), \
-             nvme0n1.ioworker(io_size=1, time=100), \
-             nvme0n1.ioworker(io_size=1, time=100), \
-             nvme0n1.ioworker(io_size=1, time=100), \
-             nvme0n1.ioworker(io_size=1, time=100), \
-             nvme0n1.ioworker(io_size=1, time=100), \
-             nvme0n1.ioworker(io_size=1, time=100):
+                nvme0n1.ioworker(io_size=1, time=100), \
+                nvme0n1.ioworker(io_size=1, time=100), \
+                nvme0n1.ioworker(io_size=1, time=100), \
+                nvme0n1.ioworker(io_size=1, time=100), \
+                nvme0n1.ioworker(io_size=1, time=100), \
+                nvme0n1.ioworker(io_size=1, time=100), \
+                nvme0n1.ioworker(io_size=1, time=100):
             time.sleep(5)
             nvme0.reset()
 
@@ -1191,8 +1210,8 @@ def test_ioworker_power_cycle_async(nvme0, nvme0n1, subsystem):
     for i in range(2):
         start_time = time.time()
         with nvme0n1.ioworker(io_size=8, time=100), \
-             nvme0n1.ioworker(io_size=8, time=100), \
-             nvme0n1.ioworker(io_size=8, time=100):
+                nvme0n1.ioworker(io_size=8, time=100), \
+                nvme0n1.ioworker(io_size=8, time=100):
             time.sleep(5)
             subsystem.power_cycle(10)
             nvme0.reset()
@@ -1216,7 +1235,8 @@ def test_timeout_command_completion(nvme0, nvme0n1):
     assert nvme0.timeout == 10000
     nvme0.timeout = 10
     with pytest.warns(UserWarning, match="drive timeout:"):
-        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1, cb=format_timeout_cb).waitdone()
+        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1,
+                     cb=format_timeout_cb).waitdone()
     assert nvme0.timeout == 10
 
     def format_non_timeout_cb(cdw0, status1):
@@ -1226,7 +1246,8 @@ def test_timeout_command_completion(nvme0, nvme0n1):
 
     # 512GB DUT format takes long time
     nvme0.timeout = 15000
-    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1, cb=format_non_timeout_cb).waitdone()
+    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=1,
+                 cb=format_non_timeout_cb).waitdone()
     assert nvme0.timeout == 15000
 
     # set to default value
@@ -1302,7 +1323,7 @@ def test_dsm_deallocate_one_tu(nvme0, nvme0n1):
 @pytest.mark.parametrize("offset", [4096, 10, 4096*2])
 def test_firmware_download_overlap(nvme0, size, offset):
     buf = d.Buffer(size)
-    #with pytest.warns(UserWarning, match="ERROR status: 01/14"):
+    # with pytest.warns(UserWarning, match="ERROR status: 01/14"):
     nvme0.fw_download(buf, offset).waitdone()
 
 
@@ -1322,18 +1343,18 @@ def test_firmware_commit(nvme0):
 
 
 def test_sanitize_operations_basic(nvme0, nvme0n1, buf, subsystem):
-    if nvme0.id_data(331, 328) == 0:  #L9
-        pytest.skip("sanitize operation is not supported")  #L10
+    if nvme0.id_data(331, 328) == 0:  # L9
+        pytest.skip("sanitize operation is not supported")  # L10
 
     logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
-    nvme0.sanitize().waitdone() 
+    nvme0.sanitize().waitdone()
 
     # check sanitize status in log page
     with pytest.warns(UserWarning, match="AER notification is triggered"):
-        nvme0.getlogpage(0x81, buf, 20).waitdone()  #L17
-        while buf.data(3, 2) & 0x7 != 1:  #L18
+        nvme0.getlogpage(0x81, buf, 20).waitdone()  # L17
+        while buf.data(3, 2) & 0x7 != 1:  # L18
             time.sleep(1)
-            nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
+            nvme0.getlogpage(0x81, buf, 20).waitdone()  # L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
 
@@ -1343,24 +1364,24 @@ def test_sanitize_operations_basic(nvme0, nvme0n1, buf, subsystem):
 
 
 def test_sanitize_operations_powercycle(nvme0, nvme0n1, buf, subsystem):
-    if nvme0.id_data(331, 328) == 0:  #L9
-        pytest.skip("sanitize operation is not supported")  #L10
+    if nvme0.id_data(331, 328) == 0:  # L9
+        pytest.skip("sanitize operation is not supported")  # L10
 
     logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
 
     # slow down the sanitize
     nvme0.setfeatures(0x2, cdw11=2).waitdone()
-    nvme0.sanitize().waitdone()  #L13
+    nvme0.sanitize().waitdone()  # L13
 
     subsystem.power_cycle()
     nvme0.reset()
 
     # check sanitize status in log page
     with pytest.warns(UserWarning, match="AER notification is triggered"):
-        nvme0.getlogpage(0x81, buf, 20).waitdone()  #L17
-        while buf.data(3, 2) & 0x7 != 1:  #L18
+        nvme0.getlogpage(0x81, buf, 20).waitdone()  # L17
+        while buf.data(3, 2) & 0x7 != 1:  # L18
             time.sleep(1)
-            nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
+            nvme0.getlogpage(0x81, buf, 20).waitdone()  # L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
 
@@ -1376,7 +1397,7 @@ def test_sanitize_operations_powercycle(nvme0, nvme0n1, buf, subsystem):
 
     # read after sanitize
     nvme0n1.ioworker(io_size=8, lba_align=8,
-                     region_start=0, region_end=256*1024*8, # 1GB space
+                     region_start=0, region_end=256*1024*8,  # 1GB space
                      lba_random=False, qdepth=16,
                      read_percentage=100, time=10).start().close()
     nvme0.setfeatures(0x2, cdw11=0).waitdone()
@@ -1412,7 +1433,7 @@ def test_write_uncorrectable(nvme0, nvme0n1):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
 
-    #Check if support write uncorrectable command
+    # Check if support write uncorrectable command
     wuecc_support = nvme0.id_data(521, 520) & 0x2
     if wuecc_support == 0:
         pytest.skip("Not support write uncorrectable command!")
@@ -1502,7 +1523,7 @@ def test_send_cmd_exceed_queue(nvme0, nvme0n1, buf):
 
     logging.info("create queue")
     qpair = d.Qpair(nvme0, 128)
-    count = 128 # queue full
+    count = 128  # queue full
     for i in range(count-1):
         nvme0n1.read(qpair, buf, i, 1)
     with pytest.raises(AssertionError):
@@ -1537,7 +1558,21 @@ def test_buffer_zero(buf):
     with pytest.raises(AssertionError):
         b = d.Buffer(0)
 
-        
+
+@pytest.mark.parametrize("s", [0, 1, 3, 4, 10, 100, 4096])
+def test_buffer_set_size(buf, s):
+    buf.size = s
+    assert buf.size == s
+
+
+def test_buffer_set_size_invalid(buf):
+    with pytest.raises(AssertionError):
+        buf.size = 4097
+
+    with pytest.raises(AssertionError):
+        buf.size = 5000
+
+
 def test_buffer_data_pattern():
     b = d.Buffer(512, "pattern")
     assert b[0] == 0
@@ -1586,20 +1621,20 @@ def test_ioworker_data_pattern(nvme0, nvme0n1, qpair):
     buf = d.Buffer(512)
 
     r = nvme0n1.ioworker(io_size=8,
-                     lba_random=False,
-                     read_percentage=0,
-                     lba_start=0,
-                     io_count=1,
-                     pvalue=0x55555555,
-                     ptype=32).start().close()
+                         lba_random=False,
+                         read_percentage=0,
+                         lba_start=0,
+                         io_count=1,
+                         pvalue=0x55555555,
+                         ptype=32).start().close()
     logging.info(r)
     assert r.io_count_read == 0
     assert r.io_count_write == 1
     assert r.io_count_nonread == 1
-    
+
     nvme0n1.read(qpair, buf, 0).waitdone()
     assert buf[8] == 0x55
-    #print(buf.dump(128))
+    # print(buf.dump(128))
 
     nvme0n1.ioworker(io_size=8,
                      lba_random=False,
@@ -1699,12 +1734,12 @@ def test_create_many_qpair(nvme0, repeat):
 
 
 def test_set_get_features(nvme0):
-    nvme0.setfeatures(0x7, cdw11=(15<<16)+15)
-    nvme0.setfeatures(0x7, cdw11=(15<<16)+15)
+    nvme0.setfeatures(0x7, cdw11=(15 << 16)+15)
+    nvme0.setfeatures(0x7, cdw11=(15 << 16)+15)
     nvme0.waitdone(2)
     nvme0.getfeatures(0x7)
     nvme0.waitdone()
-    assert (15<<16)+15 == nvme0.getfeatures(0x7).waitdone()
+    assert (15 << 16)+15 == nvme0.getfeatures(0x7).waitdone()
 
 
 def test_pcie_reset(nvme0, pcie, nvme0n1):
@@ -1722,7 +1757,7 @@ def test_pcie_reset(nvme0, pcie, nvme0n1):
     assert powercycle == get_power_cycles(nvme0)
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
-    
+
 def test_pcie_reset_user_fn(nvme0, pcie, nvme0n1):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
@@ -1733,7 +1768,7 @@ def test_pcie_reset_user_fn(nvme0, pcie, nvme0n1):
 
     def print_fn():
         logging.info("here")
-        
+
     nvme0n1.ioworker(io_size=2, time=2).start().close()
     powercycle = get_power_cycles(nvme0)
     pcie.reset(print_fn)
@@ -1741,7 +1776,7 @@ def test_pcie_reset_user_fn(nvme0, pcie, nvme0n1):
     assert powercycle == get_power_cycles(nvme0)
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
-    
+
 def _test_pcie_flr_reset(nvme0, pcie, nvme0n1):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
@@ -1822,14 +1857,14 @@ def test_write_fua_latency(nvme0n1, nvme0, qpair, buf):
     now = time.time()
     for i in range(100):
         # write with FUA enabled
-        nvme0n1.write(qpair, buf, 0, 8, 1<<14).waitdone()
+        nvme0n1.write(qpair, buf, 0, 8, 1 << 14).waitdone()
     fua_time = time.time()-now
     logging.info("FUA write latency %fs" % fua_time)
     assert non_fua_time < fua_time
-    
+
 
 def test_write_limited_retry(nvme0n1, nvme0, qpair, buf):
-    nvme0n1.write(qpair, buf, 0, 8, 1<<31).waitdone()
+    nvme0n1.write(qpair, buf, 0, 8, 1 << 31).waitdone()
 
 
 def test_write_huge_data(nvme0n1, qpair):
@@ -1846,12 +1881,12 @@ def test_write_huge_data(nvme0n1, qpair):
 def test_read_limited_retry(nvme0n1, nvme0):
     buf = d.Buffer(4096)
     q = d.Qpair(nvme0, 8)
-    nvme0n1.read(q, buf, 0, 8, 1<<31).waitdone()
+    nvme0n1.read(q, buf, 0, 8, 1 << 31).waitdone()
     q.delete()
 
 
 def test_subsystem_reset(nvme0, subsystem, nvme0n1):
-    logging.info("CAP: 0x%x, NSSRS: %d" % (nvme0.cap, (nvme0.cap>>36)&0x1))
+    logging.info("CAP: 0x%x, NSSRS: %d" % (nvme0.cap, (nvme0.cap >> 36) & 0x1))
 
     def get_power_cycles(nvme1):
         buf = d.Buffer(512)
@@ -1938,12 +1973,13 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     assert not q.msix_isset()
 
     # aggregation time: 100*100us=0.01s, aggregation threshold: 2
-    nvme0.setfeatures(8, cdw11=(200<<8)+10)
+    nvme0.setfeatures(8, cdw11=(200 << 8)+10)
 
     # 1 cmd, check interrupt latency
     nvme0n1.read(q, buf, 0, 8)
     start = time.time()
-    while not q.msix_isset(): pass
+    while not q.msix_isset():
+        pass
     latency1 = time.time()-start
     logging.info("interrupt latency %dus" % (latency1*1000000))
     q.waitdone()
@@ -1953,7 +1989,8 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     nvme0n1.read(q, buf, 0, 8)
     nvme0n1.read(q, buf, 0, 8)
     start = time.time()
-    while not q.msix_isset(): pass
+    while not q.msix_isset():
+        pass
     latency2 = time.time()-start
     logging.info("interrupt latency %dus" % (latency2*1000000))
     q.waitdone(2)
@@ -1962,7 +1999,8 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1):
     # 1 cmd, check interrupt latency
     nvme0n1.read(q, buf, 0, 8)
     start = time.time()
-    while not q.msix_isset(): pass
+    while not q.msix_isset():
+        pass
     latency1 = time.time()-start
     logging.info("interrupt latency %dus" % (latency1*1000000))
     q.waitdone()
@@ -2149,7 +2187,7 @@ def test_aer_cb_mixed_with_admin_commands(nvme0, buf):
     with pytest.raises(TimeoutError):
         nvme0.waitdone()
 
-    # no more aer: in generic python 
+    # no more aer: in generic python
     try:
         nvme0.waitdone()
     except TimeoutError as e:
@@ -2248,7 +2286,7 @@ def test_ioworker_cmdlog_list(nvme0n1):
 def test_ioworker_lba_random_percentage(nvme0n1, lba_random):
     cmdlog_list = [None]*100
     nvme0n1.ioworker(io_size=8, lba_random=lba_random,
-                     output_cmdlog_list = cmdlog_list,
+                     output_cmdlog_list=cmdlog_list,
                      io_count=100).start().close()
 
 
@@ -2265,18 +2303,18 @@ def test_ioworker_lba_step_multiple(nvme0n1):
                           lba_align=1, lba_step=4,
                           output_cmdlog_list=cmdlog_lists[0],
                           qdepth=2, lba_random=False), \
-         nvme0n1.ioworker(io_size=1, io_count=10, lba_start=1,
-                          lba_align=1, lba_step=4,
-                          output_cmdlog_list=cmdlog_lists[1],
-                          qdepth=2, lba_random=False), \
-         nvme0n1.ioworker(io_size=1, io_count=10, lba_start=2,
-                          lba_align=1, lba_step=4,
-                          output_cmdlog_list=cmdlog_lists[2],
-                          qdepth=2, lba_random=False), \
-         nvme0n1.ioworker(io_size=1, io_count=10, lba_start=3,
-                          lba_align=1, lba_step=4,
-                          output_cmdlog_list=cmdlog_lists[3],
-                          qdepth=2, lba_random=False):
+        nvme0n1.ioworker(io_size=1, io_count=10, lba_start=1,
+                         lba_align=1, lba_step=4,
+                         output_cmdlog_list=cmdlog_lists[1],
+                         qdepth=2, lba_random=False), \
+        nvme0n1.ioworker(io_size=1, io_count=10, lba_start=2,
+                         lba_align=1, lba_step=4,
+                         output_cmdlog_list=cmdlog_lists[2],
+                         qdepth=2, lba_random=False), \
+        nvme0n1.ioworker(io_size=1, io_count=10, lba_start=3,
+                         lba_align=1, lba_step=4,
+                         output_cmdlog_list=cmdlog_lists[3],
+                         qdepth=2, lba_random=False):
 
         pass
 
@@ -2375,38 +2413,46 @@ def test_ioworker_simplified(nvme0n1):
 
 def test_ioworker_op_dict(nvme0n1):
     op_percentage = {2: 100}
-    nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
+    nvme0n1.ioworker(io_size=2, time=2,
+                     op_percentage=op_percentage).start().close()
     test1 = op_percentage[2]
 
-    op_percentage = {2: 100, 1:0}
-    nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
+    op_percentage = {2: 100, 1: 0}
+    nvme0n1.ioworker(io_size=2, time=2,
+                     op_percentage=op_percentage).start().close()
     assert abs(op_percentage[2]-test1)/test1 < 0.1
     assert op_percentage[1] == 0
 
-    op_percentage = {2: 50, 1:50}
-    nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
+    op_percentage = {2: 50, 1: 50}
+    nvme0n1.ioworker(io_size=2, time=2,
+                     op_percentage=op_percentage).start().close()
     assert abs(op_percentage[1]-op_percentage[2])/op_percentage[1] < 0.1
 
 
 def test_ioworker_op_dict_invalid(nvme0n1):
     with pytest.raises(AssertionError):
-        op_percentage = {2: 50, 1:49}
-        nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
+        op_percentage = {2: 50, 1: 49}
+        nvme0n1.ioworker(io_size=2, time=2,
+                         op_percentage=op_percentage).start().close()
 
     with pytest.raises(AssertionError):
-        op_percentage = {2: 50, 1:61}
-        nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
+        op_percentage = {2: 50, 1: 61}
+        nvme0n1.ioworker(io_size=2, time=2,
+                         op_percentage=op_percentage).start().close()
 
 
 def test_ioworker_op_dict_trim(nvme0n1):
-    nvme0n1.ioworker(io_size=2, lba_random=30, time=2, op_percentage={2: 40, 9: 30, 1: 30}).start().close()
+    nvme0n1.ioworker(io_size=2, lba_random=30, time=2, op_percentage={
+                     2: 40, 9: 30, 1: 30}).start().close()
 
     op_percentage = {2: 40, 9: 60}
-    ret = nvme0n1.ioworker(io_size=2, time=2, op_percentage=op_percentage).start().close()
+    ret = nvme0n1.ioworker(
+        io_size=2, time=2, op_percentage=op_percentage).start().close()
     assert ret.io_count_write == 0
 
     opcode_counter = {2: 40, 9: 30, 1: 30}
-    ret = nvme0n1.ioworker(io_size=2, time=2, op_percentage=opcode_counter).start().close()
+    ret = nvme0n1.ioworker(
+        io_size=2, time=2, op_percentage=opcode_counter).start().close()
     assert ret.io_count_read == opcode_counter[2]
     assert ret.io_count_nonread == opcode_counter[9]+opcode_counter[1]
     logging.info(ret)
@@ -2416,7 +2462,8 @@ def test_ioworker_op_dict_trim(nvme0n1):
 
 def test_ioworker_op_dict_flush(nvme0n1):
     opcode_counter = {2: 30, 9: 30, 1: 30, 0: 10}
-    ret = nvme0n1.ioworker(io_size=2, time=2, op_percentage=opcode_counter).start().close()
+    ret = nvme0n1.ioworker(
+        io_size=2, time=2, op_percentage=opcode_counter).start().close()
     logging.info(ret)
     logging.info(opcode_counter)
     assert ret.io_count_read == opcode_counter[2]
@@ -2429,7 +2476,8 @@ def test_ioworker_iosize_inputs(nvme0n1):
     nvme0n1.ioworker(io_size=[1, 8], time=1).start().close()
     nvme0n1.ioworker(io_size=range(1, 8), time=1).start().close()
     nvme0n1.ioworker(io_size={1: 2, 8: 8}, time=1).start().close()
-    nvme0n1.ioworker(io_size={1: 2, 8: 8}, lba_align=[1, 8], time=1).start().close()
+    nvme0n1.ioworker(io_size={1: 2, 8: 8}, lba_align=[
+                     1, 8], time=1).start().close()
 
 
 @pytest.mark.parametrize("repeat", range(2))
@@ -2451,7 +2499,7 @@ def test_ioworker_jedec_workload(nvme0n1, repeat):
     nvme0n1.ioworker(io_size=iosz_distribution,
                      lba_random=True,
                      qdepth=128,
-                     distribution = distribution,
+                     distribution=distribution,
                      read_percentage=0,
                      ptype=0xbeef, pvalue=100,
                      time=1).start().close()
@@ -2514,7 +2562,7 @@ def test_ioworker_distribution(nvme0n1, repeat):
     distribution[1] = 10000
     nvme0n1.ioworker(io_size=8, lba_align=8,
                      lba_random=True, qdepth=16,
-                     distribution = distribution,
+                     distribution=distribution,
                      read_percentage=0, time=1).start().close()
 
     distribution = [100]*100
@@ -2865,7 +2913,7 @@ def test_ioworker_io_count(nvme0n1):
     assert w.io_count_read == 1
     assert w.io_count_nonread == 0
 
-    
+
 def test_ioworker_io_random(nvme0n1):
     import time
     start_time = time.time()
@@ -3042,7 +3090,7 @@ def test_ioworker_trim_rw_without_confliction(nvme0n1, verify):
                          lba_align=512,
                          lba_random=True,
                          region_end=0x1000,
-                         qdepth=64, 
+                         qdepth=64,
                          time=100,
                          op_percentage={2: 40, 1: 20, 8: 20, 9: 20}).start().close()
     logging.info(r)
@@ -3638,8 +3686,8 @@ def test_ioworker_longtime(nvme0, nvme0n1, verify):
 
 def test_ioworker_changing_ps(nvme0, nvme0n1):
     orig_ps = nvme0.getfeatures(0x2).waitdone()
-    
-    with nvme0n1.ioworker(io_size=256, 
+
+    with nvme0n1.ioworker(io_size=256,
                           lba_random=True,
                           read_percentage=100,
                           time=60):
@@ -3652,7 +3700,7 @@ def test_ioworker_changing_ps(nvme0, nvme0n1):
 
     nvme0.setfeatures(0x2, cdw11=orig_ps).waitdone()
 
-    
+
 @pytest.mark.parametrize("lba_size", [4096, 512, 4096, 512])
 def test_namespace_change_format(nvme0, lba_size):
     # format to another lba format
@@ -3688,24 +3736,22 @@ def test_issue65(nvme0, nvme0n1, subsystem):
     subsystem.poweroff()
     for i in io:
         i.close()
-        
+
     time.sleep(1)
     subsystem.poweron()
     nvme0.reset()
 
-    
+
 def test_ioworker_invalid_io_size_fw_debug_mode(nvme0, nvme0n1):
     # format to clear all data before test
     nvme0n1.format(512)
 
     assert nvme0.mdts//512 == 256
     nvme0n1.ioworker(io_size=nvme0.mdts//512, lba_align=64,
-                     lba_random=False, qdepth=4, fw_debug=True, 
+                     lba_random=False, qdepth=4, fw_debug=True,
                      read_percentage=100, time=2).start().close()
 
     with pytest.warns(UserWarning, match="ioworker device"):
         nvme0n1.ioworker(io_size=nvme0.mdts//512+1, lba_align=64,
                          lba_random=False, qdepth=4,
                          read_percentage=100, time=2).start().close()
-
-
