@@ -45,35 +45,39 @@ seq = False
 TEST_SCALE = 100    #100, 10
 
 
-def do_fill_drive(rand, nvme0n1, region_end):
+def do_fill_drive(rand, nvme0n1, region_end, nvme0):
     io_size = 8 if rand else 128
     ns_size = nvme0n1.id_data(7, 0)
     io_count = ns_size//io_size
     io_per_second = []
     
-    nvme0n1.ioworker(io_size=io_size, lba_align=io_size,
+    w = nvme0n1.ioworker(io_size=io_size, lba_align=io_size,
                      lba_random=rand, qdepth=512,
                      region_end=region_end,
                      io_count=io_count, read_percentage=0,
-                     output_io_per_second=io_per_second).start().close()
+                     output_io_per_second=io_per_second).start()
+    while w.running:
+        nvme0.getfeatures(7).waitdone()
+        time.sleep(1)
+    r = w.close()
     logging.info(io_per_second)
 
     
 # full drive seq write
-def test_clean_and_fill_drive(nvme0n1):
+def test_clean_and_fill_drive(nvme0, nvme0n1):
     nvme0n1.format(512)
-    do_fill_drive(seq, nvme0n1, nvme0n1.id_data(7, 0))
+    do_fill_drive(seq, nvme0n1, nvme0n1.id_data(7, 0), nvme0)
 
 
 # random write 20% region to steady
-def test_random_write_small_region(nvme0n1):
-    do_fill_drive(rand, nvme0n1, nvme0n1.id_data(7, 0)//5)
+def test_random_write_small_region(nvme0, nvme0n1):
+    do_fill_drive(rand, nvme0n1, nvme0n1.id_data(7, 0)//5, nvme0)
 
     
 # iops: read/write/mixed
 # latency: read/write/mixed
 @pytest.mark.parametrize("readp", [100, 90, 67, 50, 33, 10, 0])
-def test_steady_iops_latency(nvme0n1, readp):
+def test_steady_iops_latency(nvme0, nvme0n1, readp):
     percentile_latency = dict.fromkeys([50, 90, 99, 99.9, 99.999])
     io_per_second = []
 
@@ -83,6 +87,9 @@ def test_steady_iops_latency(nvme0n1, readp):
                          time=TEST_SCALE, read_percentage=readp,
                          output_percentile_latency=percentile_latency, 
                          output_io_per_second=io_per_second).start()
+    while w.running:
+        nvme0.getfeatures(7).waitdone()
+        time.sleep(1)
     r = w.close()
     logging.info(io_per_second)
     consistency = w.iops_consistency(90)
@@ -105,6 +112,9 @@ def test_steady_iops_latency(nvme0n1, readp):
                              region_end=nvme0n1.id_data(7, 0)//5, 
                              time=TEST_SCALE, read_percentage=readp,
                              output_percentile_latency=percentile_latency).start()
+        while w.running:
+            nvme0.getfeatures(7).waitdone()
+            time.sleep(1)
         r = w.close()
         logging.info("iops %d, latency %dus" % (iops, r.latency_average_us))
 
