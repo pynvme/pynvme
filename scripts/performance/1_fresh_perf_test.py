@@ -66,7 +66,7 @@ def do_ioworker(rand, read, ns):
 
 def do_fill_drive(rand, nvme0n1, nvme0, filename):
     io_size = 8 if rand else 128
-    ns_size = nvme0n1.id_data(7, 0)//8
+    ns_size = nvme0n1.id_data(7, 0)
     io_count = ns_size//io_size
     io_per_second = []
     output_percentile_latency = dict.fromkeys([99.9])
