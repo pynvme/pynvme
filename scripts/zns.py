@@ -54,6 +54,11 @@ class Zone(object):
         assert self._buf.data(87, 80) == self.slba
         return self._buf
 
+    def zns_supported(self):
+        cap_css = ((nvme0.cap >> 32) & 0x1FE0) >> 5
+        logging.debug("CAP.CSS= 0x%x" % cap_css)
+        return (cap_css & 0x40)
+
     @property
     def state(self):
         state_name = {1: 'Empty',
