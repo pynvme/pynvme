@@ -418,7 +418,7 @@ cdef class Subsystem(object):
         # cleanup host driver after power off, so IO is active at power off
         pcie._driver_cleanup()
         pcie._bind_driver(None)
-        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null || true' % bdf, shell=True)
+        subprocess.call('echo 1 > "/sys/bus/pci/devices/%s/remove" 2> /dev/null' % bdf, shell=True)
 
         if not self._poweroff:
             self.power_cycle(15)
@@ -721,13 +721,13 @@ cdef class Pcie(object):
         # remove the device
         if retry:
             logging.debug("remove the device: %s, retry %d" % (bdf, retry))
-            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
-            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null' % (vdid, bdf), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null' % (bdf, bdf), shell=True)
 
         # bind the new driver
         if driver:
-            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, driver), shell=True)
-            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, driver), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null' % (vdid, driver), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null' % (bdf, driver), shell=True)
             logging.debug("bind %s on %s" % (driver, bdf))
     
     def flr(self):
