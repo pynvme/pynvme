@@ -82,6 +82,7 @@ def do_fill_drive(rand, nvme0n1, nvme0, filename):
     r = w.close()
     
     import matplotlib.pyplot as plt
+    plt.figure(figsize=(30, 12))
     plt.plot(r.latency_distribution)
     plt.xlabel('useconds')
     plt.ylabel('#IO')
@@ -90,7 +91,7 @@ def do_fill_drive(rand, nvme0n1, nvme0, filename):
     plt.xscale('log')
     plt.yscale('log')
     plt.tight_layout()
-    plt.savefig(filename+".png")
+    plt.savefig("lat_hist_"+filename+".png", dpi=300)
     plt.close()
 
     if not rand:
