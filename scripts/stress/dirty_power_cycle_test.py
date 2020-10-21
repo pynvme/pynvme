@@ -144,7 +144,7 @@ def test_quarch_dirty_power_cycle_multiple(pciaddr, nvme0, repeat):
         "0000:06:00.0": # pynvme's software-defined power cycle
         (None,
          None),  
-        "0000:3d:00.0": # pynvme's software-defined power cycle
+        "0000:3a:00.0": # pynvme's software-defined power cycle
         (None,
          None),  
         "0000:08:00.0":

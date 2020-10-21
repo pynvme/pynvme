@@ -696,29 +696,40 @@ cdef class Pcie(object):
         while not os.path.exists("/sys/bus/pci/devices/"+bdf):
             retry -= 1
             if retry == 0:
-                logging.error("device lost: %s, retry %d" % (bdf, retry))
+                logging.error("device lost at rescan: %s, retry %d" % (bdf, retry))
                 return False
-            time.sleep(0.01)
-            logging.info("rescan the device: %s, retry %d" % (bdf, retry))
+            time.sleep(0.001)
+            logging.debug("rescan the device: %s, retry %d" % (bdf, retry))
             subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null', shell=True)
 
         logging.debug("find device on %s" % bdf)
         return True
 
-    def _bind_driver(self, driver):
+    def _bind_driver(self, driver, retry=1000):
         bdf = self._bdf.decode('utf-8')
         vdid = self._vdid.decode('utf-8')
 
-        if os.path.exists("/sys/bus/pci/devices/%s/driver" % bdf):
-            logging.debug("unbind %s on %s" % (vdid, bdf))
-            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null' % (vdid, bdf), shell=True)
-            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null' % (bdf, bdf), shell=True)
+        # check if the driver is ready
+        while not os.path.exists("/sys/bus/pci/devices/%s/driver" % bdf):
+            retry -= 1
+            if retry == 0:
+                logging.error("device lost at rebind: %s, retry %d" % (bdf, retry))
+                break
+            time.sleep(0.001)
+            logging.debug("rescan the driver: %s, retry %d" % (bdf, retry))
+            
+        # remove the device
+        if retry:
+            logging.debug("remove the device: %s, retry %d" % (bdf, retry))
+            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null || true' % (vdid, bdf), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null || true' % (bdf, bdf), shell=True)
 
+        # bind the new driver
         if driver:
-            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null' % (vdid, driver), shell=True)
-            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null' % (bdf, driver), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null || true' % (vdid, driver), shell=True)
+            subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null || true' % (bdf, driver), shell=True)
             logging.debug("bind %s on %s" % (driver, bdf))
-
+    
     def flr(self):
         bdf = self._bdf.decode('utf-8')
 
@@ -941,7 +952,7 @@ cdef class Controller(object):
                 nvme0.identify(Buffer(4096)).waitdone()
                 if nvme0.init_ns() < 0:
                     # second try fail: error
-                    raise NvmeEnumerateError("init namespaces failed")
+                    raise NvmeEnumerateError("retry init namespaces failed")
 
             # 8. set/get num of queues
             logging.debug("init number of queues")
@@ -2750,9 +2761,10 @@ class _IOWorker(object):
 
             # sudden terminate, not block on the queue
             fast_exit = False
+            if error:
+                fast_exit = True
             if error == -7:
                 error = 0
-                fast_exit = True
 
             # feed return to main process
             rqueue.put((os.getpid(),
