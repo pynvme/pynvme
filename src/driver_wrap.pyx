@@ -684,7 +684,21 @@ cdef class Pcie(object):
 
         logging.info("cannot find the capability %d" % cap_id)
 
-    def _rescan(self, retry=1000):
+    def _exist(self, filename, rescan=False, retry=1000):
+        while not os.path.exists(filename):
+            retry -= 1
+            if retry == 0:
+                logging.error("device file not exist: %s" % filename)
+                return False
+            time.sleep(0.001)
+            logging.debug("retry %d" % retry)
+
+            if rescan:
+                subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null', shell=True)
+
+        return True
+
+    def _rescan(self):
         bdf = self._bdf.decode('utf-8')
 
         # rescan device without kernel nvme driver
@@ -693,43 +707,28 @@ cdef class Pcie(object):
         subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null', shell=True)
 
         # check if the device is online
-        while not os.path.exists("/sys/bus/pci/devices/"+bdf):
-            retry -= 1
-            if retry == 0:
-                logging.error("device lost at rescan: %s, retry %d" % (bdf, retry))
-                return False
-            time.sleep(0.001)
-            logging.debug("rescan the device: %s, retry %d" % (bdf, retry))
-            subprocess.call('echo 1 > /sys/bus/pci/rescan 2> /dev/null', shell=True)
-
-        logging.debug("find device on %s" % bdf)
-        return True
+        if self._exist("/sys/bus/pci/devices/"+bdf, True):
+            logging.debug("find device on %s" % bdf)
 
     def _bind_driver(self, driver, retry=1000):
         bdf = self._bdf.decode('utf-8')
         vdid = self._vdid.decode('utf-8')
 
         # check if the driver is ready
-        while not os.path.exists("/sys/bus/pci/devices/%s/driver/remove_id" % bdf):
-            retry -= 1
-            if retry == 0:
-                logging.error("device lost at rebind: %s, retry %d" % (bdf, retry))
-                break
-            time.sleep(0.001)
-            logging.debug("rescan the driver: %s, retry %d" % (bdf, retry))
-            
-        # remove the device
-        if retry:
+        if self._exist("/sys/bus/pci/devices/%s/driver/remove_id" % bdf) and \
+           self._exist("/sys/bus/pci/devices/%s/driver/unbind" % bdf):
             logging.debug("remove the device: %s, retry %d" % (bdf, retry))
             subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null' % (vdid, bdf), shell=True)
             subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null' % (bdf, bdf), shell=True)
 
         # bind the new driver
-        if driver:
+        if driver and \
+           self._exist("/sys/bus/pci/drivers/%s/new_id" % driver) and \
+           self._exist("/sys/bus/pci/drivers/%s/bind" % driver):
             subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/new_id" 2> /dev/null' % (vdid, driver), shell=True)
             subprocess.call('echo "%s" > "/sys/bus/pci/drivers/%s/bind" 2> /dev/null' % (bdf, driver), shell=True)
             logging.debug("bind %s on %s" % (driver, bdf))
-    
+
     def flr(self):
         bdf = self._bdf.decode('utf-8')
 
@@ -1968,7 +1967,7 @@ cdef class Namespace(object):
                  region_start=0, region_end=0xffffffffffffffff,
                  iops=0, io_count=0, lba_start=0, qprio=0,
                  distribution=None, ptype=0xbeef, pvalue=100,
-                 io_sequence=None, fw_debug=False, 
+                 io_sequence=None, fw_debug=False,
                  output_io_per_second=None,
                  output_percentile_latency=None,
                  output_cmdlog_list=None):
@@ -2074,7 +2073,7 @@ cdef class Namespace(object):
                          lba_start, lba_step, io_size,
                          lba_align, lba_random, region_start, region_end,
                          op_percentage, iops, io_count, time, qdepth, qprio,
-                         distribution, pvalue, ptype, io_sequence, fw_debug, 
+                         distribution, pvalue, ptype, io_sequence, fw_debug,
                          output_io_per_second,
                          output_percentile_latency,
                          output_cmdlog_list)
@@ -2320,22 +2319,22 @@ cdef class Namespace(object):
     def zns_mgmt_receive(self, qpair, buf, slba=0, dwords=None, extended=True, state=0, partial=True, cb=None):
         if dwords is None:  dwords = len(buf)>>2  # the same size of buffer
         assert dwords > 0, "cannot read empty data"
-        
+
         self.send_io_raw(qpair, buf, 0x7a, self._nsid,
                          slba&0xffffffff, slba>>32,
                          dwords-1,
-                         (partial<<16)+(state<<8)+extended, 0, 0, 
+                         (partial<<16)+(state<<8)+extended, 0, 0,
                          cmd_cb, <void*>cb)
         return qpair
-    
+
     def zns_mgmt_send(self, qpair, buf, slba=0, action=0, all=False, cb=None):
         self.send_io_raw(qpair, buf, 0x79, self._nsid,
                          slba&0xffffffff, slba>>32,
-                         0, 
-                         (all<<8)+action, 0, 0, 
+                         0,
+                         (all<<8)+action, 0, 0,
                          cmd_cb, <void*>cb)
         return qpair
-    
+
     def send_cmd(self, opcode, qpair, buf=None, nsid=1,
                  cdw10=0, cdw11=0, cdw12=0,
                  cdw13=0, cdw14=0, cdw15=0,
@@ -2411,7 +2410,7 @@ class _IOWorker(object):
                  lba_start, lba_step, lba_size,
                  lba_align, lba_random, region_start, region_end,
                  op_percentage, iops, io_count, time, qdepth, qprio,
-                 distribution, pvalue, ptype, io_sequence, fw_debug, 
+                 distribution, pvalue, ptype, io_sequence, fw_debug,
                  output_io_per_second,
                  output_percentile_latency,
                  output_cmdlog_list):
@@ -2429,7 +2428,7 @@ class _IOWorker(object):
                                      op_percentage,
                                      iops, io_count, time, qdepth, qprio,
                                      distribution, pvalue, ptype,
-                                     io_sequence, fw_debug, 
+                                     io_sequence, fw_debug,
                                      output_io_per_second,
                                      output_percentile_latency,
                                      output_cmdlog_list))
@@ -2573,7 +2572,7 @@ class _IOWorker(object):
                   lba_start, lba_step, lba_size, lba_align, lba_random,
                   region_start, region_end, op_percentage,
                   iops, io_count, seconds, qdepth, qprio,
-                  distribution, pvalue, ptype, io_sequence, fw_debug, 
+                  distribution, pvalue, ptype, io_sequence, fw_debug,
                   output_io_per_second,
                   output_percentile_latency,
                   output_cmdlog_list):
