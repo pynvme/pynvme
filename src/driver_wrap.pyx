@@ -710,7 +710,7 @@ cdef class Pcie(object):
         vdid = self._vdid.decode('utf-8')
 
         # check if the driver is ready
-        while not os.path.exists("/sys/bus/pci/devices/%s/driver" % bdf):
+        while not os.path.exists("/sys/bus/pci/devices/%s/driver/remove_id" % bdf):
             retry -= 1
             if retry == 0:
                 logging.error("device lost at rebind: %s, retry %d" % (bdf, retry))
