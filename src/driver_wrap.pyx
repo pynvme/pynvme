@@ -685,6 +685,7 @@ cdef class Pcie(object):
         logging.info("cannot find the capability %d" % cap_id)
 
     def _exist(self, filename, rescan=False, retry=1000):
+        logging.debug("check device file: %s" % filename)
         while not os.path.exists(filename):
             retry -= 1
             if retry == 0:
@@ -710,14 +711,14 @@ cdef class Pcie(object):
         if self._exist("/sys/bus/pci/devices/"+bdf, True):
             logging.debug("find device on %s" % bdf)
 
-    def _bind_driver(self, driver, retry=1000):
+    def _bind_driver(self, driver):
         bdf = self._bdf.decode('utf-8')
         vdid = self._vdid.decode('utf-8')
 
         # check if the driver is ready
         if self._exist("/sys/bus/pci/devices/%s/driver/remove_id" % bdf) and \
            self._exist("/sys/bus/pci/devices/%s/driver/unbind" % bdf):
-            logging.debug("remove the device: %s, retry %d" % (bdf, retry))
+            logging.debug("remove the device: %s" % bdf)
             subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/remove_id" 2> /dev/null' % (vdid, bdf), shell=True)
             subprocess.call('echo "%s" > "/sys/bus/pci/devices/%s/driver/unbind" 2> /dev/null' % (bdf, bdf), shell=True)
 

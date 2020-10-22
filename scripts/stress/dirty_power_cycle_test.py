@@ -106,7 +106,7 @@ def test_quarch_dirty_power_cycle_single(nvme0, poweron=None, poweroff=None):
     # verify unsafe shutdown count
     unsafe_count = power_cycle_count()
     logging.info("power cycle count: %d" % unsafe_count)
-    assert unsafe_count == orig_unsafe_count+1
+    assert unsafe_count > orig_unsafe_count
 
     
 # define the power on/off funciton

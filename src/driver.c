@@ -225,8 +225,6 @@ static inline int buffer_verify_lba(const void* buf,
         expected_lba != 0 &&
         expected_lba != (uint64_t)-1)
     {
-      SPDK_WARNLOG("lba mismatch: lba 0x%lx, but got: 0x%lx\n",
-                   lba, expected_lba);
       return -2;
     }
   }
@@ -264,7 +262,6 @@ static inline int buffer_verify_data(struct spdk_nvme_ns* ns,
       if (computed_crc != expected_crc)
       {
         assert(expected_crc != 0);  // exclude nomapping
-
         SPDK_WARNLOG("crc mismatch: lba 0x%lx, expected crc 0x%x, but got: 0x%x\n",
                      lba, expected_crc, computed_crc);
         return -3;
@@ -712,6 +709,18 @@ static int cmdlog_verify_crc(struct cmd_log_entry_t* log_entry)
       {
         //verify data pattern and crc
         ret = buffer_verify_data(ns, log_entry->buf, lba, lba_count, lba_size);
+      }
+      else
+      {
+        // lba wrong, verify crc with expected lba, instead of given lba
+        uint64_t expected_lba = *(uint64_t*)(log_entry->buf);
+        ret = buffer_verify_data(ns, log_entry->buf, expected_lba, lba_count, lba_size);
+        if (ret == 0)
+        {
+          // crc ok, so it is a real lba mismatch, mapping error
+          SPDK_WARNLOG("lba mismatch: lba 0x%lx, but got: 0x%lx\n", lba, expected_lba);
+          ret = -2;
+        }
       }
     }
   }
