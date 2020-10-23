@@ -641,6 +641,7 @@ def test_verify_partial_namespace(nvme0):
     nvme0n1 = d.Namespace(nvme0, 1, region_end)
     assert True == nvme0n1.verify_enable(True)
 
+    nvme0n1.format()
     nvme0n1.ioworker(io_size=8,
                      lba_random=True,
                      region_end=region_end,
