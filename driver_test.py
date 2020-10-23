@@ -244,8 +244,8 @@ def test_expected_dut(nvme0):
     logging.info("0x%x" % nvme0.id_data(3, 2))
     logging.info(nvme0.id_data(63, 24, str))
     logging.info(nvme0.id_data(71, 64, str))
-    assert nvme0.id_data(1, 0) == 0x14a4
-    assert "CAZ-82256-Q11" in nvme0.id_data(63, 24, str)
+    assert nvme0.id_data(1, 0) == 0x1e95
+    assert "CA5-8D256-Q11 NVMe SSSTC 256GB" in nvme0.id_data(63, 24, str)
 
 
 def test_read_fua_latency(nvme0n1, nvme0, qpair, buf):
@@ -1281,8 +1281,7 @@ def test_format_basic(nvme0, nvme0n1, lbaf):
     q = d.Qpair(nvme0, 8)
 
     logging.info("crypto secure erase one namespace")
-    with pytest.warns(UserWarning, match="ERROR status: 01/0a"):
-        nvme0.format(nvme0n1.get_lba_format(512, 0), ses=2).waitdone()
+    nvme0.format(nvme0n1.get_lba_format(512, 0), ses=2).waitdone()
 
     logging.info("invalid format")
     with pytest.warns(UserWarning, match="ERROR status:"):
@@ -3534,9 +3533,10 @@ def test_fused_operations(nvme0, nvme0n1):
 
 
 def test_raw_write_read(nvme0, nvme0n1, qpair, verify):
-    buf = d.Buffer(512, ptype=32, pvalue=0x5aa5a55a)
-
+    assert verify == True
+    
     # use generic cmd to write without pynvme's injected data
+    buf = d.Buffer(512, ptype=32, pvalue=0x5aa5a55a)
     nvme0n1.send_cmd(1, qpair, buf).waitdone()  # write LBA 0
 
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
