@@ -97,11 +97,6 @@ get the buffer content
 
 * **size (int)**\ : the size of the buffer to print. Default: None, means to print the whole buffer
 
-offset
-^^^^^^
-
-get the offset of the PRP in bytes
-
 phys_addr
 ^^^^^^^^^
 
