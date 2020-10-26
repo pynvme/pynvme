@@ -43,21 +43,50 @@ import nvme as d
 TEST_LOOPS = 3  # 3000
 
 
-def test_ioworker_longtime(nvme0n1, qcount=1):
+@pytest.fixture(scope="function")
+def nvme0n1(nvme0):
+    # skip crc calc in write
+    ret = d.Namespace(nvme0, 1, 1)
+    yield ret
+    ret.close()
+
+    
+def test_ioworker_longtime(nvme0n1, qcount=4, second=100):
     l = []
     io_total = 0
+    io_per_second = [list() for i in range(qcount)]
+    output_percentile_latency = [dict.fromkeys([99.9])]*qcount
+
+    nvme0n1.format(512)
+    
     for i in range(qcount):
         a = nvme0n1.ioworker(io_size=8, lba_align=8,
-                             region_start=0, region_end=256*1024*8, # 1GB space
                              lba_random=False, qdepth=16,
-                             read_percentage=0, time=50*3600).start()
+                             read_percentage=0,
+                             output_io_per_second=io_per_second[i],
+                             time=second).start()
         l.append(a)
 
-    for a in l:
-        r = a.close()
+    for i in range(qcount):
+        r = l[i].close()
+        logging.info(r)
         io_total += (r.io_count_read+r.io_count_nonread)
 
-    logging.info("Q %d IOPS: %.3fK" % (qcount, io_total/50000/3600))
+    logging.info("Q %d IOPS: %.3fK" % (qcount, io_total/second/1000))
+    output_iops = [sum(i) for i in zip(*io_per_second)]
+
+    import matplotlib
+    matplotlib.use('svg')    
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(30, 12))
+    plt.plot(output_iops)
+    plt.xlabel('second')
+    plt.ylabel('#IO')
+    plt.xlim(0)
+    plt.ylim(0)
+    plt.tight_layout()
+    plt.savefig("iops.png", dpi=600)
+    plt.close()
 
     
 def test_write_and_read_to_eol(nvme0, subsystem, nvme0n1: d.Namespace, verify):
