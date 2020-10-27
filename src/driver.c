@@ -651,7 +651,7 @@ static void cmdlog_update_crc_io(struct spdk_nvme_cmd* cmd,
       case 9:
         //dsm
         assert(buf != NULL);
-        crc32_clear_ranges(ns, buf, cmd->cdw10+1);
+        crc32_clear_ranges(ns, buf, (cmd->cdw10&0xff)+1);
         break;
 
       default:
