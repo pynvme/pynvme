@@ -618,8 +618,8 @@ cdef class Pcie(object):
     def _driver_cleanup(self):
         # notify and wait all secondary processes to terminate
         if not d.driver_no_secondary(self._ctrlr):
-            self._config(ioworker_terminate=True)
             logging.info("wait all qpair to be deleted")
+            self._config(ioworker_terminate=True)
             d.crc32_unlock_all(self._ctrlr)
             retry = 100
             while not d.driver_no_secondary(self._ctrlr):
@@ -2781,11 +2781,13 @@ class _IOWorker(object):
 
             if not fw_debug or not error:
                 with locker:
+                    terminated = d.driver_config_read() & 0x10
+
                     # close resources in right order
                     if 'qpair' in locals():
                         # fail fast to delete queue after power loss
                         orig = nvme0.timeout
-                        if d.driver_config_read() & 0x10:
+                        if terminated:
                             nvme0.timeout = 10
                             # backup BAR and remap to another memory
                             d.nvme_bar_remap(nvme0.pcie._ctrlr)
@@ -2796,7 +2798,7 @@ class _IOWorker(object):
                             pass
 
                         # use original timeout
-                        if d.driver_config_read() & 0x10:
+                        if terminated:
                             nvme0.timeout = orig
                             # use original BAR
                             d.nvme_bar_recover(nvme0.pcie._ctrlr)
