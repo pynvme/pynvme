@@ -464,7 +464,7 @@ bool crc32_lock_lba(struct nvme_request* req)
   }
   else
   {
-    // other command like flush
+    // other no data command like flush
     return true;
   }
 
@@ -512,7 +512,7 @@ void crc32_unlock_lba(struct nvme_request* req)
   }
   else
   {
-    
+    // other no data command like flush
   }
 }
 
@@ -757,6 +757,10 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   memcpy(&log_entry->cpl, cpl, sizeof(struct spdk_nvme_cpl));
   timersub(&now, &log_entry->time_cmd, &diff);
   log_entry->cpl_latency_us = timeval_to_us(&diff);
+
+  // for debug only: put command time to cpl[0], and completion time to cpl[1]
+  //cpl->cdw0 = log_entry->time_cmd.tv_usec;
+  //cpl->rsvd1 = now.tv_usec;
 
   //update crc table when command completes successfully
   if (cpl->status.sc == 0 && cpl->status.sct == 0)
@@ -2038,7 +2042,8 @@ rpc_get_cmdlog(struct spdk_jsonrpc_request *request,
       {
         // a completed command, display its cpl cdws
         struct timeval time_cpl = (struct timeval){0};
-        time_cpl.tv_usec = table[index].cpl_latency_us;
+        time_cpl.tv_sec = table[index].cpl_latency_us/US_PER_S;
+        time_cpl.tv_usec = table[index].cpl_latency_us%US_PER_S;
         timeradd(&time_cmd, &time_cpl, &time_cpl);
 
         //get the string of cpl date/time
