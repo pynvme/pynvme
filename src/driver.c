@@ -555,11 +555,11 @@ struct cmd_log_table_t {
   struct cmd_log_entry_t table[CMD_LOG_DEPTH];
   uint32_t head_index;
   uint32_t tail_index;
-  //uint32_t msg_data;
+  uint32_t latest_latency_us;
+  uint16_t latest_cid;
   uint16_t intr_vec;
   uint16_t intr_enabled;
-  uint16_t latest_cid;
-  uint16_t dummy[55];
+  uint16_t dummy[53];
 };
 static_assert(sizeof(struct cmd_log_table_t)%64 == 0, "cacheline aligned");
 
@@ -734,6 +734,7 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   struct timeval diff;
   struct timeval now;
   struct cmd_log_entry_t* log_entry = req->cmdlog_entry;
+  struct cmd_log_table_t* cmdlog = req->qpair->pynvme_cmdlog;
 
   if (log_entry == NULL)
   {
@@ -757,10 +758,7 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   memcpy(&log_entry->cpl, cpl, sizeof(struct spdk_nvme_cpl));
   timersub(&now, &log_entry->time_cmd, &diff);
   log_entry->cpl_latency_us = timeval_to_us(&diff);
-
-  // for debug only: put command time to cpl[0], and completion time to cpl[1]
-  //cpl->cdw0 = log_entry->time_cmd.tv_usec;
-  //cpl->rsvd1 = now.tv_usec;
+  cmdlog->latest_latency_us = log_entry->cpl_latency_us;
 
   //update crc table when command completes successfully
   if (cpl->status.sc == 0 && cpl->status.sct == 0)
@@ -1276,6 +1274,22 @@ uint16_t qpair_get_latest_cid(struct spdk_nvme_qpair* q,
   assert(q->ctrlr == c);
   log_table = q->pynvme_cmdlog;
   return log_table->latest_cid;
+}
+
+uint32_t qpair_get_latest_latency(struct spdk_nvme_qpair* q,
+                                  struct spdk_nvme_ctrlr* c)
+{
+  struct cmd_log_table_t* log_table;
+
+  if (q == NULL)
+  {
+    q = c->adminq;
+  }
+
+  assert(q != NULL);
+  assert(q->ctrlr == c);
+  log_table = q->pynvme_cmdlog;
+  return log_table->latest_latency_us;
 }
 
 int qpair_free(struct spdk_nvme_qpair* q)

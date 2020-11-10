@@ -965,7 +965,15 @@ cdef class Controller(object):
 
     @property
     def latest_cid(self):
+        '''cid of latest completed command'''
+
         return d.qpair_get_latest_cid(NULL, self.pcie._ctrlr)
+
+    @property
+    def latest_latency(self):
+        '''latency of latest completed command in us'''
+
+        return d.qpair_get_latest_latency(NULL, self.pcie._ctrlr)
 
     @property
     def addr(self):
@@ -1743,11 +1751,21 @@ cdef class Qpair(object):
 
     @property
     def sqid(self):
+        '''submission queue id in this qpair'''
+
         return d.qpair_get_id(self._qpair)
 
     @property
     def latest_cid(self):
+        '''cid of latest completed command'''
+
         return d.qpair_get_latest_cid(self._qpair, self._nvme.pcie._ctrlr)
+
+    @property
+    def latest_latency(self):
+        '''latency of latest completed command in us'''
+
+        return d.qpair_get_latest_latency(self._qpair, self._nvme.pcie._ctrlr)
 
     def cmdlog(self, count=0):
         """print recent IO commands and their completions in this qpair.

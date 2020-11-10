@@ -407,6 +407,16 @@ def test_latest_cid(nvme0, nvme0n1, qpair, buf):
     nvme0n1.read(qpair, buf, 0, 8).waitdone()
     nvme0.abort(qpair.latest_cid).waitdone()
 
+    
+def test_latest_latency(nvme0, nvme0n1, qpair, buf):
+    nvme0n1.read(qpair, buf, 0, 8).waitdone()
+    logging.info(qpair.latest_latency)
+    nvme0n1.write(qpair, buf, 0, 8).waitdone()
+    logging.info(qpair.latest_latency)
+    for ps in range(5):
+        nvme0.setfeatures(0x2, cdw11=ps).waitdone()
+        logging.info(nvme0.latest_latency)
+
 
 def test_random_seed():
     import random
