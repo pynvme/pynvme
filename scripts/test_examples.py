@@ -412,12 +412,12 @@ def test_namespace_multiple(pciaddr, buf):
         qpair.delete()
         nvmexn1.close()
         p.close()
-        
-                
+
+
 @pytest.mark.parametrize("qcount", [1, 1, 2, 4])
 def test_ioworker_iops_multiple_queue(nvme0n1, qcount):
     nvme0n1.format(512)
-    
+
     l = []
     io_total = 0
     for i in range(qcount):
@@ -533,7 +533,7 @@ def test_power_on_off(nvme0):
 def test_init_nvme_customerized(pcie):
     def nvme_init(nvme0):
         logging.info("user defined nvme init")
-        
+
         nvme0[0x14] = 0
         while not (nvme0[0x1c]&0x1) == 0: pass
 
@@ -569,7 +569,7 @@ def test_init_nvme_customerized(pcie):
 
     # 2. disable cc.en and wait csts.rdy to 0
     nvme0 = d.Controller(pcie, nvme_init_func=nvme_init)
-    
+
     # test with ioworker
     nvme0n1 = d.Namespace(nvme0)
     qpair = d.Qpair(nvme0, 10)
@@ -577,12 +577,12 @@ def test_init_nvme_customerized(pcie):
     qpair2 = d.Qpair(nvme0, 10)
     with pytest.raises(d.QpairCreationError):
         qpair3 = d.Qpair(nvme0, 10)
-        
+
     qpair.delete()
     qpair2.delete()
     nvme0n1.close()
 
-    
+
 def test_ioworker_op_dict_trim(nvme0n1):
     cmdlog_list = [None]*10000
     op_percentage = {2: 40, 9: 30, 1: 30}
@@ -635,7 +635,7 @@ def test_aer_with_multiple_sanitize(nvme0, nvme0n1, buf):  #L8
                 progress = buf.data(1, 0)*100//0xffff
                 logging.info("%d%%" % progress)
 
-                
+
 def test_verify_partial_namespace(nvme0):
     region_end=1024*1024*1024//512  # 1GB space
     nvme0n1 = d.Namespace(nvme0, 1, region_end)
@@ -716,7 +716,7 @@ def test_jsonrpc_list_qpairs(pciaddr):
     result = jsonrpc_call(sock, 'list_all_qpair')
     assert len(result) == 0
 
-    
+
 def test_powercycle_with_qpair(nvme0, nvme0n1, buf, subsystem):
     qpair = d.Qpair(nvme0, 16)
     nvme0n1.write(qpair, buf, 0).waitdone()
@@ -735,7 +735,7 @@ def test_powercycle_with_qpair(nvme0, nvme0n1, buf, subsystem):
 def test_reset_time(pcie):
     def nvme_init(nvme0):
         logging.info("user defined nvme init")
-        
+
         nvme0[0x14] = 0
         while not (nvme0[0x1c]&0x1) == 0: pass
         logging.info(time.time())
@@ -757,7 +757,7 @@ def test_reset_time(pcie):
 
         nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
         nvme0.init_queues(nvme0.getfeatures(0x7).waitdone())
-        
+
     logging.info("1: nvme init")
     logging.info(time.time())
     nvme0 = d.Controller(pcie, nvme_init_func=nvme_init)
@@ -769,7 +769,7 @@ def test_reset_time(pcie):
     qpair.delete()
     qpair2.delete()
     qpair3.delete()
-    
+
     logging.info("2: nvme reset")
     logging.info(time.time())
     nvme0.reset()
@@ -779,28 +779,42 @@ def test_reset_time(pcie):
     logging.info(time.time())
     subsystem.poweron()
     nvme0.reset()
-    
 
-@pytest.mark.parametrize("ps", range(5))
-def test_power_state_transition_latency(pcie, nvme0, nvme0n1, qpair, buf, ps):
-    nvme0n1.write(qpair, buf, 0, 8).waitdone()
+
+@pytest.mark.parametrize("ps", range(1, 5, 1))
+def test_power_state_transition(pcie, nvme0, nvme0n1, qpair, buf, ps):
+    # for accurate sleep delay
+    import ctypes
+    libc = ctypes.CDLL('libc.so.6')
+
+    # write data to LBA 0x5a
+    nvme0n1.write(qpair, buf, 0x5a).waitdone()
+
+    # enable ASPM and get original power state
+    pcie.aspm = 2
     orig_ps = nvme0.getfeatures(0x2).waitdone()
 
-    latency_list = []
-    pcie.aspm = 2
-    for i in range(10):
-        nvme0.setfeatures(0x2, cdw11=ps).waitdone()
-        time.sleep(0.01)
-        start_time = time.time()
-        nvme0n1.read(qpair, buf, 0, 8).waitdone()
-        latency_list.append(time.time()-start_time)
-    post_ps = nvme0.getfeatures(0x2).waitdone()
-    logging.info("\nsetPS %d, postPS %d, read latency %0.3f msec" %
-                 (ps, post_ps, 1000*sum(latency_list)/len(latency_list)))
-    
+    # test with delay 1us-1ms
+    for i in range(1000):
+        # fix on power state 0 before test
+        nvme0.setfeatures(0x2, cdw11=0).waitdone()
+        libc.usleep(1000)
+
+        # change power status
+        nvme0.setfeatures(0x2, cdw11=ps)
+        libc.usleep(i)
+
+        # read lba 0x5a and verify data
+        nvme0n1.read(qpair, buf, 0x5a).waitdone()
+        assert buf[0] == 0x5a
+
+        # consume the cpl of setfeatures above
+        nvme0.waitdone()  # for setfeautres above
+
+    # recover to original power state
     pcie.aspm = 0
     nvme0.setfeatures(0x2, cdw11=orig_ps).waitdone()
-    
+
 
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
 def test_getlogpage_nsid(nvme0, buf, nsid):
@@ -827,7 +841,7 @@ def test_ioworker_with_temperature(nvme0, nvme0n1, buf):
             from pytemperature import k2c
             logging.info("temperature: %0.2f degreeC" %
                          k2c(ktemp))
-            
+
 
 def test_ioworker_jedec_enterprise_workload_512(nvme0n1):
     distribution = [1000]*5 + [200]*15 + [25]*80
@@ -850,9 +864,8 @@ def test_ioworker_jedec_enterprise_workload_512(nvme0n1):
                      qdepth=128,
                      distribution = distribution,
                      read_percentage=0,
-                     ptype=0xbeef, pvalue=100, 
-                     time=30, 
+                     ptype=0xbeef, pvalue=100,
+                     time=30,
                      output_percentile_latency=\
                        output_percentile_latency).start().close()
     logging.info(output_percentile_latency)
-    

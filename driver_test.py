@@ -1184,9 +1184,14 @@ def test_ioworker_subsystem_reset_async(nvme0, nvme0n1, subsystem):
 
 
 def test_ioworker_controller_reset_async(nvme0n1, nvme0):
+    cmdlog_list = [None]*1000
     for i in range(10):
+        logging.info(i)
         start_time = time.time()
-        with nvme0n1.ioworker(io_size=8, time=100):
+        with nvme0n1.ioworker(io_size=8, lba_random=True,
+                              read_percentage=30,
+                              output_cmdlog_list=cmdlog_list,
+                              qdepth=8, time=100):
             time.sleep(3)
             nvme0.reset()
         # terminated by power cycle
