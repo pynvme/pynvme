@@ -47,6 +47,7 @@ class Zone(object):
         self._ns = ns
         self._buf = Buffer()
         self.slba = slba
+        self.capacity = self._mgmt_receive().data(15+64, 8+64)
 
     def _mgmt_receive(self):
         self._ns.zns_mgmt_receive(self._qpair, self._buf, self.slba).waitdone()
@@ -68,33 +69,29 @@ class Zone(object):
 
     def close(self):
         self.action(1)
-        
+
     def finish(self):
         self.action(2)
-        
+
     def open(self):
         self.action(3)
-        
+
     def reset(self):
         self.action(4)
 
     def offline(self):
         self.action(5)
-        
+
     def set_descriptor_extension(self):
         self.action(0x10)
-        
+
     def action(self, action):
         self._ns.zns_mgmt_send(self._qpair, self._buf, self.slba, action).waitdone()
-    
+
     @property
     def attributes(self):
         return self._mgmt_receive().data(2+64)
-        
-    @property
-    def capacity(self):
-        return self._mgmt_receive().data(15+64, 8+64)
-    
+
     @property
     def wpointer(self):
         return self._mgmt_receive().data(31+64, 24+64)
@@ -102,14 +99,14 @@ class Zone(object):
     def __repr__(self):
         return "zone slba 0x%x, state %s, capacity 0x%x, write pointer 0x%x" % \
             (self.slba, self.state, self.capacity, self.wpointer)
-    
-    def write(self, qpair, buf, offset, lba_count=1, io_flags=0, 
+
+    def write(self, qpair, buf, offset, lba_count=1, io_flags=0,
               dword13=0, dword14=0, dword15=0, cb=None):
         logging.debug("write offset 0x%x" % offset)
         return self._ns.write(qpair, buf, self.slba+offset, lba_count,
                               io_flags, dword13, dword14, dword15, cb)
 
-    def read(self, qpair, buf, offset, lba_count=1, io_flags=0, 
+    def read(self, qpair, buf, offset, lba_count=1, io_flags=0,
              dword13=0, dword14=0, dword15=0, cb=None):
         logging.debug("read offset 0x%x" % offset)
         return self._ns.read(qpair, buf, self.slba+offset, lba_count,
@@ -117,7 +114,7 @@ class Zone(object):
 
     def ioworker(self, io_size=8, lba_step=None, lba_align=None,
                  lba_random=False, read_percentage=0,
-                 op_percentage=None, time=0, qdepth=2,
+                 op_percentage=None, time=10, qdepth=2,
                  iops=0, io_count=0, offset_start=0, qprio=0,
                  distribution=None, ptype=0xbeef, pvalue=100,
                  io_sequence=None,
@@ -150,13 +147,13 @@ class Zone(object):
                                  output_percentile_latency=output_percentile_latency,
                                  output_cmdlog_list=output_cmdlog_list)
 
-    
+
 def test_zns_framework(nvme0, nvme0n1):
     nvme0n1.format(512)
     assert type(nvme0n1) == Namespace
     assert nvme0.getfeatures(7).waitdone() == 0xf000f
     logging.info(nvme0n1.ioworker(io_size=8, io_count=1).start().close())
-    
+
 
 def test_zns_write(nvme0n1, buf, qpair):
     nvme0n1.format(512)
@@ -168,7 +165,7 @@ def test_zns_write(nvme0n1, buf, qpair):
     assert buf.data(3, 0) == 0
     zone.read(qpair, buf, 16).waitdone()
     assert buf.data(3, 0) == 0
-    
+
     with zone.ioworker(io_size=8, lba_random=False, read_percentage=0):
         pass
     ret = zone.ioworker(io_size=2, offset_start=0, lba_random=False,
