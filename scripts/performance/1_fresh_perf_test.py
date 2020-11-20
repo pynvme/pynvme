@@ -77,7 +77,8 @@ def do_fill_drive(rand, nvme0n1, nvme0, filename):
                          output_percentile_latency=output_percentile_latency,
                          output_io_per_second=io_per_second).start()
     while w.running:
-        nvme0.getfeatures(7).waitdone()
+        # fixed the bug: aer in ioworker corrupted the aer counter in waitdone
+        #nvme0.getfeatures(7).waitdone()
         time.sleep(1)
     r = w.close()
     

@@ -3761,3 +3761,23 @@ def test_ioworker_invalid_io_size_fw_debug_mode(nvme0, nvme0n1):
         nvme0n1.ioworker(io_size=nvme0.mdts//512+1, lba_align=64,
                          lba_random=False, qdepth=4,
                          read_percentage=100, time=2).start().close()
+
+
+from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
+
+def test_ioworker_with_invalid_sq_doorbell(nvme0, nvme0n1):
+    cq = IOCQ(nvme0, 4, 16, PRP())
+    sq1 = IOSQ(nvme0, 4, 16, PRP(), cqid=4)
+    
+    with nvme0n1.ioworker(io_size=8, io_count=1):
+        sq1.tail = 17
+
+    def _cb(cpl):
+        logging.info("getfeatures cb")
+        
+    with pytest.warns(UserWarning, match="AER notification is triggered"):
+        nvme0.getfeatures(7, cb=_cb).waitdone()
+        
+    sq1.delete()
+    cq.delete()
+    

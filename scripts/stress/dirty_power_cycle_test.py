@@ -107,7 +107,7 @@ def test_quarch_dirty_power_cycle_single(nvme0, nvme0n1, poweron=None, poweroff=
             #logging.info("verify slba 0x%x, nlba %d" % (slba, nlba))
             nvme0n1.read(qpair, read_buf, slba, nlba, cb=read_cb).waitdone()
             # re-write to clear CRC mismatch
-            nvme0n1.write(qpair, read_buf, slba, nlba, cb=read_cb).waitdone()
+            nvme0n1.write(qpair, read_buf, slba, nlba).waitdone()
     qpair.delete()
 
     # verify unsafe shutdown count

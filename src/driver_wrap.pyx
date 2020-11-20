@@ -1170,7 +1170,8 @@ cdef class Controller(object):
         for i in range(_aer_resend):
             # send more aer commands
             self.aer(cb=self.aer_cb_func)
-        for i in range(_aer_waitdone):
+        assert _aer_waitdone >= reaped-expected, "deduct pended aer commands"
+        for i in range(_aer_waitdone-(reaped-expected)):
             # process one more command in lieu of aer completion
             self.waitdone()
 
