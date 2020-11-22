@@ -112,6 +112,12 @@ class Zone(object):
         return self._ns.read(qpair, buf, self.slba+offset, lba_count,
                              io_flags, dword13, dword14, dword15, cb)
 
+
+    def append(self, qpair, buf, nsid, slba, cb=None):
+        return self._ns.send_cmd(opcode=0x7d, qpair=qpair, buf=buf, nsid=nsid,
+                 cdw10=slba&0xffffffff, cdw11=slba>>32, cdw12=0,
+                 cdw13=0, cdw14=0, cdw15=0, cb=cb)
+
     def ioworker(self, io_size=8, lba_step=None, lba_align=None,
                  lba_random=False, read_percentage=0,
                  op_percentage=None, time=10, qdepth=2,
