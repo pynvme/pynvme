@@ -917,7 +917,7 @@ def test_callback_with_whole_cpl(nvme0, nvme0n1, buf, qpair):
 
     def cb3(cdw0, status, third):
         pass
-    with pytest.warns(UserWarning, match="ASSERT: command callback"):
+    with pytest.warns(UserWarning, match="callback:"):
         nvme0.getfeatures(7, cb=cb3).waitdone()
 
 
