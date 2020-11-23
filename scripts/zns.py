@@ -113,8 +113,10 @@ class Zone(object):
                              io_flags, dword13, dword14, dword15, cb)
 
 
-    def append(self, qpair, buf, nsid, slba, cb=None):
-        return self._ns.send_cmd(opcode=0x7d, qpair=qpair, buf=buf, nsid=nsid,
+    def append(self, qpair, buf, slba=None, cb=None):
+        if slba == None:
+            slba = self.slba
+        return self._ns.send_cmd(opcode=0x7d, qpair=qpair, buf=buf, nsid=self._ns.nsid,
                  cdw10=slba&0xffffffff, cdw11=slba>>32, cdw12=0,
                  cdw13=0, cdw14=0, cdw15=0, cb=cb)
 
