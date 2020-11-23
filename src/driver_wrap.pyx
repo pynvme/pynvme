@@ -61,7 +61,6 @@ import multiprocessing
 
 # c library
 import cython
-from inspect import signature
 from libc.string cimport strncpy, memset, strlen
 from libc.stdio cimport printf
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
@@ -130,12 +129,7 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
         assert callable(func)
 
         try:
-            argc = len(signature(func).parameters)
-            assert argc == 1 or argc == 2, "command callback has illegal parameter list"
-            if argc == 2:
-                # call script callback function to check cpl
-                func(arg.cdw0, status1)
-            else:
+            try:
                 # we support 2 types of callback (dword0, status1), and (cpl)
                 cdw2 = arg.sqid
                 cdw3 = arg.status1
@@ -143,9 +137,14 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
                       arg.rsvd1,
                       (cdw2<<16)+arg.sqhead,
                       (cdw3<<16)+arg.cid))
+            except TypeError:
+                # call obsoleted callback function
+                func(arg.cdw0, status1)
         except AssertionError as e:
             warnings.warn("ASSERT: "+str(e))
-
+        except TypeError as e:
+            warnings.warn("callback: "+str(e))
+            
     if d.nvme_cpl_is_error(cpl):
         # script not check, so driver check cpl
         sc = (status1>>1) & 0xff
