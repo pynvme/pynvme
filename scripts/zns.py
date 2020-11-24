@@ -114,7 +114,7 @@ class Zone(object):
 
 
     def append(self, qpair, buf, slba=None, cb=None):
-        if slba == None:
+        if slba is None:
             slba = self.slba
         return self._ns.send_cmd(opcode=0x7d, qpair=qpair, buf=buf, nsid=self._ns.nsid,
                  cdw10=slba&0xffffffff, cdw11=slba>>32, cdw12=0,
