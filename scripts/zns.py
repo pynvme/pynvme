@@ -112,7 +112,6 @@ class Zone(object):
         return self._ns.read(qpair, buf, self.slba+offset, lba_count,
                              io_flags, dword13, dword14, dword15, cb)
 
-
     def append(self, qpair, buf, slba=None, cb=None):
         if slba is None:
             slba = self.slba
