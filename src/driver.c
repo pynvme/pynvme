@@ -775,7 +775,7 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
       //Unrecovered Read Error: The read data could not be recovered from the media.
       SPDK_NOTICELOG("original cpl:\n");
       spdk_nvme_qpair_print_completion(log_entry->req->qpair, cpl);
-      cpl->status.sct = 0x02;
+      cpl->status.sct = 0x07;  // change to vendor specific unrecovered read error
       cpl->status.sc = 0x81;
     }
   }
