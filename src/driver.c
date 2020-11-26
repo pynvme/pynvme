@@ -292,7 +292,7 @@ static void crc32_clear(struct spdk_nvme_ns *ns,
   crc_table_t* crc_table = (crc_table_t*)ns->crc_table;
 
   assert(ns != NULL);
-  SPDK_DEBUGLOG(SPDK_LOG_NVME, "lba %ld, len %ld, uncorr %d\n", lba, len, uncorr);
+  SPDK_DEBUGLOG(SPDK_LOG_NVME, "clear crc: lba %ld, len %ld, uncorr %d\n", lba, len, uncorr);
 
   if (crc_table != NULL && lba*sizeof(uint32_t) < ns->table_size)
   {
@@ -531,6 +531,18 @@ void crc32_unlock_all(struct spdk_nvme_ctrlr* ctrlr)
 }
 
 
+uint64_t crc32_skip_uncorr(struct spdk_nvme_ns* ns, uint64_t slba, uint32_t nlba)
+{
+  crc_table_t* crc_table = (crc_table_t*)ns->crc_table;
+
+  while (crc_table->data[slba] == 0x7fffffff) {
+    slba ++;
+  }
+  
+  return slba;
+}
+
+
 ////cmd log
 ///////////////////////////////
 
@@ -760,8 +772,9 @@ void cmdlog_cmd_cpl(struct nvme_request* req, struct spdk_nvme_cpl* cpl)
   log_entry->cpl_latency_us = timeval_to_us(&diff);
   cmdlog->latest_latency_us = log_entry->cpl_latency_us;
 
-  //update crc table when command completes successfully
-  if (cpl->status.sc == 0 && cpl->status.sct == 0)
+  //update crc table when command completes successfully, except for write uncorrectable
+  if ((cpl->status.sc == 0 && cpl->status.sct == 0) ||
+      (log_entry->cmd.opc == 4))
   {
     // write-like commnds
     cmdlog_update_crc(log_entry);

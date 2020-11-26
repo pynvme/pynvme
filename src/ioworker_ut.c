@@ -96,6 +96,11 @@ void timeval_gettimeofday(struct timeval *tv)
 
 }
 
+uint64_t crc32_skip_uncorr(struct spdk_nvme_ns* ns, uint64_t slba, uint32_t nlba)
+{
+  return slba;
+}
+
 uint32_t spdk_nvme_ns_get_max_io_xfer_size(struct spdk_nvme_ns *ns)
 {
   return 128*1024;
@@ -1114,7 +1119,7 @@ static void test_ioworker_send_one_lba_seq()
   args.lba_step = 1;
   ctx.sequential_lba = 0;
 
-  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+  ret = ioworker_send_one_lba(&ns, &args, &ctx, lba_align, lba_count);
 
   CU_ASSERT_EQUAL(ret, 0);
   CU_ASSERT_EQUAL(ctx.sequential_lba, 1);
@@ -1134,12 +1139,12 @@ static void test_ioworker_send_one_lba_seq_end()
   args.lba_step = 1;
   ctx.sequential_lba = 100;
 
-  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+  ret = ioworker_send_one_lba(&ns, &args, &ctx, lba_align, lba_count);
 
   CU_ASSERT_EQUAL(ret, 0);
   CU_ASSERT_EQUAL(ctx.sequential_lba, 1);
 
-  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+  ret = ioworker_send_one_lba(&ns, &args, &ctx, lba_align, lba_count);
 
   CU_ASSERT_EQUAL(ret, 1);
   CU_ASSERT_EQUAL(ctx.sequential_lba, 2);
@@ -1152,11 +1157,11 @@ static void test_ioworker_send_one_lba_seq_end()
   args.lba_step = 4;
   ctx.sequential_lba = 100;
 
-  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+  ret = ioworker_send_one_lba(&ns, &args, &ctx, lba_align, lba_count);
   CU_ASSERT_EQUAL(ret, 0);
   CU_ASSERT_EQUAL(ctx.sequential_lba, 4);
 
-  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+  ret = ioworker_send_one_lba(&ns, &args, &ctx, lba_align, lba_count);
   CU_ASSERT_EQUAL(ret, 4);
   CU_ASSERT_EQUAL(ctx.sequential_lba, 8);
 
@@ -1168,11 +1173,11 @@ static void test_ioworker_send_one_lba_seq_end()
   args.lba_step = 4;
   ctx.sequential_lba = 99;
 
-  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+  ret = ioworker_send_one_lba(&ns, &args, &ctx, lba_align, lba_count);
   CU_ASSERT_EQUAL(ret, 99);
   CU_ASSERT_EQUAL(ctx.sequential_lba, 103);
   
-  ret = ioworker_send_one_lba(&args, &ctx, lba_align, lba_count);
+  ret = ioworker_send_one_lba(&ns, &args, &ctx, lba_align, lba_count);
   CU_ASSERT_EQUAL(ret, 0);
   CU_ASSERT_EQUAL(ctx.sequential_lba, 4);
 }

@@ -41,18 +41,47 @@ from nvme import *
 
 
 class Zone(object):
-    def __init__(self, qpair, ns, slba):
-        logging.debug("create zone at 0x%x" % slba)
+    def __init__(self, qpair, ns, slba, elba=None):
+        ''' single zone or super zone.
+
+        super zone is combined with several consecutive zones. It 
+works with ioworker. 
+
+        # Parameters
+            qpair: binded qpair for zns io commands
+            ns: the namespace of the zone
+            slba: start lba of the zone, included
+            elba: end lba of the zone, excluded
+        '''
+            
         self._qpair = qpair
         self._ns = ns
         self._buf = Buffer()
         self.slba = slba
-        self.capacity = self._mgmt_receive().data(15+64, 8+64)
+        self.elba = slba
+        self.capacity = self._mgmt_receive(slba).data(15+64, 8+64)
+        
+        if elba:
+            # init all zones involved
+            self.elba = elba
+        else:
+            self.elba = slba+self.capacity
+            
+        self.slba_list = []
+        zsze = self._ns.zns_zsze
+        logging.debug("create zone [0x%x, 0x%x)" % (self.slba, self.elba))
 
-    def _mgmt_receive(self):
-        self._ns.zns_mgmt_receive(self._qpair, self._buf, self.slba).waitdone()
+        for s in range(self.slba, self.elba, zsze):
+            # mark lba out of capacity as uncorrectable
+            logging.info("init zone slba 0x%x" % s)
+            self.slba_list.append(s)
+            cap = self._mgmt_receive(s).data(15+64, 8+64)
+            ns.write_uncorrectable(qpair, s+cap, zsze-cap).waitdone()
+                
+    def _mgmt_receive(self, slba):
+        self._ns.zns_mgmt_receive(self._qpair, self._buf, slba).waitdone()
         assert self._buf.data(64) == 2
-        assert self._buf.data(87, 80) == self.slba
+        assert self._buf.data(87, 80) == slba
         return self._buf
 
     @property
@@ -64,7 +93,7 @@ class Zone(object):
                       0xd: 'Read Only',
                       0xe: 'Full',
                       0xf: 'Offline'}
-        s = self._mgmt_receive().data(1+64)>>4
+        s = self._mgmt_receive(self.slba).data(1+64)>>4
         return state_name[s] if s in state_name else 'Reserved'
 
     def close(self):
@@ -85,16 +114,19 @@ class Zone(object):
     def set_descriptor_extension(self):
         self.action(0x10)
 
-    def action(self, action):
-        self._ns.zns_mgmt_send(self._qpair, self._buf, self.slba, action).waitdone()
+    def action(self, action, slba=None):
+        if slba == None:
+            slba = self.slba
+        logging.debug("slba 0x%x, action %d" % (slba, action))
+        self._ns.zns_mgmt_send(self._qpair, self._buf, slba, action).waitdone()
 
     @property
     def attributes(self):
-        return self._mgmt_receive().data(2+64)
+        return self._mgmt_receive(self.slba).data(2+64)
 
     @property
     def wpointer(self):
-        return self._mgmt_receive().data(31+64, 24+64)
+        return self._mgmt_receive(self.slba).data(31+64, 24+64)
 
     def __repr__(self):
         return "zone slba 0x%x, state %s, capacity 0x%x, write pointer 0x%x" % \
@@ -132,6 +164,16 @@ class Zone(object):
 
         Default: sequential write the zone by one pass with qd = 2
         """
+
+        # open all zones for write
+        if read_percentage != 100:
+            for s in self.slba_list:
+                state = self._mgmt_receive(self.slba).data(1+64)>>4
+                # non empty, reset, then open
+                if state != 1:
+                    self.action(4, s)
+                self.action(3, s)
+            
         return self._ns.ioworker(io_size=io_size,
                                  lba_step=lba_step,
                                  lba_align=lba_align,
@@ -141,7 +183,7 @@ class Zone(object):
                                  time=time,
                                  qdepth=qdepth,
                                  region_start=self.slba,
-                                 region_end=self.slba+self.capacity,
+                                 region_end=self.elba,
                                  iops=iops,
                                  io_count=io_count,
                                  lba_start=offset_start+self.slba,
@@ -155,42 +197,16 @@ class Zone(object):
                                  output_cmdlog_list=output_cmdlog_list)
 
 
-def test_zns_framework(nvme0, nvme0n1):
-    nvme0n1.format(512)
-    assert type(nvme0n1) == Namespace
-    assert nvme0.getfeatures(7).waitdone() == 0xf000f
-    logging.info(nvme0n1.ioworker(io_size=8, io_count=1).start().close())
-
-
 def test_zns_write(nvme0n1, buf, qpair):
-    nvme0n1.format(512)
-    zone = Zone(qpair, nvme0n1, 0)
-    nvme0n1.write(qpair, buf, 0, 8).waitdone()
-    zone.write(qpair, buf, 0, 8).waitdone()
-    zone.write(qpair, buf, 8, 8).waitdone()
-    nvme0n1.read(qpair, buf, 0, 8).waitdone()
-    assert buf.data(3, 0) == 0
-    zone.read(qpair, buf, 16).waitdone()
-    assert buf.data(3, 0) == 0
-
-    with zone.ioworker(io_size=8, lba_random=False, read_percentage=0):
+    Zone(qpair, nvme0n1, 0).ioworker(io_size=24, io_count=768, qdepth=16).start().close()
+    Zone(qpair, nvme0n1, 0x8000).ioworker(io_size=24, io_count=768, qdepth=16).start().close()
+    Zone(qpair, nvme0n1, 0x20000).ioworker(io_size=24, io_count=768, qdepth=16).start().close()
+    Zone(qpair, nvme0n1, 0x28000).ioworker(io_size=24, io_count=768, qdepth=16).start().close()
+    Zone(qpair, nvme0n1, 0x80000).ioworker(io_size=24, io_count=768, qdepth=16).start().close()
+    Zone(qpair, nvme0n1, 0, 0x10000).ioworker(io_size=24, io_count=768*2, qdepth=16).start().close()
+    Zone(qpair, nvme0n1, 0x50000, 0x60000).ioworker(io_size=24, io_count=768*2, qdepth=16).start().close()
+    with Zone(qpair, nvme0n1, 0).ioworker(io_size=24, io_count=768, qdepth=16), \
+         Zone(qpair, nvme0n1, 0x8000).ioworker(io_size=24, io_count=768, qdepth=16), \
+         Zone(qpair, nvme0n1, 0x80000).ioworker(io_size=24, io_count=768, qdepth=16):
         pass
-    ret = zone.ioworker(io_size=2, offset_start=0, lba_random=False,
-                        read_percentage=0).start().close()
-    assert ret.io_count_write == 500
 
-
-def test_zns_multiple_ioworker(nvme0n1):
-    zone1 = Zone(nvme0n1, 0x08000)
-    zone2 = Zone(nvme0n1, 0x10000)
-    zone3 = Zone(nvme0n1, 0x18000)
-    w1 = zone1.ioworker(io_size=3, offset_start=0, io_count=2000).start()
-    w2 = zone2.ioworker(io_size=8, offset_start=10, lba_random=False, read_percentage=100).start()
-    w3 = zone3.ioworker(io_size=16).start()
-    ret1 = w1.close()
-    ret2 = w2.close()
-    ret3 = w3.close()
-    assert ret1.io_count_write == 2000
-    assert ret2.io_count_read == 113
-    assert ret3.io_count_read == 0
-    assert ret3.io_count_write == 4096//16
