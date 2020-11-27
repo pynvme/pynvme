@@ -50,7 +50,8 @@ def test_download_firmware(nvme0):
     filename = sg.PopupGetFile('select the firmware binary file', 'pynvme')
     if filename:        
         logging.info("To download firmware binary file: " + filename)
-        nvme0.downfw(filename)
+        nvme0.downfw(filename, 1)
+        nvme0.downfw(filename, 2)
     
 
 def test_powercycle_by_sleep(subsystem, nvme0):

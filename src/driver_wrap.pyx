@@ -144,7 +144,7 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
             warnings.warn("ASSERT: "+str(e))
         except TypeError as e:
             warnings.warn("callback: "+str(e))
-            
+
     if d.nvme_cpl_is_error(cpl):
         # script not check, so driver check cpl
         sc = (status1>>1) & 0xff
@@ -2353,6 +2353,15 @@ cdef class Namespace(object):
                          (all<<8)+action, 0, 0,
                          cmd_cb, <void*>cb)
         return qpair
+
+    @property
+    def zns_zsze(self):
+        buf = Buffer()
+        self._nvme.identify(buf, 5).waitdone()
+        ret = buf.data(2816+7, 2816)
+        if ret == 0:
+            ret = 0x8000
+        return ret
 
     def send_cmd(self, opcode, qpair, buf=None, nsid=1,
                  cdw10=0, cdw11=0, cdw12=0,

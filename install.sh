@@ -42,6 +42,9 @@ elif [ -f /etc/debian_version ]; then
 elif [ -f /etc/SUSE-brand ]; then
     # SUSE
     sudo zypper install -y python3-setuptools python3-devel python3-pip python3-tk
+elif [ -f /etc/arch-release ]; then
+    # ArchLinux
+    sudo pacman -S python3-setuptools python3-devel python3-pip tk
 else
     echo "unknown system type."
     exit 1

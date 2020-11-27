@@ -35,7 +35,6 @@
 
 import os
 import time
-import ping3
 import pytest
 import logging
 import warnings
@@ -407,7 +406,7 @@ def test_latest_cid(nvme0, nvme0n1, qpair, buf):
     nvme0n1.read(qpair, buf, 0, 8).waitdone()
     nvme0.abort(qpair.latest_cid).waitdone()
 
-    
+
 def test_latest_latency(nvme0, nvme0n1, qpair, buf):
     nvme0n1.read(qpair, buf, 0, 8).waitdone()
     logging.info(qpair.latest_latency)
@@ -522,6 +521,14 @@ def test_ioworker_sequential_unfixed_iosize(nvme0n1):
                      output_cmdlog_list=cmdlog_list).start().close()
     for i in range(len(cmdlog_list)-1):
         assert cmdlog_list[i][0]+cmdlog_list[i][1] == cmdlog_list[i+1][0]
+
+
+def test_getlogpage_send_cmd(nvme0, buf):
+    fid=1
+
+    for numd in (0, 4, 7, 15):
+        nvme0.send_cmd(2, buf, cdw10=fid|(numd<<16)).waitdone()
+        logging.info(buf.dump(64))
 
 
 def test_ioworker_with_admin(nvme0, nvme0n1, buf, qpair):
@@ -2857,7 +2864,7 @@ def test_ioworker_iops_confliction_after_reset(nvme0, pcie):
                           read_percentage=100, time=10,
                           qprio=0, qdepth=16).start()
 
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+    with pytest.warns(UserWarning, match="ERROR status: 07/81"):
         wr.close()
 
     report = ww.close()
@@ -3129,7 +3136,7 @@ def test_ioworker_read_and_write_confliction(nvme0n1, nvme0, verify):
 
     nvme0n1.format(512)
 
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+    with pytest.warns(UserWarning, match="ERROR status: 07/81"):
         with nvme0n1.ioworker(io_size=8,
                               lba_random=0,
                               region_end=8,
@@ -3540,17 +3547,17 @@ def test_fused_operations(nvme0, nvme0n1):
 
 def test_raw_write_read(nvme0, nvme0n1, qpair, verify):
     assert verify == True
-    
+
     # use generic cmd to write without pynvme's injected data
     buf = d.Buffer(512, ptype=32, pvalue=0x5aa5a55a)
     nvme0n1.send_cmd(1, qpair, buf).waitdone()  # write LBA 0
 
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+    with pytest.warns(UserWarning, match="ERROR status: 07/81"):
         nvme0n1.send_cmd(2, qpair, buf).waitdone()  # write LBA 0
     assert buf[0] == 0x5a
     assert buf[1] == 0xa5
 
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
+    with pytest.warns(UserWarning, match="ERROR status: 07/81"):
         nvme0n1.read(qpair, buf, 0).waitdone()
     assert buf[0] == 0x5a
     assert buf[1] == 0xa5
@@ -3768,16 +3775,15 @@ from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 def test_ioworker_with_invalid_sq_doorbell(nvme0, nvme0n1):
     cq = IOCQ(nvme0, 4, 16, PRP())
     sq1 = IOSQ(nvme0, 4, 16, PRP(), cqid=4)
-    
+
     with nvme0n1.ioworker(io_size=8, io_count=1):
         sq1.tail = 17
 
     def _cb(cpl):
         logging.info("getfeatures cb")
-        
+
     with pytest.warns(UserWarning, match="AER notification is triggered"):
         nvme0.getfeatures(7, cb=_cb).waitdone()
-        
+
     sq1.delete()
     cq.delete()
-    

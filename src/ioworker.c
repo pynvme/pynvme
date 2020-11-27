@@ -355,7 +355,8 @@ static inline uint32_t ioworker_send_one_size(struct ioworker_args* args,
 }
 
 
-static inline uint64_t ioworker_send_one_lba(struct ioworker_args* args,
+static inline uint64_t ioworker_send_one_lba(struct spdk_nvme_ns* ns,
+                                             struct ioworker_args* args,
                                              struct ioworker_global_ctx* gctx,
                                              uint16_t lba_align,
                                              uint16_t lba_count)
@@ -366,6 +367,9 @@ static inline uint64_t ioworker_send_one_lba(struct ioworker_args* args,
   if (is_random == false)
   {
     ret = ioworker_send_one_lba_sequential(args, gctx);
+    
+    // skip to next non-bad lba, for zns
+    ret = crc32_skip_uncorr(ns, ret, lba_count);
   }
   else
   {
@@ -407,12 +411,15 @@ static int ioworker_send_one(struct spdk_nvme_ns* ns,
   int ret;
   uint16_t lba_align;
   void* buf;
+  uint64_t lba_starting;
   struct ioworker_args* args = gctx->args;
   uint32_t op_list_index = gctx->op_table[random()%100];
-  uint8_t opcode = args->op_list[op_list_index];
   uint32_t lba_count = ioworker_send_one_size(args, gctx, &lba_align);
-  uint64_t lba_starting = ioworker_send_one_lba(args, gctx, lba_align, lba_count);
   uint32_t sector_size = spdk_nvme_ns_get_sector_size(ns);
+  uint8_t opcode = args->op_list[op_list_index];
+
+  // skip uncorrrectable lba
+  lba_starting = ioworker_send_one_lba(ns, args, gctx, lba_align, lba_count);
 
   // replay io sequence
   if (gctx->io_sequence)

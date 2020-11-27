@@ -210,6 +210,7 @@ extern int nvme_send_cmd_raw(struct spdk_nvme_ctrlr* ctrlr,
 extern int nvme_cpl_is_error(const struct spdk_nvme_cpl* cpl);
 extern namespace* nvme_get_ns(struct spdk_nvme_ctrlr* ctrlr, unsigned int nsid);
 extern void crc32_unlock_all(struct spdk_nvme_ctrlr* ctrlr);
+extern uint64_t crc32_skip_uncorr(struct spdk_nvme_ns* ns, uint64_t slba, uint32_t nlba);
 
 extern void nvme_register_timeout_cb(struct spdk_nvme_ctrlr* ctrlr,
                                      spdk_nvme_timeout_cb timeout_cb,
