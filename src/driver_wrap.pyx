@@ -144,8 +144,7 @@ cdef void cmd_cb(void* f, const d.cpl* cpl):
             warnings.warn("ASSERT: "+str(e))
         except TypeError as e:
             warnings.warn("callback: "+str(e))
-
-    if d.nvme_cpl_is_error(cpl):
+    elif d.nvme_cpl_is_error(cpl):
         # script not check, so driver check cpl
         sc = (status1>>1) & 0xff
         sct = (status1>>9) & 0x7
