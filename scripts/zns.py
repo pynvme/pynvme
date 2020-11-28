@@ -76,8 +76,7 @@ works with ioworker.
             logging.debug("init zone slba 0x%x" % s)
             self.slba_list.append(s)
             cap = self._mgmt_receive(s).data(15+64, 8+64)
-            def _cb(cpl): pass  # ignore the error code
-            ns.write_uncorrectable(qpair, s+cap, zsze-cap, cb=_cb).waitdone()
+            ns.write_uncorrectable(qpair, s+cap, zsze-cap).waitdone()
                 
     def _mgmt_receive(self, slba):
         self._ns.zns_mgmt_receive(self._qpair, self._buf, slba).waitdone()

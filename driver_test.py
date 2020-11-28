@@ -396,7 +396,8 @@ def test_latest_cid(nvme0, nvme0n1, qpair, buf):
         logging.info("aer aborted")
     nvme0.aer(cb=aer_aborted)
 
-    nvme0.abort(nvme0.latest_cid).waitdone()
+    with pytest.warns(UserWarning, match="ERROR status: 00/07"):
+        nvme0.abort(nvme0.latest_cid).waitdone()
 
     nvme0n1.read(qpair, buf, 0, 8)
     nvme0.abort(qpair.latest_cid).waitdone()
