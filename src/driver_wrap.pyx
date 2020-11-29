@@ -1227,7 +1227,7 @@ cdef class Controller(object):
                             cb_arg=<void*>cb)
         return self
 
-    def id_data(self, byte_end, byte_begin=None, type=int, nsid=0, cns=1):
+    def id_data(self, byte_end, byte_begin=None, type=int, nsid=0, cns=1, cntid=0, csi=0, nvmsetid=0):
         """get field in controller identify data
 
         # Parameters
@@ -1240,7 +1240,7 @@ cdef class Controller(object):
         """
 
         id_buf = Buffer(4096)
-        self.identify(id_buf, nsid, cns).waitdone()
+        self.identify(id_buf, nsid=nsid, cns=cns, cntid=cntid, csi=csi, nvmsetid=nvmsetid).waitdone()
         return id_buf.data(byte_end, byte_begin, type)
 
     def getfeatures(self, fid, sel=0, buf=None,
@@ -1908,7 +1908,7 @@ cdef class Namespace(object):
         assert opcode < 256
         return self._nvme.supports(256+opcode)
 
-    def id_data(self, byte_end, byte_begin=None, type=int):
+    def id_data(self, byte_end, byte_begin=None, type=int, cns=1, csi=0, cntid=0):
         """get field in namespace identify data
 
         # Parameters
@@ -1920,7 +1920,7 @@ cdef class Namespace(object):
             (int or str): the data in the specified field
         """
 
-        return self._nvme.id_data(byte_end, byte_begin, type, self._nsid, 0)
+        return self._nvme.id_data(byte_end, byte_begin, type, nsid=self._nsid, cns=cns, cntid=cntid, csi=csi)
 
     def verify_enable(self, enable=True):
         """enable or disable the inline verify function of the namespace
