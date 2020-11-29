@@ -2,6 +2,7 @@
 #  BSD LICENSE
 #
 #  Copyright (c) Crane Chu <cranechu@gmail.com>
+#  Copyright (c) Wayne Gao <yfwayne@hotmail.com>
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -58,25 +59,32 @@ works with ioworker.
         self._ns = ns
         self._buf = Buffer()
         self.slba = slba
-        self.elba = slba
         self.capacity = self._mgmt_receive(slba).data(15+64, 8+64)
         
-        if elba:
+        if elba is None:
             # init all zones involved
-            self.elba = elba
-        else:
             self.elba = slba+self.capacity
+        else:
+            self.elba = elba
             
         self.slba_list = []
-        zsze = self._ns.zns_zsze
-        logging.debug("create zone [0x%x, 0x%x)" % (self.slba, self.elba))
 
-        for s in range(self.slba, self.elba, zsze):
+        self.nsze = self._ns.id_data(7, 0, cns=0, csi=0)
+        logging.debug("namespace size 0x%x" % self.nsze)
+        self.ncap = self._ns.id_data(15, 8, cns=0, csi=0)
+        logging.debug("namespace cap 0x%x" % self.ncap)
+        self.zsze = self._ns.id_data(2831, 2816, cns=5, csi=2)
+        logging.debug("zone size 0x%x" % self.zsze)
+        if self.zsze == 0:
+            zsze = self.capacity
+        logging.debug("create zone [0x%x, 0x%x)]" % (self.slba, self.elba))
+
+        for s in range(self.slba, self.elba, self.zsze ):
             # mark lba out of capacity as uncorrectable
-            logging.info("init zone slba 0x%x" % s)
+            logging.debug("init zone slba 0x%x" % s)
             self.slba_list.append(s)
-            cap = self._mgmt_receive(s).data(15+64, 8+64)
-            ns.write_uncorrectable(qpair, s+cap, zsze-cap).waitdone()
+            if self.zsze > self.capacity:
+                ns.write_uncorrectable(qpair, s + self.capacity, self.zsze - self.capacity).waitdone()
                 
     def _mgmt_receive(self, slba):
         self._ns.zns_mgmt_receive(self._qpair, self._buf, slba).waitdone()
