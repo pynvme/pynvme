@@ -212,9 +212,8 @@ def test_zns_write(nvme0n1, buf, qpair):
     Zone(qpair, nvme0n1, 0x28000).ioworker(io_size=24, io_count=768, qdepth=16).start().close()
     Zone(qpair, nvme0n1, 0x80000).ioworker(io_size=24, io_count=768, qdepth=16).start().close()
     Zone(qpair, nvme0n1, 0, 0x10000).ioworker(io_size=24, io_count=768*2, qdepth=16).start().close()
-    Zone(qpair, nvme0n1, 0x50000, 0x60000).ioworker(io_size=24, io_count=768*2, qdepth=16).start().close()
+    Zone(qpair, nvme0n1, 0x20000, 0x30000).ioworker(io_size=24, io_count=768*2, qdepth=16).start().close()
     with Zone(qpair, nvme0n1, 0).ioworker(io_size=24, io_count=768, qdepth=16), \
-         Zone(qpair, nvme0n1, 0x8000).ioworker(io_size=24, io_count=768, qdepth=16), \
-         Zone(qpair, nvme0n1, 0x80000).ioworker(io_size=24, io_count=768, qdepth=16):
+         Zone(qpair, nvme0n1, 0x20000, 0x30000).ioworker(io_size=24, io_count=768*2, qdepth=16):
         pass
 

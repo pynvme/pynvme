@@ -49,7 +49,7 @@ We clone the pynvme source code from GitHub. We recommend to checkout the latest
 
    git clone https://github.com/pynvme/pynvme
    cd pynvme
-   git checkout tags/2.2.0
+   git checkout tags/2.3.0
 
 Or you can clone the code from the mirror repository:
 
@@ -90,7 +90,7 @@ We need to compile and test SPDK first.
 
    # use the according pynvme-modified SPDK code
    cd spdk
-   git checkout pynvme_2.1
+   git checkout pynvme_2.3
 
    # configure SPDK
    ./configure --without-isal;
