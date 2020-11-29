@@ -451,6 +451,16 @@ init_queues
 
 used by NVMe init process in scripts
 
+latest_cid
+^^^^^^^^^^
+
+cid of latest completed command
+
+latest_latency
+^^^^^^^^^^^^^^
+
+latency of latest completed command in us
+
 mdts
 ^^^^
 
@@ -1233,6 +1243,21 @@ delete
    Qpair.delete()
 
 delete qpair's SQ and CQ
+
+latest_cid
+^^^^^^^^^^
+
+cid of latest completed command
+
+latest_latency
+^^^^^^^^^^^^^^
+
+latency of latest completed command in us
+
+sqid
+^^^^
+
+submission queue id in this qpair
 
 waitdone
 ^^^^^^^^

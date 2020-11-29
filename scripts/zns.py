@@ -73,7 +73,7 @@ works with ioworker.
 
         for s in range(self.slba, self.elba, zsze):
             # mark lba out of capacity as uncorrectable
-            logging.info("init zone slba 0x%x" % s)
+            logging.debug("init zone slba 0x%x" % s)
             self.slba_list.append(s)
             cap = self._mgmt_receive(s).data(15+64, 8+64)
             ns.write_uncorrectable(qpair, s+cap, zsze-cap).waitdone()
@@ -205,9 +205,8 @@ def test_zns_write(nvme0n1, buf, qpair):
     Zone(qpair, nvme0n1, 0x28000).ioworker(io_size=24, io_count=768, qdepth=16).start().close()
     Zone(qpair, nvme0n1, 0x80000).ioworker(io_size=24, io_count=768, qdepth=16).start().close()
     Zone(qpair, nvme0n1, 0, 0x10000).ioworker(io_size=24, io_count=768*2, qdepth=16).start().close()
-    Zone(qpair, nvme0n1, 0x50000, 0x60000).ioworker(io_size=24, io_count=768*2, qdepth=16).start().close()
+    Zone(qpair, nvme0n1, 0x20000, 0x30000).ioworker(io_size=24, io_count=768*2, qdepth=16).start().close()
     with Zone(qpair, nvme0n1, 0).ioworker(io_size=24, io_count=768, qdepth=16), \
-         Zone(qpair, nvme0n1, 0x8000).ioworker(io_size=24, io_count=768, qdepth=16), \
-         Zone(qpair, nvme0n1, 0x80000).ioworker(io_size=24, io_count=768, qdepth=16):
+         Zone(qpair, nvme0n1, 0x20000, 0x30000).ioworker(io_size=24, io_count=768*2, qdepth=16):
         pass
 

@@ -32,7 +32,7 @@ Setup
 
    .. code-block:: shell
 
-      code --install-extension pynvme-console-1.x.x.vsix
+      code --install-extension pynvme-console-2.0.0.vsix
 
 #. Before start vscode, modify .vscode/settings.json with the correct pcie address (bus:device.function listed in `lspci` command) of your DUT device.
 
