@@ -1908,7 +1908,7 @@ cdef class Namespace(object):
         assert opcode < 256
         return self._nvme.supports(256+opcode)
 
-    def id_data(self, byte_end, byte_begin=None, type=int, cns=1, csi=0, cntid=0):
+    def id_data(self, byte_end, byte_begin=None, type=int, cns=0, csi=0, cntid=0):
         """get field in namespace identify data
 
         # Parameters
