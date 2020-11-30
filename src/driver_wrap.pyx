@@ -2354,15 +2354,6 @@ cdef class Namespace(object):
                          cmd_cb, <void*>cb)
         return qpair
 
-    @property
-    def zns_zsze(self):
-        buf = Buffer()
-        self._nvme.identify(buf, 5).waitdone()
-        ret = buf.data(2816+7, 2816)
-        if ret == 0:
-            ret = 0x8000
-        return ret
-
     def send_cmd(self, opcode, qpair, buf=None, nsid=1,
                  cdw10=0, cdw11=0, cdw12=0,
                  cdw13=0, cdw14=0, cdw15=0,
