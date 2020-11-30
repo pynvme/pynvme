@@ -76,10 +76,10 @@ works with ioworker.
         self.zsze = self._ns.id_data(2831, 2816, cns=5, csi=2)
         logging.debug("zone size 0x%x" % self.zsze)
         if self.zsze == 0:
-            zsze = 0x8000
+            self.zsze = 0x8000
         logging.debug("create zone [0x%x, 0x%x)]" % (self.slba, self.elba))
 
-        for s in range(self.slba, self.elba, self.zsze ):
+        for s in range(self.slba, self.elba, self.zsze):
             # mark lba out of capacity as uncorrectable
             logging.debug("init zone slba 0x%x" % s)
             self.slba_list.append(s)
