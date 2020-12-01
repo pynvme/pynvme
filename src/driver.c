@@ -535,8 +535,12 @@ uint64_t crc32_skip_uncorr(struct spdk_nvme_ns* ns, uint64_t slba, uint32_t nlba
 {
   crc_table_t* crc_table = (crc_table_t*)ns->crc_table;
 
-  while (crc_table->data[slba] == 0x7fffffff) {
-    slba ++;
+  if (crc_table != NULL && slba*sizeof(uint32_t) < ns->table_size)
+  {
+    // TODO: check nlba
+    while (crc_table->data[slba] == 0x7fffffff) {
+      slba ++;
+    }
   }
   
   return slba;

@@ -2445,7 +2445,8 @@ class _IOWorker(object):
                                      lba_align, lba_random,
                                      region_start, region_end,
                                      op_percentage,
-                                     iops, io_count, time, qdepth, qprio,
+                                     iops, io_count, time,
+                                     max(2, qdepth), qprio,
                                      distribution, pvalue, ptype,
                                      io_sequence, fw_debug,
                                      output_io_per_second,
@@ -2732,7 +2733,7 @@ class _IOWorker(object):
                 pcie = Pcie(pciaddr.decode('utf-8'))
                 nvme0 = Controller(pcie, True)
                 nvme0n1 = Namespace(nvme0, nsid, nlba_verify)
-                qpair = Qpair(nvme0, max(2, qdepth), qprio)
+                qpair = Qpair(nvme0, qdepth, qprio)
 
             # set: all ioworkers created in recent seconds will start at the same time
             if time.time() > _IOWorker.target_start_time:
