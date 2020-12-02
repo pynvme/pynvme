@@ -290,7 +290,7 @@ def test_power_and_reset(pcie, nvme0, subsystem):
     nvme0.reset()              # reset controller after pcie reset
     nvme0.getfeatures(7).waitdone()
 
-    pcie.flr()                 # PCIe function level reset
+    #pcie.flr()                 # PCIe function level reset
     nvme0.reset()              # reset controller after pcie reset
     nvme0.getfeatures(7).waitdone()
 
@@ -1156,7 +1156,7 @@ def test_ioworker_pcie_reset_async(nvme0, nvme0n1, pcie):
     nvme0.reset()
 
 
-def test_ioworker_pcie_flr_reset_async(nvme0, nvme0n1, pcie):
+def _test_ioworker_pcie_flr_reset_async(nvme0, nvme0n1, pcie):
     for i in range(3):
         logging.info(i)
         start_time = time.time()
@@ -1789,7 +1789,7 @@ def test_pcie_reset_user_fn(nvme0, pcie, nvme0n1):
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
 
-def test_pcie_flr_reset(nvme0, pcie, nvme0n1):
+def _test_pcie_flr_reset(nvme0, pcie, nvme0n1):
     def get_power_cycles(nvme0):
         buf = d.Buffer(512)
         nvme0.getlogpage(2, buf, 512).waitdone()
