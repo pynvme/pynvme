@@ -1514,6 +1514,17 @@ def test_write_uncorrectable_unaligned(nvme0, nvme0n1):
     q.delete()
 
 
+def test_ioworker_skip_uncorrectable_lba(nvme0n1, qpair, buf):
+    cmdlog_list = [None]*2
+    nvme0n1.write_uncorrectable(qpair, 1000, 64).waitdone()
+    nvme0n1.ioworker(io_size=1, io_count=1001,
+                     read_percentage=0,
+                     lba_random=False,
+                     output_cmdlog_list=cmdlog_list).start().close()
+    assert cmdlog_list[0][0] == 999
+    assert cmdlog_list[1][0] == 1064
+
+
 @pytest.mark.parametrize("io_count", [0, 1, 8, 9])
 @pytest.mark.parametrize("lba_count", [0, 1, 8, 9])
 @pytest.mark.parametrize("lba_offset", [0, 1, 8, 9])
