@@ -52,6 +52,7 @@ setup(
                 # spdk
                 '../spdk/build/lib/libspdk_pynvme.a',
                 '../spdk/build/lib/libspdk_nvme.a',
+                '../spdk/build/lib/libspdk_vmd.a',
                 '../spdk/build/lib/libspdk_env_dpdk.a',
                 '../spdk/build/lib/libspdk_util.a',
                 '../spdk/build/lib/libspdk_sock.a',
