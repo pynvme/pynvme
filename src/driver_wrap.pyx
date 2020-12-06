@@ -1714,6 +1714,8 @@ cdef class Qpair(object):
         nvme (Controller): controller where to create the queue
         depth (int): SQ/CQ queue depth
         prio (int): when Weighted Round Robin is enabled, specify SQ priority here
+        ien (bool): interrupt enabled. Default: True
+        iv (short): interrupt vector. Default: 0xffff, choose by driver
     """
 
     cdef d.qpair * _qpair
@@ -1721,12 +1723,16 @@ cdef class Qpair(object):
 
     def __cinit__(self, Controller nvme,
                   unsigned int depth,
-                  unsigned int prio=0):
+                  unsigned int prio=0,
+                  bint ien=True,
+                  unsigned short iv=0xffff):
         # create CQ and SQ
         assert depth>=2 and depth<=1024, "qdepth should be in [2, 1024]"
         assert depth <= (nvme.cap & 0xffff) + 1, "qpair depth is larger than specification"
 
-        self._qpair = d.qpair_create(nvme.pcie._ctrlr, prio, depth)
+        if ien==False and iv==0xffff:
+            iv = 0
+        self._qpair = d.qpair_create(nvme.pcie._ctrlr, prio, depth, ien, iv)
         if self._qpair is NULL:
             raise QpairCreationError("qpair create fail")
         self._nvme = nvme

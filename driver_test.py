@@ -391,6 +391,29 @@ def test_qpair_different_size(nvme0n1, nvme0, shift):
     q.delete()
 
 
+def test_qpair_interrupt(nvme0):
+    # default: enable interrupt, and vector is sqid
+    q = d.Qpair(nvme0, 10)
+    logging.info(q.sqid)
+    
+    q = d.Qpair(nvme0, 10, ien=True)
+    logging.info(q.sqid)
+
+    # enable interrupt, and fix vecotr
+    q = d.Qpair(nvme0, 10, ien=True, iv=0x7)
+    logging.info(q.sqid)
+    q = d.Qpair(nvme0, 10, ien=True, iv=0)
+    logging.info(q.sqid)
+
+    # disable interrupt
+    q = d.Qpair(nvme0, 10, ien=False)
+    logging.info(q.sqid)
+
+    # disable interrupt with a valid vector
+    q = d.Qpair(nvme0, 10, ien=False, iv=3)
+    logging.info(q.sqid)
+
+    
 def test_latest_cid(nvme0, nvme0n1, qpair, buf):
     def aer_aborted(cpl):
         logging.info("aer aborted")
