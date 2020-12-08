@@ -2222,7 +2222,7 @@ def test_aer_cb_mixed_with_admin_commands(nvme0, buf):
         nvme0.getfeatures(7).waitdone()
 
     for i in range(50):
-        nvme0.getlogpage(0x81, buf, 20).waitdone()
+        nvme0.getlogpage(2, buf, 20).waitdone()
 
     # ABORTED - BY REQUEST (00/07)
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
@@ -2245,7 +2245,7 @@ def test_aer_mixed_with_admin_commands(nvme0, buf):
         nvme0.getfeatures(7).waitdone()
 
     for i in range(5000):
-        nvme0.getlogpage(0x81, buf, 20).waitdone()
+        nvme0.getlogpage(0x2, buf, 20).waitdone()
 
     # aer will not complete, timeout in driver
     with pytest.raises(TimeoutError):
