@@ -3804,6 +3804,12 @@ def test_ioworker_invalid_io_size_fw_debug_mode(nvme0, nvme0n1):
                          read_percentage=100, time=2).start().close()
 
 
+def test_ioworker_with_getfeatures(nvme0, nvme0n1):
+    with nvme0n1.ioworker(io_size=8, time=3):
+        nvme0.getfeatures(7)
+    nvme0.waitdone()
+
+    
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 def test_ioworker_with_invalid_sq_doorbell(nvme0, nvme0n1):
