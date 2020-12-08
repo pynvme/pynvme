@@ -84,6 +84,7 @@ setuptools.setup(
         ('pynvme/scripts',
          ['scripts/psd.py',
           'scripts/tcg.py',
+          'scripts/zns.py',
           'scripts/test_examples.py',
           'scripts/test_utilities.py']),
         ('pynvme/scripts/stress',
@@ -141,6 +142,9 @@ setuptools.setup(
           ]),
         ('pynvme/scripts/conformance/06_tcg',
          ['scripts/conformance/06_tcg/use_case_test.py'
+          ]),
+        ('pynvme/scripts/conformance/07_zns',
+         ['scripts/conformance/07_zns/test_zns.py'
           ]),
         ],
     cmdclass={'install': CustomInstall},
