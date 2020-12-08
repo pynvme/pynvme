@@ -2188,12 +2188,6 @@ int driver_init(void)
     return -1;
   }
 
-	if (spdk_vmd_init() < 0)
-  {
-		fprintf(stderr, "Failed to initialize VMD\n");
-    return -1;
-	}
-  
   // distribute multiprocessing to different cores
   // log level setup
   spdk_log_set_flag("nvme");

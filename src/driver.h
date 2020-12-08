@@ -43,7 +43,6 @@
 
 #include "spdk/stdinc.h"
 #include "spdk/nvme.h"
-#include "spdk/vmd.h"
 #include "spdk/env.h"
 #include "spdk/crc32.h"
 #include "spdk/rpc.h"
