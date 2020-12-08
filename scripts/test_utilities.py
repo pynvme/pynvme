@@ -236,3 +236,16 @@ def test_list_power_states(nvme0, buf):
     nvme0.identify(buf).waitdone()
     for ps in range(32):
         print_ps(buf, ps)
+
+
+def test_vu_cmd(nvme0, subsystem):
+    nvme0.timeout = 100000
+    nvme0.send_cmd(0xfc, cdw12=0x110218, cdw15=0x4356544C).waitdone()
+    nvme0.send_cmd(0xfc, cdw12=0x13, cdw15=0x4356544C).waitdone()
+    filename = "file"
+    nvme0.downfw(filename, 1)
+    nvme0.downfw(filename, 2)
+    subsystem.power_cycle()
+    nvme0.reset()
+    nvme0.send_cmd(0xfc, cdw12=0x10013, cdw15=0x4356544C).waitdone()
+    

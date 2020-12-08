@@ -1169,9 +1169,10 @@ cdef class Controller(object):
         for i in range(_aer_resend):
             # send more aer commands
             self.aer(cb=self.aer_cb_func)
-        if _aer_waitdone >= reaped-expected:
+            
+        if _aer_waitdone > (reaped-expected):
             for i in range(_aer_waitdone-(reaped-expected)):
-                # process one more command in lieu of aer completion
+                logging.info("process one more command in lieu of aer completion")
                 self.waitdone()
 
         return _latest_cqe_cdw0
@@ -1714,6 +1715,8 @@ cdef class Qpair(object):
         nvme (Controller): controller where to create the queue
         depth (int): SQ/CQ queue depth
         prio (int): when Weighted Round Robin is enabled, specify SQ priority here
+        ien (bool): interrupt enabled. Default: True
+        iv (short): interrupt vector. Default: 0xffff, choose by driver
     """
 
     cdef d.qpair * _qpair
@@ -1721,12 +1724,16 @@ cdef class Qpair(object):
 
     def __cinit__(self, Controller nvme,
                   unsigned int depth,
-                  unsigned int prio=0):
+                  unsigned int prio=0,
+                  bint ien=True,
+                  unsigned short iv=0xffff):
         # create CQ and SQ
         assert depth>=2 and depth<=1024, "qdepth should be in [2, 1024]"
         assert depth <= (nvme.cap & 0xffff) + 1, "qpair depth is larger than specification"
 
-        self._qpair = d.qpair_create(nvme.pcie._ctrlr, prio, depth)
+        if ien==False and iv==0xffff:
+            iv = 0
+        self._qpair = d.qpair_create(nvme.pcie._ctrlr, prio, depth, ien, iv)
         if self._qpair is NULL:
             raise QpairCreationError("qpair create fail")
         self._nvme = nvme
@@ -2354,15 +2361,6 @@ cdef class Namespace(object):
                          cmd_cb, <void*>cb)
         return qpair
 
-    @property
-    def zns_zsze(self):
-        buf = Buffer()
-        self._nvme.identify(buf, 5).waitdone()
-        ret = buf.data(2816+7, 2816)
-        if ret == 0:
-            ret = 0x8000
-        return ret
-
     def send_cmd(self, opcode, qpair, buf=None, nsid=1,
                  cdw10=0, cdw11=0, cdw12=0,
                  cdw13=0, cdw14=0, cdw15=0,
@@ -2454,7 +2452,8 @@ class _IOWorker(object):
                                      lba_align, lba_random,
                                      region_start, region_end,
                                      op_percentage,
-                                     iops, io_count, time, qdepth, qprio,
+                                     iops, io_count, time,
+                                     max(2, qdepth), qprio,
                                      distribution, pvalue, ptype,
                                      io_sequence, fw_debug,
                                      output_io_per_second,
@@ -2741,7 +2740,7 @@ class _IOWorker(object):
                 pcie = Pcie(pciaddr.decode('utf-8'))
                 nvme0 = Controller(pcie, True)
                 nvme0n1 = Namespace(nvme0, nsid, nlba_verify)
-                qpair = Qpair(nvme0, max(2, qdepth), qprio)
+                qpair = Qpair(nvme0, qdepth, qprio)
 
             # set: all ioworkers created in recent seconds will start at the same time
             if time.time() > _IOWorker.target_start_time:

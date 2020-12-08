@@ -290,7 +290,7 @@ def test_power_and_reset(pcie, nvme0, subsystem):
     nvme0.reset()              # reset controller after pcie reset
     nvme0.getfeatures(7).waitdone()
 
-    pcie.flr()                 # PCIe function level reset
+    #pcie.flr()                 # PCIe function level reset
     nvme0.reset()              # reset controller after pcie reset
     nvme0.getfeatures(7).waitdone()
 
@@ -391,6 +391,29 @@ def test_qpair_different_size(nvme0n1, nvme0, shift):
     q.delete()
 
 
+def test_qpair_interrupt(nvme0):
+    # default: enable interrupt, and vector is sqid
+    q = d.Qpair(nvme0, 10)
+    logging.info(q.sqid)
+    
+    q = d.Qpair(nvme0, 10, ien=True)
+    logging.info(q.sqid)
+
+    # enable interrupt, and fix vecotr
+    q = d.Qpair(nvme0, 10, ien=True, iv=0x7)
+    logging.info(q.sqid)
+    q = d.Qpair(nvme0, 10, ien=True, iv=0)
+    logging.info(q.sqid)
+
+    # disable interrupt
+    q = d.Qpair(nvme0, 10, ien=False)
+    logging.info(q.sqid)
+
+    # disable interrupt with a valid vector
+    q = d.Qpair(nvme0, 10, ien=False, iv=3)
+    logging.info(q.sqid)
+
+    
 def test_latest_cid(nvme0, nvme0n1, qpair, buf):
     def aer_aborted(cpl):
         logging.info("aer aborted")
@@ -1514,6 +1537,17 @@ def test_write_uncorrectable_unaligned(nvme0, nvme0n1):
     q.delete()
 
 
+def test_ioworker_skip_uncorrectable_lba(nvme0n1, qpair, buf):
+    cmdlog_list = [None]*2
+    nvme0n1.write_uncorrectable(qpair, 1000, 64).waitdone()
+    nvme0n1.ioworker(io_size=1, io_count=1001,
+                     read_percentage=0,
+                     lba_random=False,
+                     output_cmdlog_list=cmdlog_list).start().close()
+    assert cmdlog_list[0][0] == 999
+    assert cmdlog_list[1][0] == 1064
+
+
 @pytest.mark.parametrize("io_count", [0, 1, 8, 9])
 @pytest.mark.parametrize("lba_count", [0, 1, 8, 9])
 @pytest.mark.parametrize("lba_offset", [0, 1, 8, 9])
@@ -2188,7 +2222,7 @@ def test_aer_cb_mixed_with_admin_commands(nvme0, buf):
         nvme0.getfeatures(7).waitdone()
 
     for i in range(50):
-        nvme0.getlogpage(0x81, buf, 20).waitdone()
+        nvme0.getlogpage(2, buf, 20).waitdone()
 
     # ABORTED - BY REQUEST (00/07)
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
@@ -2211,7 +2245,7 @@ def test_aer_mixed_with_admin_commands(nvme0, buf):
         nvme0.getfeatures(7).waitdone()
 
     for i in range(5000):
-        nvme0.getlogpage(0x81, buf, 20).waitdone()
+        nvme0.getlogpage(0x2, buf, 20).waitdone()
 
     # aer will not complete, timeout in driver
     with pytest.raises(TimeoutError):
@@ -3770,6 +3804,12 @@ def test_ioworker_invalid_io_size_fw_debug_mode(nvme0, nvme0n1):
                          read_percentage=100, time=2).start().close()
 
 
+def test_ioworker_with_getfeatures(nvme0, nvme0n1):
+    with nvme0n1.ioworker(io_size=8, time=3):
+        nvme0.getfeatures(7)
+    nvme0.waitdone()
+
+    
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 def test_ioworker_with_invalid_sq_doorbell(nvme0, nvme0n1):

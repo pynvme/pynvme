@@ -77,7 +77,7 @@ works with ioworker.
         logging.debug("zone size 0x%x" % self.zsze)
         if self.zsze == 0:
             self.zsze = 0x8000
-        logging.debug("create zone [0x%x, 0x%x)]" % (self.slba, self.elba))
+        logging.debug("create zone [0x%x, 0x%x)" % (self.slba, self.elba))
 
         for s in range(self.slba, self.elba, self.zsze):
             # mark lba out of capacity as uncorrectable

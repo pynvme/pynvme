@@ -298,7 +298,7 @@ static uint16_t intc_get_vec(struct spdk_nvme_qpair* q)
   assert(q->trtype == SPDK_NVME_TRANSPORT_PCIE);
   assert(intr_ctrl != NULL);
 
-  return (q->id % intr_ctrl->max_vec_num);
+  return (q->intr_vector % intr_ctrl->max_vec_num);
 }
 
 void intc_clear(struct spdk_nvme_qpair* q)

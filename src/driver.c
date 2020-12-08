@@ -535,8 +535,12 @@ uint64_t crc32_skip_uncorr(struct spdk_nvme_ns* ns, uint64_t slba, uint32_t nlba
 {
   crc_table_t* crc_table = (crc_table_t*)ns->crc_table;
 
-  while (crc_table->data[slba] == 0x7fffffff) {
-    slba ++;
+  if (crc_table != NULL && slba*sizeof(uint32_t) < ns->table_size)
+  {
+    // TODO: check nlba
+    while (crc_table->data[slba] == 0x7fffffff) {
+      slba ++;
+    }
   }
   
   return slba;
@@ -1224,7 +1228,10 @@ struct spdk_nvme_ns* nvme_get_ns(struct spdk_nvme_ctrlr* ctrlr,
 ///////////////////////////////
 
 struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
-                                     int prio, int depth)
+                                     unsigned int prio,
+                                     unsigned int depth,
+                                     bool ien,
+                                     unsigned short iv)
 {
   struct spdk_nvme_qpair* qpair;
   struct spdk_nvme_io_qpair_opts opts;
@@ -1235,7 +1242,9 @@ struct spdk_nvme_qpair *qpair_create(struct spdk_nvme_ctrlr* ctrlr,
   opts.io_queue_size = depth;
   opts.io_queue_requests = depth;
   opts.delay_pcie_doorbell = false;
-
+  opts.intr_enable = ien;
+  opts.intr_vector = iv;
+  
   qpair = spdk_nvme_ctrlr_alloc_io_qpair(ctrlr, &opts, sizeof(opts));
   if (qpair == NULL)
   {

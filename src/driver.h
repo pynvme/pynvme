@@ -42,10 +42,10 @@
 #include <sys/sysinfo.h>
 
 #include "spdk/stdinc.h"
+#include "spdk/nvme.h"
 #include "spdk/env.h"
 #include "spdk/crc32.h"
 #include "spdk/rpc.h"
-#include "spdk/nvme.h"
 #include "spdk/opal.h"
 
 
@@ -221,7 +221,10 @@ extern void* buffer_init(size_t bytes, uint64_t *phys_addr,
 extern void buffer_fini(void* buf);
 
 extern qpair* qpair_create(struct spdk_nvme_ctrlr *c,
-                           int prio, int depth);
+                           unsigned int prio,
+                           unsigned int depth,
+                           bool ien,
+                           unsigned short iv);
 extern int qpair_wait_completion(struct spdk_nvme_qpair *q, uint32_t max_completions);
 extern uint16_t qpair_get_latest_cid(struct spdk_nvme_qpair* q,
                                      struct spdk_nvme_ctrlr* c);
