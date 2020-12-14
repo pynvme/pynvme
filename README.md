@@ -44,4 +44,4 @@ Pynvme is an user-space NVMe test driver with Python API. It is an open, fast, a
 * SDC2020. Pynvme: an Open, Fast and Extensible NVMe SSD Test Tool. [pdf](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/pynvme_chu_sdc2020.pdf), [video](https://www.youtube.com/watch?v=Yoru7vzVyL8).
   
 ## Contact
-For more technical support and consultation, please send email to: cranechu@gmail.com
+For more technical support and consultation, please send email to: sales@pynv.me
