@@ -29,7 +29,6 @@ Pynvme is an user-space NVMe test driver with Python API. It is an open, fast, a
 ### Repositories
 * GitHub: [https://github.com/pynvme/pynvme](https://github.com/pynvme/pynvme)
 * Mirror: [https://gitee.com/pynvme/pynvme](https://gitee.com/pynvme/pynvme)
-* conformance test suite: [https://github.com/pynvme/conformance](https://github.com/pynvme/conformance)
 
 ### Documents
 

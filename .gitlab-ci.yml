@@ -34,7 +34,6 @@ stress_test:
     - make setup memsize=4000
     - make nvmt
     - make test TESTS=driver_test_tcp.py pciaddr=0000:06:00.0 || exit -1
-    - make test TESTS=scripts/conformance pciaddr=0000:06:00.0
     - make setup memsize=0
 
 scripts_test:
