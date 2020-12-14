@@ -390,7 +390,8 @@ id_data
 
 .. code-block:: python
 
-   Controller.id_data(byte_end, byte_begin, type, nsid, cns)
+   Controller.id_data(byte_end, byte_begin, type, nsid, cns, cntid, csi,
+                      nvmsetid)
 
 get field in controller identify data
 
@@ -842,7 +843,7 @@ id_data
 
 .. code-block:: python
 
-   Namespace.id_data(byte_end, byte_begin, type)
+   Namespace.id_data(byte_end, byte_begin, type, cns, csi, cntid)
 
 get field in namespace identify data
 
@@ -1220,6 +1221,8 @@ Qpair class. IO SQ and CQ are combinded as qpairs.
 * **nvme (Controller)**\ : controller where to create the queue
 * **depth (int)**\ : SQ/CQ queue depth
 * **prio (int)**\ : when Weighted Round Robin is enabled, specify SQ priority here
+* **ien (bool)**\ : interrupt enabled. Default: True
+* **iv (short)**\ : interrupt vector. Default: 0xffff, choose by driver
 
 cmdlog
 ^^^^^^
