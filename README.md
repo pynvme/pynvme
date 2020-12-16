@@ -23,6 +23,8 @@ Pynvme is an user-space NVMe test driver with Python API. It is an open, fast, a
 1. integrate with pytest
 1. integrate with VSCode to display cmdlog in GUI
 1. support NVMe over TCP targets
+1. HMB: Host Memory Buffer (PyNVMe3 only)
+1. ZNS: Zoned Namespace (PyNVMe3 only)
 
 ## Links
 
@@ -34,8 +36,6 @@ Pynvme is an user-space NVMe test driver with Python API. It is an open, fast, a
 
 * Web: [https://pynvme.readthedocs.io/](https://pynvme.readthedocs.io/)
 * PDF: [https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf](https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf)
-* 简介: [link](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/pynvme_flyer.pdf)
-* 21天pynvme之旅: [link](https://github.com/pynvme/pynvme/wiki)
 
 ### Presentation
 
@@ -43,5 +43,6 @@ Pynvme is an user-space NVMe test driver with Python API. It is an open, fast, a
 * SPDK PRC Summit 2019, Beijing. Why SSD Developers Need Pynvme and Why Pynvme Needs SPDK. [pdf](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/02_Presentation_26_Why_SSD_Developers_Need_Pynvme_and_Why_Pynvme_Needs_SPDK_Crane.pdf), [video](https://www.youtube.com/watch?v=Zg-vliodKx0).
 * SDC2020. Pynvme: an Open, Fast and Extensible NVMe SSD Test Tool. [pdf](https://raw.githubusercontent.com/cranechu/pynvme/master/doc/_static/pynvme_chu_sdc2020.pdf), [video](https://www.youtube.com/watch?v=Yoru7vzVyL8).
   
-## Contact
-For more technical support and consultation, please send email to: sales@pynv.me
+### Contact
+
+* Email: sales@pynv.me
