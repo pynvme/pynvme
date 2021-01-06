@@ -31,8 +31,12 @@
 #  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#find the first NVMe device as the DUT
-pciaddr := $(shell lspci -D | grep 'Non-Volatile memory' | grep -o '....:..:..\..' | tail -1)
+#Use specified pciaddr or the last NVMe device as the DUT
+ifdef pciaddr
+	pciaddr=pciaddr
+else
+	pciaddr := $(shell lspci -D | grep 'Non-Volatile memory' | grep -o '....:..:..\..' | tail -1)
+endif
 
 #reserve memory for driver
 memsize := 2430   # minimal RAM: 4GB. 2.5GB for pynvme, 1.5GB for system
@@ -104,7 +108,7 @@ tags:
 	ctags -e --c-kinds=+l -R --exclude=.git --exclude=ioat --exclude=snippets --exclude=env --exclude=doc
 
 pytest: info
-	sudo python3 -B -m pytest $(TESTS) --pciaddr=${pciaddr} -s -v -r Efsx --excelreport=report.xls --verbose
+	sudo python3 -B -m pytest --pciaddr=${pciaddr} $(TESTS) -s -v -r Efsx --excelreport=report.xls --verbose
 
 test:
 	- rm test_${pciaddr}.log
