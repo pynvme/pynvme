@@ -49,7 +49,7 @@ with open("README.md", "r") as fh:
     
 setuptools.setup(
     name="pynvme",
-    version="2.3.1",
+    version="2.3.2",
     author="Crane Chu",
     author_email="cranechu@gmail.com",
     description="builds your own tests.",
@@ -83,12 +83,8 @@ setuptools.setup(
           'src/setup.sh']),
         ('pynvme/scripts',
          ['scripts/psd.py',
-          'scripts/tcg.py',
           'scripts/zns.py',
-          'scripts/test_examples.py',
-          'scripts/test_utilities.py']),
-        ('pynvme/scripts/stress',
-         ['scripts/stress/dirty_power_cycle_test.py']),
+          'scripts/test_examples.py']),
         ('pynvme/include/spdk',
          ['include/spdk/pci_ids.h']),
     ],

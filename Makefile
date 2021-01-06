@@ -97,6 +97,7 @@ setup: reset
 	sudo HUGEMEM=${memsize} DRIVER_OVERRIDE=uio_pci_generic ./src/setup.sh  	# UIO is recommended
 
 pypi: all
+	strip -s nvme.so
 	python3 setup.py sdist
 	python3 -m twine upload dist/*
 
