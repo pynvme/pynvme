@@ -1115,7 +1115,7 @@ cdef class Controller(object):
         assert opcode < 256*2 # *2 for nvm command set
         logpage_buf = Buffer(4096)
         self.getlogpage(5, logpage_buf).waitdone()
-        return logpage_buf.data((opcode+1)*4-1, opcode*4) != 0
+        return logpage_buf.data(opcode*4)&0x01 != 0
 
     def waitdone(self, expected=1):
         """sync until expected admin commands completion
