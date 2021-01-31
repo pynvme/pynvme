@@ -32,7 +32,7 @@ Pynvme is an user-space NVMe test driver with Python API. It is an open, fast, a
 ### Documents
 
 * Web: [https://pynvme.readthedocs.io/](https://pynvme.readthedocs.io/)
-* PDF: [https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf](https://buildmedia.readthedocs.org/media/pdf/pynvme/latest/pynvme.pdf)
+* PDF: [https://pynvme.readthedocs.io/_/downloads/en/latest/pdf/](https://pynvme.readthedocs.io/_/downloads/en/latest/pdf/)
 
 ### Presentation
 
