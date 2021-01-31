@@ -21,6 +21,7 @@ Pynvme is an user-space NVMe test driver with Python API. It is an open, fast, a
 1. HMB: Host Memory Buffer (PyNVMe3 only)
 1. ZNS: Zoned Namespace (PyNVMe3 only)
 1. TCG (PyNVMe3 only)
+1. extensive test scripts (PyNVMe3 only)
 
 ## Links
 
