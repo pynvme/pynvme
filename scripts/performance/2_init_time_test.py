@@ -33,11 +33,20 @@
 # -*- coding: utf-8 -*-
 
 
+import os
 import pytest
 import nvme as d
 
 import time
 import logging
+
+# logs directory - use env var from Makefile, or create timestamped dir
+if 'PYNVME_LOGDIR' in os.environ:
+    LOGDIR = os.environ['PYNVME_LOGDIR']
+else:
+    from datetime import datetime
+    LOGDIR = os.path.join('logs', datetime.now().strftime('%Y%m%d_%H%M%S'))
+os.makedirs(LOGDIR, exist_ok=True)
 
 
 TEST_SCALE = 10  #10, 1
@@ -68,7 +77,7 @@ def do_power_cycle(dirty, subsystem, nvme0n1, nvme0):
     
     # report to csv
     ready_time = time.time()-csv_start-10
-    with open("report.csv", "a") as f:
+    with open(os.path.join(LOGDIR, "report.csv"), "a") as f:
         f.write('%.6f\n' % ready_time)
 
     

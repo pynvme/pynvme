@@ -33,11 +33,20 @@
 # -*- coding: utf-8 -*-
 
 
+import os
 import pytest
 import nvme as d
 
 import time
 import logging
+
+# logs directory - use env var from Makefile, or create timestamped dir
+if 'PYNVME_LOGDIR' in os.environ:
+    LOGDIR = os.environ['PYNVME_LOGDIR']
+else:
+    from datetime import datetime
+    LOGDIR = os.path.join('logs', datetime.now().strftime('%Y%m%d_%H%M%S'))
+os.makedirs(LOGDIR, exist_ok=True)
 
 
 TEST_SCALE = 10    #1, 10
@@ -54,7 +63,7 @@ def test_trim_time_one_range(nvme0, nvme0n1, lba_count, repeat, qpair):
     
     start_time = time.time()
     nvme0n1.dsm(qpair, buf, 1).waitdone()
-    with open("report.csv", "a") as f:
+    with open(os.path.join(LOGDIR, "report.csv"), "a") as f:
         f.write('%.6f\n' % (time.time()-start_time))
 
 
@@ -67,7 +76,7 @@ def test_trim_time_all_range_buffer(nvme0, nvme0n1, repeat, io_size, qpair):
     
     start_time = time.time()
     nvme0n1.dsm(qpair, buf, 1).waitdone()
-    with open("report.csv", "a") as f:
+    with open(os.path.join(LOGDIR, "report.csv"), "a") as f:
         f.write('%.6f\n' % (time.time()-start_time))
 
     
@@ -76,5 +85,5 @@ def test_trim_time_all_range_buffer(nvme0, nvme0n1, repeat, io_size, qpair):
 def test_format_time(nvme0n1, repeat):
     start_time = time.time()
     nvme0n1.format()
-    with open("report.csv", "a") as f:
+    with open(os.path.join(LOGDIR, "report.csv"), "a") as f:
         f.write('%.6f\n' % (time.time()-start_time))

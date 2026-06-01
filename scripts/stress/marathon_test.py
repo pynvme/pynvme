@@ -33,11 +33,20 @@
 # -*- coding: utf-8 -*-
 
 
+import os
 import time
 import pytest
 import logging
 
 import nvme as d
+
+# logs directory - use env var from Makefile, or create timestamped dir
+if 'PYNVME_LOGDIR' in os.environ:
+    LOGDIR = os.environ['PYNVME_LOGDIR']
+else:
+    from datetime import datetime
+    LOGDIR = os.path.join('logs', datetime.now().strftime('%Y%m%d_%H%M%S'))
+os.makedirs(LOGDIR, exist_ok=True)
 
 
 TEST_LOOPS = 3  # 3000
@@ -85,7 +94,7 @@ def test_ioworker_longtime(nvme0n1, qcount=4, second=100):
     plt.xlim(0)
     plt.ylim(0)
     plt.tight_layout()
-    plt.savefig("iops.png", dpi=600)
+    plt.savefig(os.path.join(LOGDIR, "iops.png"), dpi=600)
     plt.close()
 
     

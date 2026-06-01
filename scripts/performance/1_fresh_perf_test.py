@@ -33,11 +33,20 @@
 # -*- coding: utf-8 -*-
 
 
+import os
 import time
 import pytest
 import nvme as d
 
 import logging
+
+# logs directory - use env var from Makefile, or create timestamped dir
+if 'PYNVME_LOGDIR' in os.environ:
+    LOGDIR = os.environ['PYNVME_LOGDIR']
+else:
+    from datetime import datetime
+    LOGDIR = os.path.join('logs', datetime.now().strftime('%Y%m%d_%H%M%S'))
+os.makedirs(LOGDIR, exist_ok=True)
 
 
 rand = True
@@ -92,7 +101,7 @@ def do_fill_drive(rand, nvme0n1, nvme0, filename):
     plt.xscale('log')
     plt.yscale('log')
     plt.tight_layout()
-    plt.savefig("lat_hist_"+filename+".png", dpi=300)
+    plt.savefig(os.path.join(LOGDIR, "lat_hist_"+filename+".png"), dpi=300)
     plt.close()
 
     if not rand:
@@ -124,7 +133,7 @@ def test_create_report_file(nvme0, nvme0n1, pcie):
         qpairs = (cdw0&0xffff)+1
     nvme0.getfeatures(7, cb=getfeatures_cb).waitdone()
     
-    with open("report.csv", "w+") as f:
+    with open(os.path.join(LOGDIR, "report.csv"), "w+") as f:
         f.write("%s\n" % vendor)
         f.write("%s\n" % model)
         f.write("%s\n" % fw)
@@ -141,7 +150,7 @@ def test_empty_read_performance(nvme0n1):
     
 # write/read in 1GB, cdm
 def test_1gb_read_write_performance(nvme0n1):
-    with open("report.csv", "a") as f:
+    with open(os.path.join(LOGDIR, "report.csv"), "a") as f:
         f.write("%d\n" % do_ioworker(seq, write, nvme0n1))
         f.write("%d\n" % do_ioworker(seq, read, nvme0n1))
         f.write("%d\n" % do_ioworker(rand, write, nvme0n1))
@@ -152,7 +161,7 @@ def test_1gb_read_write_performance(nvme0n1):
 def test_fill_drive_first_pass(nvme0, nvme0n1):
     io_per_sec = do_fill_drive(seq, nvme0n1, nvme0, "first_seq")
     io_per_sec = io_per_sec[:300]
-    with open("report.csv", "a") as f:
+    with open(os.path.join(LOGDIR, "report.csv"), "a") as f:
         for iops in io_per_sec:
             f.write('%d\n' % iops)
         for i in range(300):
@@ -162,7 +171,7 @@ def test_fill_drive_first_pass(nvme0, nvme0n1):
 def test_fill_drive_random(nvme0, nvme0n1):
     io_per_sec = do_fill_drive(rand, nvme0n1, nvme0, "first_rand")
     io_per_sec = io_per_sec[:600]
-    with open("report.csv", "a") as f:
+    with open(os.path.join(LOGDIR, "report.csv"), "a") as f:
         for iops in io_per_sec:
             f.write('%d\n' % iops)
             
@@ -180,6 +189,6 @@ def test_fill_drive_random(nvme0, nvme0n1):
 def test_fill_drive_after_random(nvme0, nvme0n1, repeat):
     io_per_sec = do_fill_drive(seq, nvme0n1, nvme0, "seq_after_random_%d"%repeat)
     io_per_sec = io_per_sec[:600]
-    with open("report.csv", "a") as f:
+    with open(os.path.join(LOGDIR, "report.csv"), "a") as f:
         for iops in io_per_sec:
             f.write('%d\n' % iops)

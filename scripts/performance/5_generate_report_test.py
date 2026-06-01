@@ -39,13 +39,23 @@ import nvme as d
 import os
 import openpyxl
 
+# logs directory - use env var from Makefile, or create timestamped dir
+if 'PYNVME_LOGDIR' in os.environ:
+    LOGDIR = os.environ['PYNVME_LOGDIR']
+else:
+    from datetime import datetime
+    LOGDIR = os.path.join('logs', datetime.now().strftime('%Y%m%d_%H%M%S'))
+os.makedirs(LOGDIR, exist_ok=True)
+
+
 def test_generate_report_xlsx():
     wb = openpyxl.load_workbook(filename='scripts/performance/report_template.xlsx')
     sheet = wb['pynvme']
     line = 0
 
     # copy report.csv into excel file
-    with open("report.csv", "r") as f:
+    report_csv = os.path.join(LOGDIR, "report.csv")
+    with open(report_csv, "r") as f:
         for value in f.readlines():
             line += 1
             value = value[:-1]
@@ -58,5 +68,5 @@ def test_generate_report_xlsx():
             sheet['C%d' % line] = value
 
     # save the file
-    wb.save(filename='performance_report.xlsx')
-    os.remove("report.csv")
+    wb.save(filename=os.path.join(LOGDIR, 'performance_report.xlsx'))
+    os.remove(report_csv)

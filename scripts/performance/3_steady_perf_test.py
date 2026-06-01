@@ -33,11 +33,20 @@
 # -*- coding: utf-8 -*-
 
 
+import os
 import pytest
 import nvme as d
 
 import time
 import logging
+
+# logs directory - use env var from Makefile, or create timestamped dir
+if 'PYNVME_LOGDIR' in os.environ:
+    LOGDIR = os.environ['PYNVME_LOGDIR']
+else:
+    from datetime import datetime
+    LOGDIR = os.path.join('logs', datetime.now().strftime('%Y%m%d_%H%M%S'))
+os.makedirs(LOGDIR, exist_ok=True)
 
 
 rand = True
@@ -97,7 +106,7 @@ def test_steady_iops_latency(nvme0, nvme0n1, readp):
     max_iops = (r.io_count_read+r.io_count_nonread)*1000//r.mseconds
     logging.info(max_iops)
 
-    with open("report.csv", "a") as f:
+    with open(os.path.join(LOGDIR, "report.csv"), "a") as f:
         f.write('%d\n' % readp)
         f.write('%.2f\n' % (consistency/100))
         f.write('%d\n' % percentile_latency[99.9])
@@ -119,6 +128,6 @@ def test_steady_iops_latency(nvme0, nvme0n1, readp):
         logging.info("iops %d, latency %dus" % (iops, r.latency_average_us))
 
         # write to report
-        with open("report.csv", "a") as f:
+        with open(os.path.join(LOGDIR, "report.csv"), "a") as f:
             f.write('%d\n' % iops)
             f.write('%d\n' % r.latency_average_us)

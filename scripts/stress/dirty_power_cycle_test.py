@@ -39,6 +39,13 @@ import logging
 
 import nvme as d
 
+# Check if quarchpy module is available
+try:
+    import quarchpy
+    HAS_QUARCH = True
+except ImportError:
+    HAS_QUARCH = False
+
 
 # limit verification space
 region_end = 256*1000*1000  # 1GB
@@ -58,6 +65,7 @@ def test_precondition_format(pcie, nvme0, nvme0n1, subsystem):
     nvme0n1.format(512)
     
 
+@pytest.mark.skipif(not HAS_QUARCH, reason="quarchpy module not installed")
 def test_quarch_dirty_power_cycle_single(nvme0, nvme0n1, poweron=None, poweroff=None):
     qdepth = min(1024, 1+(nvme0.cap&0xffff))
     
@@ -145,6 +153,7 @@ class quarch_power:
         pwr.closeConnection()
         
 
+@pytest.mark.skipif(not HAS_QUARCH, reason="quarchpy module not installed")
 @pytest.mark.parametrize("repeat", range(10))
 def test_quarch_dirty_power_cycle_multiple(pciaddr, nvme0, nvme0n1, repeat):
     device_list = {
